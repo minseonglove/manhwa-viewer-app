@@ -1,0 +1,2 @@
+data/src/androidMain/assets/hayai/*.data filter=lfs diff=lfs merge=lfs -text
+data/src/iosMain/resources/**/weights/weight.bin filter=lfs diff=lfs merge=lfs -text
