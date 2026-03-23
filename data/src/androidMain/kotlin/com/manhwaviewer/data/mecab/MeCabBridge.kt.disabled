@@ -1,0 +1,142 @@
+package com.manhwaviewer.data.mecab
+
+import android.content.Context
+import org.chasen.mecab.Tagger
+import org.chasen.mecab.Node
+import java.io.File
+
+/**
+ * MeCab JNI bridge for Android.
+ * Wraps the SWIG-generated Java bindings with Android-friendly initialization.
+ */
+object MeCabBridge {
+
+    private var initialized = false
+    private var tagger: Tagger? = null
+
+    init {
+        System.loadLibrary("mecab-jni")
+    }
+
+    /**
+     * Initialize MeCab with dictionary path.
+     * @param dicDir absolute path to the unidic dictionary directory
+     */
+    fun initialize(dicDir: String) {
+        if (initialized) return
+
+        val rcFile = File(dicDir, "mecabrc")
+        if (!rcFile.exists()) {
+            rcFile.writeText("dicdir = $dicDir\n")
+        }
+
+        tagger = Tagger("-r ${rcFile.absolutePath} -d $dicDir")
+        val error = tagger?.what()
+        if (!error.isNullOrEmpty()) {
+            tagger = null
+            throw IllegalStateException("MeCab initialization failed: $error")
+        }
+        initialized = true
+    }
+
+    /**
+     * Initialize MeCab by extracting dictionary from assets.
+     * @param context Android context
+     * @param assetDicDir directory name inside assets (e.g., "unidic")
+     */
+    fun initializeFromAssets(context: Context, assetDicDir: String) {
+        val destDir = File(context.filesDir, assetDicDir)
+        if (!destDir.exists()) {
+            destDir.mkdirs()
+            copyAssetDir(context, assetDicDir, destDir)
+        }
+        initialize(destDir.absolutePath)
+    }
+
+    /**
+     * Parse text and return raw MeCab output string.
+     */
+    fun parse(text: String): String {
+        requireInitialized()
+        return tagger!!.parse(text) ?: ""
+    }
+
+    /**
+     * Parse text and return list of morphemes.
+     */
+    fun parseToMorphemes(text: String): List<Morpheme> {
+        requireInitialized()
+        val morphemes = mutableListOf<Morpheme>()
+        var node: Node? = tagger!!.parseToNode(text)
+
+        while (node != null) {
+            // Skip BOS/EOS nodes (stat != 0 and != 1 for normal/unknown)
+            if (node.stat.toInt() != 2 && node.stat.toInt() != 3) {
+                val surface = node.surface ?: ""
+                val feature = node.feature ?: ""
+                if (surface.isNotEmpty()) {
+                    morphemes.add(Morpheme(surface, feature))
+                }
+            }
+            node = node.next
+        }
+
+        return morphemes
+    }
+
+    /**
+     * Release MeCab resources.
+     */
+    fun destroy() {
+        tagger?.delete()
+        tagger = null
+        initialized = false
+    }
+
+    fun isInitialized(): Boolean = initialized
+
+    fun version(): String = Tagger.version() ?: "unknown"
+
+    private fun requireInitialized() {
+        check(initialized && tagger != null) {
+            "MeCab is not initialized. Call initialize() first."
+        }
+    }
+
+    private fun copyAssetDir(context: Context, assetPath: String, destDir: File) {
+        val assets = context.assets.list(assetPath) ?: return
+        if (assets.isEmpty()) {
+            // It's a file
+            context.assets.open(assetPath).use { input ->
+                File(destDir.parent!!, File(assetPath).name).outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } else {
+            destDir.mkdirs()
+            for (asset in assets) {
+                copyAssetDir(context, "$assetPath/$asset", File(destDir, asset))
+            }
+        }
+    }
+}
+
+/**
+ * Represents a single morpheme from MeCab analysis.
+ */
+data class Morpheme(
+    val surface: String,
+    val feature: String
+) {
+    /**
+     * Parse feature string into fields.
+     * UniDic format: pos1,pos2,pos3,pos4,cType,cForm,lForm,lemma,orth,pron,...
+     */
+    val features: List<String> by lazy { feature.split(",") }
+
+    val partOfSpeech: String get() = features.getOrElse(0) { "" }
+    val partOfSpeechSub1: String get() = features.getOrElse(1) { "" }
+    val partOfSpeechSub2: String get() = features.getOrElse(2) { "" }
+    val partOfSpeechSub3: String get() = features.getOrElse(3) { "" }
+    val reading: String get() = features.getOrElse(8) { "" }
+}

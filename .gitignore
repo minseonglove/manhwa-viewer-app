@@ -50,6 +50,13 @@ local.properties
 Pods/
 DerivedData/
 
+# NDK / CMake build cache
+.cxx/
+*.o
+*.a
+*.so
+
 # OS
 .DS_Store
 Thumbs.db
+/.omc/

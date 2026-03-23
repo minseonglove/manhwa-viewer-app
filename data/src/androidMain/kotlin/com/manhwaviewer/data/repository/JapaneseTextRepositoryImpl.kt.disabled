@@ -1,0 +1,28 @@
+package com.manhwaviewer.data.repository
+
+import com.manhwaviewer.data.mecab.MeCabBridge
+import com.manhwaviewer.domain.entity.KanaResult
+import com.manhwaviewer.domain.entity.TokenReading
+import com.manhwaviewer.domain.repository.JapaneseTextRepository
+
+class JapaneseTextRepositoryImpl : JapaneseTextRepository {
+
+    override suspend fun toKanaReading(sentence: String): KanaResult {
+        val morphemes = MeCabBridge.parseToMorphemes(sentence)
+
+        val tokens = morphemes.map { morpheme ->
+            val reading = morpheme.reading.ifEmpty { morpheme.surface }
+            TokenReading(
+                surface = morpheme.surface,
+                reading = reading
+            )
+        }
+
+        val fullReading = tokens.joinToString("") { it.reading }
+
+        return KanaResult(
+            fullReading = fullReading,
+            tokens = tokens
+        )
+    }
+}

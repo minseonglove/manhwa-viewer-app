@@ -1,0 +1,5 @@
+headers = archive.h archive_entry.h
+headerFilter = archive.h archive_entry.h
+linkerOpts.ios_x64 = -larchive -lz
+linkerOpts.ios_arm64 = -larchive -lz
+linkerOpts.ios_simulator_arm64 = -larchive -lz

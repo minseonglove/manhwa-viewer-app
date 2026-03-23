@@ -1,12 +1,14 @@
 package com.manhwaviewer.presentation
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import com.manhwaviewer.presentation.screen.HomeScreen
+import androidx.navigation.compose.rememberNavController
+import com.manhwaviewer.presentation.navigation.NavGraph
+import com.manhwaviewer.presentation.theme.MangaLensTheme
 
 @Composable
 fun App() {
-    MaterialTheme {
-        HomeScreen()
+    MangaLensTheme {
+        val navController = rememberNavController()
+        NavGraph(navController = navController)
     }
 }
