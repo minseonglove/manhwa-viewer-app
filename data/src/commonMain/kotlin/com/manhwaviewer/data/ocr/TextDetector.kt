@@ -6,8 +6,6 @@ data class DetectedRegion(
     val width: Int,
     val height: Int,
     val croppedImageBytes: ByteArray,
-    val isHorizontal: Boolean = false,
-    val detectedText: String? = null,
 )
 
 interface TextDetector {
