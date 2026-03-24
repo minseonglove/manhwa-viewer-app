@@ -18,6 +18,10 @@ kotlin {
                 create("libarchive") {
                     defFile = file("src/nativeInterop/cinterop/libarchive.def")
                 }
+                create("onnxruntime") {
+                    defFile = file("src/nativeInterop/cinterop/onnxruntime.def")
+                    compilerOpts("-I${project.rootDir}/libs/onnxruntime/include")
+                }
             }
         }
     }
@@ -32,8 +36,17 @@ kotlin {
             implementation(libs.sqlite.bundled)
             implementation(libs.datastore.preferences.core)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(kotlin("test"))
+        }
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.onnxruntime.android)
+            implementation(libs.mlkit.text.recognition.japanese)
+            implementation(libs.kotlinx.coroutines.play.services)
+            implementation(libs.mlkit.text.recognition.japanese)
+            implementation(libs.kotlinx.coroutines.play.services)
         }
     }
 }
@@ -44,6 +57,7 @@ android {
 
     defaultConfig {
         minSdk = 24
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -66,6 +80,10 @@ android {
 }
 
 dependencies {
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("junit:junit:4.13.2")
     add("kspAndroid", libs.room.compiler)
     add("kspIosX64", libs.room.compiler)
     add("kspIosArm64", libs.room.compiler)

@@ -1,6 +1,11 @@
 package com.manhwaviewer.android.di
 
 import com.manhwaviewer.data.archive.ArchiveReader
+import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
+import com.manhwaviewer.data.ocr.CtdTextDetector
+import com.manhwaviewer.data.ocr.MlKitTextRecognizer
+import com.manhwaviewer.data.ocr.OcrRepositoryImpl
+import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.db.getDatabaseBuilder
 import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.preference.ViewerPreferenceDataStore
@@ -9,9 +14,13 @@ import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
+import com.manhwaviewer.domain.repository.OcrRepository
+import com.manhwaviewer.domain.repository.TextDetectionRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
+import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
+import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
@@ -51,6 +60,14 @@ val appModule = module {
     single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get()) }
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
+    single<OcrRepository> { OcrRepositoryImpl { AndroidMangaOcrEngine(androidContext()) } }
+    single<TextDetectionRepository> {
+        TextDetectionRepositoryImpl(
+            CtdTextDetector(androidContext()),
+            { AndroidMangaOcrEngine(androidContext()) },
+            MlKitTextRecognizer(),
+        )
+    }
 
     // UseCases
     factory { GetRecentArchivesUseCase(get()) }
@@ -66,6 +83,8 @@ val appModule = module {
     factory { UpsertArchiveUseCase(get()) }
     factory { GetImageEntriesUseCase(get()) }
     factory { GetImageBytesUseCase(get()) }
+    factory { RecognizeTextUseCase(get()) }
+    factory { RecognizePageTextUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
