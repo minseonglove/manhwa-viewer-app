@@ -52,10 +52,25 @@ class AndroidMangaOcrEngineTest {
     }
 
     @Test
-    fun detectsAndRecognizesWithCtd() = runTest {
+    fun detectsAndRecognizesWithCtd_02() = runTest {
+        runPageOcr("test/02.jpeg")
+    }
+
+    @Test
+    fun detectsAndRecognizesWithCtd_01() = runTest {
+        runPageOcr("test/01.jpeg")
+    }
+
+    @Test
+    fun detectsAndRecognizesWithCtd_03() = runTest {
+        runPageOcr("test/03.jpeg")
+    }
+
+    private suspend fun runPageOcr(assetPath: String) {
+        val fileName = assetPath.substringAfterLast("/")
         val imageBytes = InstrumentationRegistry.getInstrumentation()
-            .context.assets.open("test/02.jpeg").readBytes()
-        Log.d(TAG, "[02.jpeg CTD+OCR] Image loaded: ${imageBytes.size} bytes")
+            .context.assets.open(assetPath).readBytes()
+        Log.d(TAG, "[$fileName CTD+OCR] Image loaded: ${imageBytes.size} bytes")
 
         val detector = CtdTextDetector(context)
         val repo = TextDetectionRepositoryImpl(
@@ -68,14 +83,14 @@ class AndroidMangaOcrEngineTest {
         val blocks = repo.detectAndRecognize(imageBytes)
         val elapsed = System.currentTimeMillis() - startTime
 
-        Log.d(TAG, "=== CTD Page OCR (02.jpeg) ===")
+        Log.d(TAG, "=== CTD Page OCR ($fileName) ===")
         Log.d(TAG, "Detected ${blocks.size} text blocks in ${elapsed}ms")
         blocks.forEachIndexed { i, block ->
             Log.d(TAG, "  [$i] (${block.x},${block.y} ${block.width}x${block.height}) \"${block.text}\"")
         }
-        Log.d(TAG, "==============================")
+        Log.d(TAG, "================================")
 
-        assertFalse("Should detect at least one text block", blocks.isEmpty())
+        assertFalse("Should detect at least one text block from $fileName", blocks.isEmpty())
     }
 
     private suspend fun printOcrResult(assetPath: String) {
