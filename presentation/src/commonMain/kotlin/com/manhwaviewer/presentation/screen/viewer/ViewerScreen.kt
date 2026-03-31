@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,8 +71,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.util.toImageBitmap
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
@@ -91,6 +95,29 @@ private val PageTranslateText = Color(0xFF10B981)
 private val BoundingBoxColor = Color(0xFF10B981)
 private val PipelineGreen = Color(0xFF10B981)
 private val PipelineOrange = Color(0xFFF59E0B)
+
+/** DOUBLE_PAGE 모드: 스프레드(양면) 인덱스 ↔ 실제 페이지 인덱스 변환 */
+private fun spreadCount(totalPages: Int): Int {
+    if (totalPages <= 1) return totalPages
+    return 1 + (totalPages - 1 + 1) / 2  // 표지(1) + 나머지 짝수 묶음
+}
+
+private fun spreadToFirstPage(spreadIndex: Int): Int {
+    if (spreadIndex == 0) return 0  // 표지
+    return spreadIndex * 2 - 1
+}
+
+private fun spreadToPages(spreadIndex: Int, totalPages: Int): Pair<Int, Int?> {
+    if (spreadIndex == 0) return Pair(0, null)  // 표지는 단면
+    val first = spreadIndex * 2 - 1
+    val second = first + 1
+    return Pair(first, if (second < totalPages) second else null)
+}
+
+private fun pageToSpread(pageIndex: Int): Int {
+    if (pageIndex == 0) return 0
+    return (pageIndex + 1) / 2
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -122,78 +149,234 @@ fun ViewerScreen(
         }
     }
 
+    val viewMode = state.preference.viewMode
+    val isDoublePage = viewMode == ViewMode.DOUBLE_PAGE
+
+    val pagerPageCount = if (isDoublePage) spreadCount(state.totalPages) else state.totalPages
+
     val pagerState = rememberPagerState(
-        initialPage = state.currentPage,
-        pageCount = { state.totalPages },
+        initialPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage,
+        pageCount = { pagerPageCount },
     )
 
     LaunchedEffect(pagerState.currentPage) {
-        viewModel.onIntent(ViewerIntent.SetPage(pagerState.currentPage))
+        val actualPage = if (isDoublePage) spreadToFirstPage(pagerState.currentPage) else pagerState.currentPage
+        viewModel.onIntent(ViewerIntent.SetPage(actualPage))
     }
 
     LaunchedEffect(state.currentPage) {
-        if (pagerState.currentPage != state.currentPage && state.totalPages > 0) {
-            pagerState.animateScrollToPage(state.currentPage)
+        val targetPagerPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
+        if (pagerState.currentPage != targetPagerPage && pagerPageCount > 0) {
+            pagerState.animateScrollToPage(targetPagerPage)
         }
     }
 
     var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
 
+    val viewerBackground = when (state.preference.backgroundColor) {
+        BackgroundColor.BLACK -> Color.Black
+        BackgroundColor.WHITE -> Color.White
+        BackgroundColor.AUTO -> Color.Black // AUTO는 기본 검정 (향후 이미지 분석 기반 결정)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(viewerBackground)
             .onSizeChanged { viewerContainerSize = it },
     ) {
         if (state.isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.White,
+                color = if (state.preference.backgroundColor == BackgroundColor.WHITE) Color.Black else Color.White,
             )
         } else if (state.totalPages > 0) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
-                userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
-            ) { page ->
-                val imageBytes = produceState<ByteArray?>(null, page) {
-                    value = viewModel.getImageBytes(page)
-                }
-                ZoomableImage(
-                    imageBytes = imageBytes.value,
-                    page = page,
-                    keepZoomState = state.preference.keepZoomState,
-                    isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
-                    cropRect = if (page == state.currentPage) state.cropRect else null,
-                    ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
-                    pagerSettledPage = pagerState.settledPage,
-                    onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
-                    onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
-                    onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
-                    onUpdateCropRect = { rect ->
-                        viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
-                    },
-                    onTextBlockTap = { block ->
-                        viewModel.onIntent(
-                            ViewerIntent.UpdateCropRect(
-                                CropRect(
-                                    startX = block.x.toFloat(),
-                                    startY = block.y.toFloat(),
-                                    endX = (block.x + block.width).toFloat(),
-                                    endY = (block.y + block.height).toFloat(),
+            when (viewMode) {
+                ViewMode.WEBTOON -> {
+                    VerticalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                    ) { page ->
+                        val imageBytes = produceState<ByteArray?>(null, page) {
+                            value = viewModel.getImageBytes(page)
+                        }
+                        ZoomableImage(
+                            imageBytes = imageBytes.value,
+                            page = page,
+                            keepZoomState = state.preference.keepZoomState,
+                            isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
+                            cropRect = if (page == state.currentPage) state.cropRect else null,
+                            ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
+                            pagerSettledPage = pagerState.settledPage,
+                            onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                            onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
+                            onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                            onUpdateCropRect = { rect ->
+                                viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
+                            },
+                            onTextBlockTap = { block ->
+                                viewModel.onIntent(
+                                    ViewerIntent.UpdateCropRect(
+                                        CropRect(
+                                            startX = block.x.toFloat(),
+                                            startY = block.y.toFloat(),
+                                            endX = (block.x + block.width).toFloat(),
+                                            endY = (block.y + block.height).toFloat(),
+                                        )
+                                    )
                                 )
-                            )
+                                viewModel.onIntent(
+                                    ViewerIntent.ConfirmCrop(
+                                        containerWidth = viewerContainerSize.width,
+                                        containerHeight = viewerContainerSize.height,
+                                    )
+                                )
+                            },
                         )
-                        // Show this block's text in bottom sheet
-                        viewModel.onIntent(
-                            ViewerIntent.ConfirmCrop(
-                                containerWidth = viewerContainerSize.width,
-                                containerHeight = viewerContainerSize.height,
+                    }
+                }
+
+                ViewMode.DOUBLE_PAGE -> {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
+                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                    ) { spreadIndex ->
+                        val (leftPage, rightPage) = spreadToPages(spreadIndex, state.totalPages)
+                        val leftBytes = produceState<ByteArray?>(null, leftPage) {
+                            value = viewModel.getImageBytes(leftPage)
+                        }
+                        val rightBytes = if (rightPage != null) {
+                            produceState<ByteArray?>(null, rightPage) {
+                                value = viewModel.getImageBytes(rightPage)
+                            }
+                        } else {
+                            null
+                        }
+
+                        if (rightPage == null) {
+                            // 단면 (표지 또는 마지막 홀수 페이지)
+                            ZoomableImage(
+                                imageBytes = leftBytes.value,
+                                page = leftPage,
+                                keepZoomState = state.preference.keepZoomState,
+                                isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
+                                cropRect = if (leftPage == state.currentPage) state.cropRect else null,
+                                ocrResults = if (leftPage == state.currentPage) state.ocrResults else emptyList(),
+                                pagerSettledPage = pagerState.settledPage,
+                                onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                                onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
+                                onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                                onUpdateCropRect = { rect ->
+                                    viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
+                                },
+                                onTextBlockTap = { block ->
+                                    viewModel.onIntent(
+                                        ViewerIntent.UpdateCropRect(
+                                            CropRect(
+                                                startX = block.x.toFloat(),
+                                                startY = block.y.toFloat(),
+                                                endX = (block.x + block.width).toFloat(),
+                                                endY = (block.y + block.height).toFloat(),
+                                            )
+                                        )
+                                    )
+                                    viewModel.onIntent(
+                                        ViewerIntent.ConfirmCrop(
+                                            containerWidth = viewerContainerSize.width,
+                                            containerHeight = viewerContainerSize.height,
+                                        )
+                                    )
+                                },
                             )
+                        } else {
+                            // 양면 스프레드
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    ZoomableImage(
+                                        imageBytes = leftBytes.value,
+                                        page = leftPage,
+                                        keepZoomState = state.preference.keepZoomState,
+                                        isAreaSelectMode = false,
+                                        cropRect = null,
+                                        ocrResults = emptyList(),
+                                        pagerSettledPage = pagerState.settledPage,
+                                        onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                                        onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
+                                        onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                                        onUpdateCropRect = {},
+                                        onTextBlockTap = {},
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    ZoomableImage(
+                                        imageBytes = rightBytes?.value,
+                                        page = rightPage,
+                                        keepZoomState = state.preference.keepZoomState,
+                                        isAreaSelectMode = false,
+                                        cropRect = null,
+                                        ocrResults = emptyList(),
+                                        pagerSettledPage = pagerState.settledPage,
+                                        onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                                        onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
+                                        onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                                        onUpdateCropRect = {},
+                                        onTextBlockTap = {},
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ViewMode.SINGLE_PAGE -> {
+                    // 기존 HorizontalPager 코드 그대로 유지
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
+                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                    ) { page ->
+                        val imageBytes = produceState<ByteArray?>(null, page) {
+                            value = viewModel.getImageBytes(page)
+                        }
+                        ZoomableImage(
+                            imageBytes = imageBytes.value,
+                            page = page,
+                            keepZoomState = state.preference.keepZoomState,
+                            isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
+                            cropRect = if (page == state.currentPage) state.cropRect else null,
+                            ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
+                            pagerSettledPage = pagerState.settledPage,
+                            onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                            onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
+                            onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                            onUpdateCropRect = { rect ->
+                                viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
+                            },
+                            onTextBlockTap = { block ->
+                                viewModel.onIntent(
+                                    ViewerIntent.UpdateCropRect(
+                                        CropRect(
+                                            startX = block.x.toFloat(),
+                                            startY = block.y.toFloat(),
+                                            endX = (block.x + block.width).toFloat(),
+                                            endY = (block.y + block.height).toFloat(),
+                                        )
+                                    )
+                                )
+                                viewModel.onIntent(
+                                    ViewerIntent.ConfirmCrop(
+                                        containerWidth = viewerContainerSize.width,
+                                        containerHeight = viewerContainerSize.height,
+                                    )
+                                )
+                            },
                         )
-                    },
-                )
+                    }
+                }
             }
         } else {
             Text(
@@ -454,7 +637,14 @@ fun ViewerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${state.currentPage + 1} / ${state.totalPages}",
+                        text = if (isDoublePage && state.totalPages > 1) {
+                            val spread = pageToSpread(state.currentPage)
+                            val (left, right) = spreadToPages(spread, state.totalPages)
+                            if (right != null) "${left + 1}-${right + 1} / ${state.totalPages}"
+                            else "${left + 1} / ${state.totalPages}"
+                        } else {
+                            "${state.currentPage + 1} / ${state.totalPages}"
+                        },
                         color = Color.White.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -467,7 +657,14 @@ fun ViewerScreen(
                             .padding(horizontal = 8.dp, vertical = 2.dp),
                     ) {
                         Text(
-                            text = if (state.preference.readingDirection == ReadingDirection.RTL) "RTL \u2190" else "LTR \u2192",
+                            text = buildString {
+                                append(if (state.preference.readingDirection == ReadingDirection.RTL) "RTL \u2190" else "LTR \u2192")
+                                when (viewMode) {
+                                    ViewMode.WEBTOON -> append(" \u00B7 \uC6F9\uD230")
+                                    ViewMode.DOUBLE_PAGE -> append(" \u00B7 \uC591\uBA74")
+                                    ViewMode.SINGLE_PAGE -> {}
+                                }
+                            },
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 11.sp,
                         )
@@ -477,10 +674,13 @@ fun ViewerScreen(
                 // 2행: 슬라이더
                 if (state.totalPages > 1) {
                     Slider(
-                        value = state.currentPage.toFloat(),
-                        onValueChange = { viewModel.onIntent(ViewerIntent.SetPage(it.toInt())) },
-                        valueRange = 0f..(state.totalPages - 1).toFloat(),
-                        steps = state.totalPages - 2,
+                        value = if (isDoublePage) pageToSpread(state.currentPage).toFloat() else state.currentPage.toFloat(),
+                        onValueChange = {
+                            val page = if (isDoublePage) spreadToFirstPage(it.toInt()) else it.toInt()
+                            viewModel.onIntent(ViewerIntent.SetPage(page))
+                        },
+                        valueRange = 0f..(pagerPageCount - 1).toFloat().coerceAtLeast(0f),
+                        steps = (pagerPageCount - 2).coerceAtLeast(0),
                         colors = SliderDefaults.colors(
                             thumbColor = OcrButtonColor,
                             activeTrackColor = OcrButtonColor,
