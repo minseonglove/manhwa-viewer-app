@@ -88,10 +88,10 @@ val appModule = module {
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
-    viewModel { FileBrowserViewModel(get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
+    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
     viewModel { RecentViewModel(get()) }
-    viewModel { ImageGalleryViewModel(get()) }
+    viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get()) }
+    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
 }
