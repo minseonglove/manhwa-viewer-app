@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.domain.entity.ReadingDirection
+import com.manhwaviewer.domain.entity.TranslationEngine
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
 import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
@@ -22,6 +23,9 @@ class ViewerPreferenceDataStore(
         val VIEW_MODE = stringPreferencesKey("view_mode")
         val KEEP_ZOOM_STATE = booleanPreferencesKey("keep_zoom_state")
         val BACKGROUND_COLOR = stringPreferencesKey("background_color")
+        val DEFAULT_TRANSLATION_ENGINE = stringPreferencesKey("default_translation_engine")
+        val OFFLINE_TRANSLATION = booleanPreferencesKey("offline_translation")
+        val AUTO_TRANSLATE_ON_PAGE_LOAD = booleanPreferencesKey("auto_translate_on_page_load")
     }
 
     override fun getPreference(): Flow<ViewerPreference> =
@@ -37,6 +41,11 @@ class ViewerPreferenceDataStore(
                 backgroundColor = prefs[Keys.BACKGROUND_COLOR]
                     ?.let { runCatching { BackgroundColor.valueOf(it) }.getOrNull() }
                     ?: BackgroundColor.BLACK,
+                defaultTranslationEngine = prefs[Keys.DEFAULT_TRANSLATION_ENGINE]
+                    ?.let { runCatching { TranslationEngine.valueOf(it) }.getOrNull() }
+                    ?: TranslationEngine.ML_KIT,
+                offlineTranslation = prefs[Keys.OFFLINE_TRANSLATION] ?: true,
+                autoTranslateOnPageLoad = prefs[Keys.AUTO_TRANSLATE_ON_PAGE_LOAD] ?: false,
             )
         }
 
@@ -46,6 +55,9 @@ class ViewerPreferenceDataStore(
             prefs[Keys.VIEW_MODE] = preference.viewMode.name
             prefs[Keys.KEEP_ZOOM_STATE] = preference.keepZoomState
             prefs[Keys.BACKGROUND_COLOR] = preference.backgroundColor.name
+            prefs[Keys.DEFAULT_TRANSLATION_ENGINE] = preference.defaultTranslationEngine.name
+            prefs[Keys.OFFLINE_TRANSLATION] = preference.offlineTranslation
+            prefs[Keys.AUTO_TRANSLATE_ON_PAGE_LOAD] = preference.autoTranslateOnPageLoad
         }
     }
 }

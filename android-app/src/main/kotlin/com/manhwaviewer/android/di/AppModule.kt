@@ -1,6 +1,7 @@
 package com.manhwaviewer.android.di
 
 import com.manhwaviewer.data.archive.ArchiveReader
+import com.manhwaviewer.data.cache.AndroidCacheRepository
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
 import com.manhwaviewer.data.ocr.CtdTextDetector
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
@@ -14,11 +15,14 @@ import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
+import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.OcrRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
+import com.manhwaviewer.domain.usecase.ClearCacheUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
+import com.manhwaviewer.domain.usecase.GetCacheSizeUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
@@ -60,6 +64,7 @@ val appModule = module {
     single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get()) }
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
+    single<CacheRepository> { AndroidCacheRepository(androidContext()) }
     single<OcrRepository> { OcrRepositoryImpl { AndroidMangaOcrEngine(androidContext()) } }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
@@ -85,6 +90,8 @@ val appModule = module {
     factory { GetImageBytesUseCase(get()) }
     factory { RecognizeTextUseCase(get()) }
     factory { RecognizePageTextUseCase(get()) }
+    factory { GetCacheSizeUseCase(get()) }
+    factory { ClearCacheUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
@@ -93,5 +100,5 @@ val appModule = module {
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
     viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { SettingsViewModel(get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }
