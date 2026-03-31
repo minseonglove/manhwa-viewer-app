@@ -5,7 +5,7 @@ import android.os.Build
 import android.os.Environment
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.io.File
 
 actual class MediaScanner(private val context: Context) {
@@ -22,7 +22,6 @@ actual class MediaScanner(private val context: Context) {
         if (!dir.exists() || !dir.isDirectory) return emptyList()
 
         val results = mutableListOf<ArchiveFile>()
-        val now = Clock.System.now()
 
         dir.listFiles()?.forEach { file ->
             when {
@@ -34,7 +33,7 @@ actual class MediaScanner(private val context: Context) {
                             fileName = file.name,
                             type = ArchiveType.FOLDER,
                             totalPages = imageCount,
-                            addedAt = now,
+                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
                             hasImages = imageCount > 0,
                         )
                     )
@@ -50,7 +49,7 @@ actual class MediaScanner(private val context: Context) {
                                 "cbr" -> ArchiveType.CBR
                                 else -> ArchiveType.ZIP
                             },
-                            addedAt = now,
+                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
                             hasImages = true,
                         )
                     )
@@ -61,7 +60,7 @@ actual class MediaScanner(private val context: Context) {
                             filePath = file.absolutePath,
                             fileName = file.name,
                             type = ArchiveType.IMAGE,
-                            addedAt = now,
+                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
                             hasImages = true,
                         )
                     )

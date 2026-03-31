@@ -7,9 +7,13 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import platform.Foundation.NSDate
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileModificationDate
 import platform.Foundation.NSUserDomainMask
+import platform.Foundation.timeIntervalSince1970
 
 actual class MediaScanner {
 
@@ -22,7 +26,6 @@ actual class MediaScanner {
             ?: return emptyList()
 
         val results = mutableListOf<ArchiveFile>()
-        val now = Clock.System.now()
 
         for (i in 0 until contents.count.toInt()) {
             val name = contents.objectAtIndex(i.toULong()) as? String ?: continue
@@ -43,7 +46,7 @@ actual class MediaScanner {
                         fileName = name,
                         type = ArchiveType.FOLDER,
                         totalPages = imageCount,
-                        addedAt = now,
+                        addedAt = getFileModifiedAt(fullPath),
                         hasImages = imageCount > 0,
                     )
                 )
@@ -59,7 +62,7 @@ actual class MediaScanner {
                                 "cbr" -> ArchiveType.CBR
                                 else -> ArchiveType.ZIP
                             },
-                            addedAt = now,
+                            addedAt = getFileModifiedAt(fullPath),
                             hasImages = true,
                         )
                     )
@@ -79,6 +82,16 @@ actual class MediaScanner {
             error = null,
         )
         return requireNotNull(docDir?.path) { "NSDocumentDirectory not found" }
+    }
+
+    private fun getFileModifiedAt(path: String): Instant {
+        val attrs = NSFileManager.defaultManager.attributesOfItemAtPath(path, error = null)
+        val date = attrs?.get(NSFileModificationDate) as? NSDate
+        return if (date != null) {
+            Instant.fromEpochMilliseconds((date.timeIntervalSince1970 * 1000).toLong())
+        } else {
+            Clock.System.now()
+        }
     }
 
     private fun countImages(folderPath: String): Int {
