@@ -53,17 +53,17 @@ class AndroidMangaOcrEngineTest {
 
     @Test
     fun detectsAndRecognizesWithCtd_02() = runTest {
-        runPageOcr("test/02.jpeg")
+        runPageOcr("test/05.png")
     }
 
     @Test
     fun detectsAndRecognizesWithCtd_01() = runTest {
-        runPageOcr("test/01.jpeg")
+        runPageOcr("test/06.png")
     }
 
     @Test
     fun detectsAndRecognizesWithCtd_03() = runTest {
-        runPageOcr("test/03.jpeg")
+        runPageOcr("test/07.png")
     }
 
     private suspend fun runPageOcr(assetPath: String) {
