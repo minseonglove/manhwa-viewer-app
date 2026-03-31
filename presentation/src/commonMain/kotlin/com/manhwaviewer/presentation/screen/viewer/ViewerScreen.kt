@@ -159,15 +159,22 @@ fun ViewerScreen(
         pageCount = { pagerPageCount },
     )
 
+    // 프로그래밍적 페이지 이동(슬라이더, 초기 이동 등)인지 추적
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
+
     LaunchedEffect(pagerState.currentPage) {
-        val actualPage = if (isDoublePage) spreadToFirstPage(pagerState.currentPage) else pagerState.currentPage
-        viewModel.onIntent(ViewerIntent.SetPage(actualPage))
+        if (!isProgrammaticScroll) {
+            val actualPage = if (isDoublePage) spreadToFirstPage(pagerState.currentPage) else pagerState.currentPage
+            viewModel.onIntent(ViewerIntent.SetPage(actualPage))
+        }
     }
 
     LaunchedEffect(state.currentPage) {
         val targetPagerPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
         if (pagerState.currentPage != targetPagerPage && pagerPageCount > 0) {
-            pagerState.animateScrollToPage(targetPagerPage)
+            isProgrammaticScroll = true
+            pagerState.scrollToPage(targetPagerPage)
+            isProgrammaticScroll = false
         }
     }
 
@@ -520,6 +527,7 @@ fun ViewerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(OverlayBackground)
+                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -601,6 +609,7 @@ fun ViewerScreen(
                     showTranslationOptions = false
                 },
                 modifier = Modifier
+                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(top = 52.dp),
             )
@@ -617,6 +626,7 @@ fun ViewerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(OverlayBackground)
+                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
@@ -1003,8 +1013,8 @@ private fun ZoomableImage(
                 onClick = if (!isAreaSelectMode) {
                     { offset ->
                         when {
-                            offset.x < containerWidth / 3f -> onTapLeft()
-                            offset.x > containerWidth * 2f / 3f -> onTapRight()
+                            offset.x < containerWidth * 0.2f -> onTapLeft()
+                            offset.x > containerWidth * 0.8f -> onTapRight()
                             else -> onTapCenter()
                         }
                     }
