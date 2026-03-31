@@ -34,9 +34,9 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.telephoto.zoomable)
         }
         androidMain.dependencies {
-            implementation(libs.telephoto.zoomable)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

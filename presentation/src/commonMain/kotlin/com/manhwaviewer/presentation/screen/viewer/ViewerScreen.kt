@@ -1,6 +1,7 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -12,20 +13,22 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,7 +46,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -56,13 +58,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ReadingDirection
@@ -70,6 +70,8 @@ import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.presentation.util.toImageBitmap
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
+import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
@@ -91,13 +93,15 @@ private val PipelineOrange = Color(0xFFF59E0B)
 fun ViewerScreen(
     archiveId: Long,
     startPage: Int = 0,
+    sortByDate: Boolean = false,
+    sortAscending: Boolean = true,
     onBack: () -> Unit,
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(archiveId) {
-        viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage))
+        viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
     }
 
     DisposableEffect(Unit) {
@@ -113,6 +117,12 @@ fun ViewerScreen(
 
     LaunchedEffect(pagerState.currentPage) {
         viewModel.onIntent(ViewerIntent.SetPage(pagerState.currentPage))
+    }
+
+    LaunchedEffect(state.currentPage) {
+        if (pagerState.currentPage != state.currentPage && state.totalPages > 0) {
+            pagerState.animateScrollToPage(state.currentPage)
+        }
     }
 
     Box(
@@ -141,6 +151,7 @@ fun ViewerScreen(
                     isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                     cropRect = if (page == state.currentPage) state.cropRect else null,
                     ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
+                    pagerSettledPage = pagerState.settledPage,
                     onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
                     onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                     onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
@@ -204,6 +215,7 @@ fun ViewerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(OverlayBackground)
+                        .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -331,6 +343,7 @@ fun ViewerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(OverlayBackground)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 // 파이프라인 인디케이터
@@ -648,7 +661,7 @@ private fun OcrBottomSheet(
     }
 }
 
-// ── ZoomableImage (Edge-Fling + keepZoomState + 크롭 오버레이 + BB 하이라이트) ──
+// ── ZoomableImage (telephoto + keepZoomState + 크롭 오버레이 + BB 하이라이트) ──
 
 @Composable
 private fun ZoomableImage(
@@ -658,6 +671,7 @@ private fun ZoomableImage(
     isAreaSelectMode: Boolean,
     cropRect: CropRect?,
     ocrResults: List<TextBlock>,
+    pagerSettledPage: Int,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
@@ -665,111 +679,36 @@ private fun ZoomableImage(
     onConfirmCrop: () -> Unit,
     onTextBlockTap: (TextBlock) -> Unit,
 ) {
-    // keepZoomState: true이면 key에서 page를 제거하여 페이지 전환 시 상태 유지
-    val zoomKey = if (keepZoomState) "stable" else "page-$page"
+    val zoomableState = rememberZoomableState()
 
-    var scale by remember(zoomKey) { mutableFloatStateOf(1f) }
-    var offsetX by remember(zoomKey) { mutableFloatStateOf(0f) }
-    var offsetY by remember(zoomKey) { mutableFloatStateOf(0f) }
-
-    // Edge-Fling: 경계 도달 감지
-    var edgeFlingCount by remember { mutableIntStateOf(0) }
-    var lastEdgeDirection by remember { mutableIntStateOf(0) } // -1: left, 1: right
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-
-    val edgeFlingThreshold = 2
-
-    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) {
-            val maxOffsetX = (containerSize.width * (scale - 1f)) / 2f
-            val maxOffsetY = (containerSize.height * (scale - 1f)) / 2f
-
-            val newOffsetX = offsetX + panChange.x
-            val newOffsetY = offsetY + panChange.y
-
-            // Clamp offsets
-            offsetX = newOffsetX.coerceIn(-maxOffsetX, maxOffsetX)
-            offsetY = newOffsetY.coerceIn(-maxOffsetY, maxOffsetY)
-
-            // Edge-Fling 감지: 경계에 도달하고 추가 팬이 같은 방향일 때
-            val atLeftEdge = offsetX >= maxOffsetX && panChange.x > 0
-            val atRightEdge = offsetX <= -maxOffsetX && panChange.x < 0
-
-            if (atLeftEdge) {
-                if (lastEdgeDirection == -1) {
-                    edgeFlingCount++
-                } else {
-                    edgeFlingCount = 1
-                    lastEdgeDirection = -1
-                }
-                if (edgeFlingCount >= edgeFlingThreshold) {
-                    onTapLeft()
-                    edgeFlingCount = 0
-                }
-            } else if (atRightEdge) {
-                if (lastEdgeDirection == 1) {
-                    edgeFlingCount++
-                } else {
-                    edgeFlingCount = 1
-                    lastEdgeDirection = 1
-                }
-                if (edgeFlingCount >= edgeFlingThreshold) {
-                    onTapRight()
-                    edgeFlingCount = 0
-                }
-            } else {
-                edgeFlingCount = 0
-                lastEdgeDirection = 0
-            }
-        } else {
-            offsetX = 0f
-            offsetY = 0f
-            edgeFlingCount = 0
+    // Reset zoom when page scrolls off-screen (unless keepZoomState is enabled)
+    if (!keepZoomState && pagerSettledPage != page) {
+        LaunchedEffect(Unit) {
+            zoomableState.resetZoom(animationSpec = snap())
         }
     }
+
+    var containerWidth by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .pointerInput(isAreaSelectMode) {
+            .onSizeChanged { containerWidth = it.width }
+            .then(
                 if (!isAreaSelectMode) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            if (scale > 1f) {
-                                scale = 1f
-                                offsetX = 0f
-                                offsetY = 0f
-                            } else {
-                                scale = 2f
-                            }
-                        },
-                        onTap = { offset ->
-                            if (scale <= 1f) {
-                                val screenWidth = size.width
-                                when {
-                                    offset.x < screenWidth / 3 -> onTapLeft()
-                                    offset.x > screenWidth * 2 / 3 -> onTapRight()
-                                    else -> onTapCenter()
-                                }
+                    Modifier.zoomable(
+                        state = zoomableState,
+                        onClick = { offset ->
+                            when {
+                                offset.x < containerWidth / 3f -> onTapLeft()
+                                offset.x > containerWidth * 2f / 3f -> onTapRight()
+                                else -> onTapCenter()
                             }
                         },
                     )
-                }
-            }
-            .then(
-                if (!isAreaSelectMode) {
-                    Modifier.transformable(state = transformableState)
                 } else {
                     Modifier
                 }
-            )
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale,
-                translationX = offsetX,
-                translationY = offsetY,
             ),
         contentAlignment = Alignment.Center,
     ) {
