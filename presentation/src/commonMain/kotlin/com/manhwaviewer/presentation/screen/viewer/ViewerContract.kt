@@ -34,6 +34,7 @@ data class ViewerState(
     val cropRect: CropRect? = null,
     val pipelineStage: PipelineStage = PipelineStage.IDLE,
     val ocrBottomSheetText: String? = null,
+    val isOcrSheetExpanded: Boolean = false,
 )
 
 sealed interface ViewerIntent {
@@ -46,7 +47,8 @@ sealed interface ViewerIntent {
     data object RunPageOcr : ViewerIntent
     data class SetTranslationMode(val mode: TranslationMode) : ViewerIntent
     data class UpdateCropRect(val rect: CropRect) : ViewerIntent
-    data object ConfirmCrop : ViewerIntent
+    data class ConfirmCrop(val containerWidth: Int, val containerHeight: Int) : ViewerIntent
+    data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent
 }
 

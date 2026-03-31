@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +78,6 @@ import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.abs
 
 private val OcrButtonColor = Color(0xFF4A90D9)
 private val OverlayBackground = Color(0xB3000000) // rgba(0,0,0,0.7)
@@ -89,6 +92,7 @@ private val BoundingBoxColor = Color(0xFF10B981)
 private val PipelineGreen = Color(0xFF10B981)
 private val PipelineOrange = Color(0xFFF59E0B)
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ViewerScreen(
     archiveId: Long,
@@ -99,6 +103,14 @@ fun ViewerScreen(
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    var showTranslationOptions by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = state.translationMode != TranslationMode.NONE || showTranslationOptions) {
+        if (state.translationMode != TranslationMode.NONE) {
+            viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
+        }
+        showTranslationOptions = false
+    }
 
     LaunchedEffect(archiveId) {
         viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
@@ -125,10 +137,13 @@ fun ViewerScreen(
         }
     }
 
+    var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            .onSizeChanged { viewerContainerSize = it },
     ) {
         if (state.isLoading) {
             CircularProgressIndicator(
@@ -140,6 +155,7 @@ fun ViewerScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
+                userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
             ) { page ->
                 val imageBytes = produceState<ByteArray?>(null, page) {
                     value = viewModel.getImageBytes(page)
@@ -158,7 +174,6 @@ fun ViewerScreen(
                     onUpdateCropRect = { rect ->
                         viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
                     },
-                    onConfirmCrop = { viewModel.onIntent(ViewerIntent.ConfirmCrop) },
                     onTextBlockTap = { block ->
                         viewModel.onIntent(
                             ViewerIntent.UpdateCropRect(
@@ -171,7 +186,12 @@ fun ViewerScreen(
                             )
                         )
                         // Show this block's text in bottom sheet
-                        viewModel.onIntent(ViewerIntent.ConfirmCrop)
+                        viewModel.onIntent(
+                            ViewerIntent.ConfirmCrop(
+                                containerWidth = viewerContainerSize.width,
+                                containerHeight = viewerContainerSize.height,
+                            )
+                        )
                     },
                 )
             }
@@ -194,142 +214,213 @@ fun ViewerScreen(
             )
         }
 
-        // 선택 영역 크롭 오버레이 (전체 화면 레벨)
-        if (state.translationMode == TranslationMode.AREA_SELECT && state.cropRect != null) {
-            CropConfirmButton(
-                cropRect = state.cropRect!!,
-                onConfirm = { viewModel.onIntent(ViewerIntent.ConfirmCrop) },
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-        }
-
-        // 상단 헤더
+        // 크롭 모드 전용 툴바
         AnimatedVisibility(
-            visible = state.showControls,
+            visible = state.translationMode == TranslationMode.AREA_SELECT,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(OverlayBackground)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = 4.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // 뒤로가기 아이콘
-                    IconButton(onClick = {
-                        viewModel.onIntent(ViewerIntent.SaveProgress)
-                        onBack()
-                    }) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_arrow_back),
-                            contentDescription = "뒤로가기",
-                            tint = Color.White,
-                        )
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(OverlayBackground)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = {
+                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
+                    showTranslationOptions = false
+                }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기",
+                        tint = Color.White,
+                    )
+                }
 
-                    // 파일명
+                Text(
+                    text = "영역 선택",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+
+                val hasOcrResults = state.ocrBottomSheetText != null
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (hasOcrResults) Color.White.copy(alpha = 0.2f) else AreaSelectBorder,
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                        .then(
+                            if (hasOcrResults) {
+                                Modifier.border(1.dp, AreaSelectBorder, RoundedCornerShape(8.dp))
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .clickable {
+                            if (hasOcrResults) {
+                                // 다시 선택: OCR 초기화 + 크롭 박스 재생성
+                                viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT))
+                            } else {
+                                viewModel.onIntent(
+                                    ViewerIntent.ConfirmCrop(
+                                        containerWidth = viewerContainerSize.width,
+                                        containerHeight = viewerContainerSize.height,
+                                    )
+                                )
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
-                        text = state.archive?.fileName ?: "",
+                        text = if (hasOcrResults) "다시 선택" else "선택 완료",
+                        color = if (hasOcrResults) AreaSelectBorder else Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+
+        // 페이지 번역 모드 툴바
+        AnimatedVisibility(
+            visible = state.translationMode == TranslationMode.PAGE_TRANSLATE,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(OverlayBackground)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = {
+                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
+                    showTranslationOptions = false
+                }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기",
+                        tint = Color.White,
+                    )
+                }
+
+                Text(
+                    text = "페이지 번역",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        // 기본 상단 헤더 (번역 모드가 아닐 때만)
+        AnimatedVisibility(
+            visible = state.showControls && state.translationMode == TranslationMode.NONE,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(OverlayBackground)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 뒤로가기 아이콘
+                IconButton(onClick = {
+                    viewModel.onIntent(ViewerIntent.SaveProgress)
+                    onBack()
+                }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_arrow_back),
+                        contentDescription = "뒤로가기",
+                        tint = Color.White,
+                    )
+                }
+
+                // 파일명
+                Text(
+                    text = state.archive?.fileName ?: "",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+
+                // 번역 버튼 - 옵션 표시 토글
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = OcrButtonColor,
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                showTranslationOptions = !showTranslationOptions
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "번역",
                         color = Color.White,
                         fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.Medium,
                     )
-
-                    // 번역 버튼 - 토글 방식
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = when {
-                                    state.isOcrProcessing -> OcrButtonColor.copy(alpha = 0.5f)
-                                    state.translationMode != TranslationMode.NONE -> OcrButtonColor
-                                    else -> OcrButtonColor
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .then(
-                                if (state.translationMode != TranslationMode.NONE) {
-                                    Modifier.border(
-                                        width = 1.dp,
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        shape = RoundedCornerShape(8.dp),
-                                    )
-                                } else {
-                                    Modifier
-                                }
-                            )
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                            .then(
-                                if (!state.isOcrProcessing) {
-                                    Modifier.pointerInput(Unit) {
-                                        detectTapGestures(onTap = {
-                                            if (state.translationMode != TranslationMode.NONE) {
-                                                viewModel.onIntent(
-                                                    ViewerIntent.SetTranslationMode(TranslationMode.NONE)
-                                                )
-                                            } else {
-                                                viewModel.onIntent(
-                                                    ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT)
-                                                )
-                                            }
-                                        })
-                                    }
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = when {
-                                state.isOcrProcessing -> "OCR..."
-                                state.translationMode != TranslationMode.NONE -> "번역 ✕"
-                                else -> "번역"
-                            },
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // 설정 아이콘
-                    IconButton(onClick = { /* 설정 화면 연동 예정 */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "설정",
-                            tint = Color.White,
-                        )
-                    }
                 }
 
-                // 번역 옵션 바
-                AnimatedVisibility(
-                    visible = state.translationMode != TranslationMode.NONE || state.showControls,
-                    enter = slideInVertically { -it } + fadeIn(),
-                    exit = slideOutVertically { -it } + fadeOut(),
-                ) {
-                    if (state.translationMode != TranslationMode.NONE) {
-                        TranslationOptionBar(
-                            currentMode = state.translationMode,
-                            onAreaSelect = {
-                                viewModel.onIntent(
-                                    ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT)
-                                )
-                            },
-                            onPageTranslate = {
-                                viewModel.onIntent(ViewerIntent.RunPageOcr)
-                            },
-                        )
-                    }
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // 설정 아이콘
+                IconButton(onClick = { /* 설정 화면 연동 예정 */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "설정",
+                        tint = Color.White,
+                    )
                 }
             }
+        }
+
+        // 번역 옵션 바 (선택영역번역 / 페이지번역)
+        AnimatedVisibility(
+            visible = showTranslationOptions && state.translationMode == TranslationMode.NONE,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            TranslationOptionBar(
+                currentMode = state.translationMode,
+                onAreaSelect = {
+                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT))
+                    showTranslationOptions = false
+                },
+                onPageTranslate = {
+                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.PAGE_TRANSLATE))
+                    viewModel.onIntent(ViewerIntent.RunPageOcr)
+                    showTranslationOptions = false
+                },
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(top = 52.dp),
+            )
         }
 
         // 하단 컨트롤
@@ -418,9 +509,9 @@ fun ViewerScreen(
             }
         }
 
-        // OCR 결과 바텀시트
+        // OCR 결과 바텀시트 (expanded)
         AnimatedVisibility(
-            visible = state.ocrBottomSheetText != null,
+            visible = state.translationMode != TranslationMode.NONE && state.ocrBottomSheetText != null && state.isOcrSheetExpanded,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -428,6 +519,18 @@ fun ViewerScreen(
             OcrBottomSheet(
                 text = state.ocrBottomSheetText ?: "",
                 onDismiss = { viewModel.onIntent(ViewerIntent.DismissOcrResult) },
+            )
+        }
+
+        // OCR 결과 핸들 (collapsed - tap to expand)
+        AnimatedVisibility(
+            visible = state.translationMode != TranslationMode.NONE && state.ocrBottomSheetText != null && !state.isOcrSheetExpanded,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            OcrCollapsedHandle(
+                onExpand = { viewModel.onIntent(ViewerIntent.ExpandOcrResult) },
             )
         }
     }
@@ -440,9 +543,10 @@ private fun TranslationOptionBar(
     currentMode: TranslationMode,
     onAreaSelect: () -> Unit,
     onPageTranslate: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(TranslateBarBackground)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -478,12 +582,12 @@ private fun TranslationOptionBar(
             modifier = Modifier
                 .weight(1f)
                 .background(
-                    color = PageTranslateBg,
+                    color = if (currentMode == TranslationMode.PAGE_TRANSLATE) PageTranslateBg else Color.Transparent,
                     shape = RoundedCornerShape(8.dp),
                 )
                 .border(
                     width = 1.dp,
-                    color = PageTranslateBorder,
+                    color = if (currentMode == TranslationMode.PAGE_TRANSLATE) PageTranslateBorder else PageTranslateBorder.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(8.dp),
                 )
                 .clickable { onPageTranslate() }
@@ -548,44 +652,6 @@ private fun PipelineIndicator(
                     fontSize = 11.sp,
                 )
             }
-        }
-    }
-}
-
-// ── 크롭 확정 버튼 ───────────────────────────────────────────
-
-@Composable
-private fun CropConfirmButton(
-    cropRect: CropRect,
-    onConfirm: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val centerX = (cropRect.startX + cropRect.endX) / 2f
-    val bottomY = maxOf(cropRect.startY, cropRect.endY)
-
-    Box(
-        modifier = modifier
-            .fillMaxSize(),
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(
-                    x = (centerX - 40).coerceAtLeast(0f).dp,
-                    y = (bottomY + 8).dp,
-                )
-                .background(
-                    color = AreaSelectBorder,
-                    shape = RoundedCornerShape(6.dp),
-                )
-                .clickable { onConfirm() }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Text(
-                text = "\u2702 OCR 실행",
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-            )
         }
     }
 }
@@ -661,6 +727,44 @@ private fun OcrBottomSheet(
     }
 }
 
+// ── OCR 결과 축소 핸들 ───────────────────────────────────────────
+
+@Composable
+private fun OcrCollapsedHandle(
+    onExpand: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onExpand() }
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            )
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Drag handle
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(2.dp),
+                    ),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "번역 결과 보기",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        }
+    }
+}
+
 // ── ZoomableImage (telephoto + keepZoomState + 크롭 오버레이 + BB 하이라이트) ──
 
 @Composable
@@ -676,7 +780,6 @@ private fun ZoomableImage(
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
     onUpdateCropRect: (CropRect) -> Unit,
-    onConfirmCrop: () -> Unit,
     onTextBlockTap: (TextBlock) -> Unit,
 ) {
     val zoomableState = rememberZoomableState()
@@ -694,27 +797,27 @@ private fun ZoomableImage(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { containerWidth = it.width }
-            .then(
-                if (!isAreaSelectMode) {
-                    Modifier.zoomable(
-                        state = zoomableState,
-                        onClick = { offset ->
-                            when {
-                                offset.x < containerWidth / 3f -> onTapLeft()
-                                offset.x > containerWidth * 2f / 3f -> onTapRight()
-                                else -> onTapCenter()
-                            }
-                        },
-                    )
+            .zoomable(
+                state = zoomableState,
+                enabled = !isAreaSelectMode,
+                onClick = if (!isAreaSelectMode) {
+                    { offset ->
+                        when {
+                            offset.x < containerWidth / 3f -> onTapLeft()
+                            offset.x > containerWidth * 2f / 3f -> onTapRight()
+                            else -> onTapCenter()
+                        }
+                    }
                 } else {
-                    Modifier
-                }
+                    null
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
         if (imageBytes != null) {
+            val imageBitmap = remember(imageBytes) { imageBytes.toImageBitmap() }
             Image(
-                bitmap = imageBytes.toImageBitmap(),
+                bitmap = imageBitmap,
                 contentDescription = "Page ${page + 1}",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
@@ -724,6 +827,8 @@ private fun ZoomableImage(
             if (ocrResults.isNotEmpty()) {
                 BoundingBoxOverlay(
                     textBlocks = ocrResults,
+                    imageWidth = imageBitmap.width,
+                    imageHeight = imageBitmap.height,
                     onBlockTap = onTextBlockTap,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -734,7 +839,6 @@ private fun ZoomableImage(
                 CropOverlay(
                     cropRect = cropRect,
                     onUpdateCropRect = onUpdateCropRect,
-                    onConfirmCrop = onConfirmCrop,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -749,6 +853,8 @@ private fun ZoomableImage(
 @Composable
 private fun BoundingBoxOverlay(
     textBlocks: List<TextBlock>,
+    imageWidth: Int,
+    imageHeight: Int,
     onBlockTap: (TextBlock) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -756,21 +862,46 @@ private fun BoundingBoxOverlay(
 
     Canvas(
         modifier = modifier
-            .pointerInput(textBlocks) {
+            .pointerInput(textBlocks, imageWidth, imageHeight) {
                 detectTapGestures { offset ->
-                    // 탭한 위치가 어떤 TextBlock 안에 있는지 확인
+                    // ContentScale.Fit 변환 계산
+                    val fitScale = minOf(
+                        size.width.toFloat() / imageWidth,
+                        size.height.toFloat() / imageHeight,
+                    )
+                    val offsetX = (size.width - imageWidth * fitScale) / 2f
+                    val offsetY = (size.height - imageHeight * fitScale) / 2f
+
                     textBlocks.firstOrNull { block ->
-                        offset.x >= block.x && offset.x <= block.x + block.width &&
-                            offset.y >= block.y && offset.y <= block.y + block.height
+                        val lx = block.x * fitScale + offsetX
+                        val ly = block.y * fitScale + offsetY
+                        val lw = block.width * fitScale
+                        val lh = block.height * fitScale
+                        offset.x in lx..(lx + lw) && offset.y in ly..(ly + lh)
                     }?.let { onBlockTap(it) }
                 }
             },
     ) {
+        if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
+        // ContentScale.Fit 변환: 이미지 픽셀 좌표 → 레이아웃 좌표
+        val fitScale = minOf(
+            size.width / imageWidth.toFloat(),
+            size.height / imageHeight.toFloat(),
+        )
+        val offsetX = (size.width - imageWidth * fitScale) / 2f
+        val offsetY = (size.height - imageHeight * fitScale) / 2f
+
         textBlocks.forEach { block ->
             drawRect(
                 color = BoundingBoxColor,
-                topLeft = Offset(block.x.toFloat(), block.y.toFloat()),
-                size = Size(block.width.toFloat(), block.height.toFloat()),
+                topLeft = Offset(
+                    x = block.x * fitScale + offsetX,
+                    y = block.y * fitScale + offsetY,
+                ),
+                size = Size(
+                    width = block.width * fitScale,
+                    height = block.height * fitScale,
+                ),
                 style = Stroke(
                     width = 2f,
                     pathEffect = dashEffect,
@@ -786,88 +917,138 @@ private fun BoundingBoxOverlay(
 private fun CropOverlay(
     cropRect: CropRect?,
     onUpdateCropRect: (CropRect) -> Unit,
-    onConfirmCrop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var dragStart by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val handleRadius = 18f
+    val handleTouchRadius = 64f // 터치 영역은 시각적 핸들보다 크게/
+    val minCropSize = 60f
 
-    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f), 0f)
-    val handleSize = 8f
-
-    Box(
-        modifier = modifier
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        dragStart = offset
-                        onUpdateCropRect(
-                            CropRect(
-                                startX = offset.x,
-                                startY = offset.y,
-                                endX = offset.x,
-                                endY = offset.y,
-                            )
-                        )
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        val pos = change.position
-                        onUpdateCropRect(
-                            CropRect(
-                                startX = dragStart.x,
-                                startY = dragStart.y,
-                                endX = pos.x,
-                                endY = pos.y,
-                            )
-                        )
-                    },
-                    onDragEnd = {
-                        // 크롭 영역이 충분히 큰 경우 자동 확정
-                        if (cropRect != null) {
-                            val w = abs(cropRect.endX - cropRect.startX)
-                            val h = abs(cropRect.endY - cropRect.startY)
-                            if (w > 20f && h > 20f) {
-                                onConfirmCrop()
-                            }
-                        }
-                    },
+    // Always measure container - must happen before early return
+    Box(modifier = modifier.onSizeChanged { containerSize = it }) {
+        // Initialize default centered 1:1 crop box when sentinel values detected
+        LaunchedEffect(cropRect, containerSize) {
+            if (cropRect != null && cropRect.startX < 0f && containerSize.width > 0) {
+                val boxSize = minOf(containerSize.width, containerSize.height) * 0.5f
+                val cx = containerSize.width / 2f
+                val cy = containerSize.height / 2f
+                onUpdateCropRect(
+                    CropRect(
+                        startX = cx - boxSize / 2f,
+                        startY = cy - boxSize / 2f,
+                        endX = cx + boxSize / 2f,
+                        endY = cy + boxSize / 2f,
+                    )
                 )
-            },
-    ) {
-        // 반투명 오버레이 + 크롭 사각형
-        if (cropRect != null) {
-            val minX = minOf(cropRect.startX, cropRect.endX)
-            val minY = minOf(cropRect.startY, cropRect.endY)
-            val maxX = maxOf(cropRect.startX, cropRect.endX)
-            val maxY = maxOf(cropRect.startY, cropRect.endY)
-            val rectWidth = maxX - minX
-            val rectHeight = maxY - minY
+            }
+        }
 
+        if (cropRect == null || cropRect.startX < 0f) return@Box
+
+        val minX = minOf(cropRect.startX, cropRect.endX)
+        val minY = minOf(cropRect.startY, cropRect.endY)
+        val maxX = maxOf(cropRect.startX, cropRect.endX)
+        val maxY = maxOf(cropRect.startY, cropRect.endY)
+        val rectWidth = maxX - minX
+        val rectHeight = maxY - minY
+
+        var dragMode by remember { mutableStateOf(DragMode.NONE) }
+        val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f), 0f)
+        // rememberUpdatedState로 최신 cropRect를 pointerInput 내부에서 참조
+        // pointerInput(Unit)을 사용해 드래그 중 재시작 방지
+        val currentCropRect by rememberUpdatedState(cropRect)
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val cr = currentCropRect ?: return@detectDragGestures
+                            val cMinX = minOf(cr.startX, cr.endX)
+                            val cMinY = minOf(cr.startY, cr.endY)
+                            val cMaxX = maxOf(cr.startX, cr.endX)
+                            val cMaxY = maxOf(cr.startY, cr.endY)
+                            val corners = listOf(
+                                DragMode.TOP_LEFT to Offset(cMinX, cMinY),
+                                DragMode.TOP_RIGHT to Offset(cMaxX, cMinY),
+                                DragMode.BOTTOM_LEFT to Offset(cMinX, cMaxY),
+                                DragMode.BOTTOM_RIGHT to Offset(cMaxX, cMaxY),
+                            )
+                            val hitCorner = corners.firstOrNull { (_, pos) ->
+                                (offset - pos).getDistance() < handleTouchRadius
+                            }
+                            dragMode = if (hitCorner != null) {
+                                hitCorner.first
+                            } else {
+                                DragMode.MOVE
+                            }
+                        },
+                        onDrag = { change, delta ->
+                            change.consume()
+                            val cr = currentCropRect ?: return@detectDragGestures
+                            val cMinX = minOf(cr.startX, cr.endX)
+                            val cMinY = minOf(cr.startY, cr.endY)
+                            val cMaxX = maxOf(cr.startX, cr.endX)
+                            val cMaxY = maxOf(cr.startY, cr.endY)
+                            val cWidth = cMaxX - cMinX
+                            val cHeight = cMaxY - cMinY
+                            val w = containerSize.width.toFloat()
+                            val h = containerSize.height.toFloat()
+                            when (dragMode) {
+                                DragMode.MOVE -> {
+                                    val newMinX = (cMinX + delta.x).coerceIn(0f, w - cWidth)
+                                    val newMinY = (cMinY + delta.y).coerceIn(0f, h - cHeight)
+                                    onUpdateCropRect(
+                                        CropRect(
+                                            startX = newMinX,
+                                            startY = newMinY,
+                                            endX = newMinX + cWidth,
+                                            endY = newMinY + cHeight,
+                                        )
+                                    )
+                                }
+                                DragMode.TOP_LEFT -> {
+                                    val newX = (cMinX + delta.x).coerceIn(0f, cMaxX - minCropSize)
+                                    val newY = (cMinY + delta.y).coerceIn(0f, cMaxY - minCropSize)
+                                    onUpdateCropRect(CropRect(startX = newX, startY = newY, endX = cMaxX, endY = cMaxY))
+                                }
+                                DragMode.TOP_RIGHT -> {
+                                    val newX = (cMaxX + delta.x).coerceIn(cMinX + minCropSize, w)
+                                    val newY = (cMinY + delta.y).coerceIn(0f, cMaxY - minCropSize)
+                                    onUpdateCropRect(CropRect(startX = cMinX, startY = newY, endX = newX, endY = cMaxY))
+                                }
+                                DragMode.BOTTOM_LEFT -> {
+                                    val newX = (cMinX + delta.x).coerceIn(0f, cMaxX - minCropSize)
+                                    val newY = (cMaxY + delta.y).coerceIn(cMinY + minCropSize, h)
+                                    onUpdateCropRect(CropRect(startX = newX, startY = cMinY, endX = cMaxX, endY = newY))
+                                }
+                                DragMode.BOTTOM_RIGHT -> {
+                                    val newX = (cMaxX + delta.x).coerceIn(cMinX + minCropSize, w)
+                                    val newY = (cMaxY + delta.y).coerceIn(cMinY + minCropSize, h)
+                                    onUpdateCropRect(CropRect(startX = cMinX, startY = cMinY, endX = newX, endY = newY))
+                                }
+                                DragMode.NONE -> {}
+                            }
+                        },
+                        onDragEnd = { dragMode = DragMode.NONE },
+                    )
+                },
+        ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val dimColor = Color.Black.copy(alpha = 0.3f)
-
-                // 크롭 영역 주변 4개 직사각형으로 딤 처리
-                // 상단
+                val dimColor = Color.Black.copy(alpha = 0.5f)
                 drawRect(dimColor, Offset.Zero, Size(size.width, minY))
-                // 하단
                 drawRect(dimColor, Offset(0f, maxY), Size(size.width, size.height - maxY))
-                // 좌측
                 drawRect(dimColor, Offset(0f, minY), Size(minX, rectHeight))
-                // 우측
                 drawRect(dimColor, Offset(maxX, minY), Size(size.width - maxX, rectHeight))
 
-                // 점선 테두리
                 drawRect(
                     color = AreaSelectBorder,
                     topLeft = Offset(minX, minY),
                     size = Size(rectWidth, rectHeight),
-                    style = Stroke(
-                        width = 2f,
-                        pathEffect = dashEffect,
-                    ),
+                    style = Stroke(width = 2f, pathEffect = dashEffect),
                 )
 
-                // 4개 코너 핸들
                 val corners = listOf(
                     Offset(minX, minY),
                     Offset(maxX, minY),
@@ -875,31 +1056,25 @@ private fun CropOverlay(
                     Offset(maxX, maxY),
                 )
                 corners.forEach { corner ->
-                    drawRect(
-                        color = AreaSelectBorder,
-                        topLeft = Offset(corner.x - handleSize, corner.y - handleSize),
-                        size = Size(handleSize * 2, handleSize * 2),
-                    )
+                    drawCircle(color = Color.White, radius = handleRadius, center = corner)
+                    drawCircle(color = AreaSelectBorder, radius = handleRadius - 3f, center = corner)
                 }
-            }
 
-            // 크롭 영역 내부 텍스트
-            if (rectWidth > 60f && rectHeight > 30f) {
-                Box(
-                    modifier = Modifier
-                        .offset(
-                            x = (minX + rectWidth / 2 - 30).coerceAtLeast(0f).dp,
-                            y = (minY + rectHeight / 2 - 8).coerceAtLeast(0f).dp,
-                        ),
-                ) {
-                    Text(
-                        text = "\u2702 선택 영역",
-                        color = AreaSelectText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
+                val edges = listOf(
+                    Offset((minX + maxX) / 2f, minY),
+                    Offset((minX + maxX) / 2f, maxY),
+                    Offset(minX, (minY + maxY) / 2f),
+                    Offset(maxX, (minY + maxY) / 2f),
+                )
+                edges.forEach { edge ->
+                    drawCircle(color = Color.White, radius = 6f, center = edge)
+                    drawCircle(color = AreaSelectBorder, radius = 4f, center = edge)
                 }
             }
         }
     }
+}
+
+private enum class DragMode {
+    NONE, MOVE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
 }

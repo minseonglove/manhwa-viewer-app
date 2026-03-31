@@ -8,6 +8,8 @@ import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
+import com.manhwaviewer.presentation.util.cropImageBytes
+import com.manhwaviewer.presentation.util.getImageDimensions
 import kotlinx.coroutines.launch
 
 class ViewerViewModel(
@@ -54,17 +56,32 @@ class ViewerViewModel(
             is ViewerIntent.SaveProgress -> saveProgress()
             is ViewerIntent.RunPageOcr -> runPageOcr()
             is ViewerIntent.SetTranslationMode -> updateState {
+                val clearOcr = intent.mode == TranslationMode.NONE || intent.mode == TranslationMode.AREA_SELECT
                 copy(
                     translationMode = intent.mode,
-                    cropRect = if (intent.mode == TranslationMode.NONE) null else cropRect,
+                    cropRect = when (intent.mode) {
+                        TranslationMode.AREA_SELECT -> CropRect(
+                            startX = -1f, startY = -1f,
+                            endX = -1f, endY = -1f,
+                        )
+                        TranslationMode.NONE -> null
+                        else -> cropRect
+                    },
+                    ocrBottomSheetText = if (clearOcr) null else ocrBottomSheetText,
+                    ocrResults = if (clearOcr) emptyList() else ocrResults,
+                    isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
+                    pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
                 )
             }
             is ViewerIntent.UpdateCropRect -> updateState {
                 copy(cropRect = intent.rect)
             }
-            is ViewerIntent.ConfirmCrop -> confirmCrop()
+            is ViewerIntent.ConfirmCrop -> confirmCrop(intent.containerWidth, intent.containerHeight)
+            is ViewerIntent.ExpandOcrResult -> updateState {
+                copy(isOcrSheetExpanded = true)
+            }
             is ViewerIntent.DismissOcrResult -> updateState {
-                copy(ocrBottomSheetText = null)
+                copy(isOcrSheetExpanded = false)
             }
         }
     }
@@ -112,6 +129,7 @@ class ViewerViewModel(
                     isOcrProcessing = true,
                     ocrResults = emptyList(),
                     pipelineStage = PipelineStage.DETECTING,
+                    translationMode = TranslationMode.PAGE_TRANSLATE,
                 )
             }
             try {
@@ -137,7 +155,7 @@ class ViewerViewModel(
                         ocrResults = results,
                         pipelineStage = PipelineStage.DONE,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
-                        translationMode = TranslationMode.NONE,
+                        isOcrSheetExpanded = combinedText.isNotEmpty(),
                     )
                 }
 
@@ -153,7 +171,7 @@ class ViewerViewModel(
         }
     }
 
-    private fun confirmCrop() {
+    private fun confirmCrop(containerWidth: Int, containerHeight: Int) {
         val crop = currentState.cropRect ?: return
         viewModelScope.launch {
             updateState { copy(pipelineStage = PipelineStage.DETECTING, isOcrProcessing = true) }
@@ -170,45 +188,55 @@ class ViewerViewModel(
                     return@launch
                 }
 
-                // 좌표 변환: screen → image 좌표
-                // TODO: 실제 이미지 크기와 scale/offset 기반 변환
-                // imageRect = (screenRect - offset) / scale
+                // 이미지 원본 크기 조회
+                val (imgW, imgH) = getImageDimensions(imageBytes)
+
+                // ContentScale.Fit 좌표 변환: screen → image 좌표
+                val fitScale = minOf(
+                    containerWidth.toFloat() / imgW,
+                    containerHeight.toFloat() / imgH,
+                )
+                val offsetX = (containerWidth - imgW * fitScale) / 2f
+                val offsetY = (containerHeight - imgH * fitScale) / 2f
+
+                val cropMinX = minOf(crop.startX, crop.endX)
+                val cropMinY = minOf(crop.startY, crop.endY)
+                val cropMaxX = maxOf(crop.startX, crop.endX)
+                val cropMaxY = maxOf(crop.startY, crop.endY)
+
+                val imgLeft = ((cropMinX - offsetX) / fitScale).toInt().coerceIn(0, imgW)
+                val imgTop = ((cropMinY - offsetY) / fitScale).toInt().coerceIn(0, imgH)
+                val imgRight = ((cropMaxX - offsetX) / fitScale).toInt().coerceIn(0, imgW)
+                val imgBottom = ((cropMaxY - offsetY) / fitScale).toInt().coerceIn(0, imgH)
+                val cropW = (imgRight - imgLeft).coerceAtLeast(1)
+                val cropH = (imgBottom - imgTop).coerceAtLeast(1)
+
+                println("=== Crop: screen(${cropMinX},${cropMinY})-(${cropMaxX},${cropMaxY}) → image($imgLeft,$imgTop)-($imgRight,$imgBottom) ===")
+
+                // 이미지 크롭
+                val croppedBytes = cropImageBytes(imageBytes, imgLeft, imgTop, cropW, cropH)
 
                 updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
 
-                // 크롭 영역의 전체 이미지 OCR 후 해당 영역 내 결과만 필터링
-                val results = recognizePageTextUseCase(imageBytes)
+                // 크롭된 이미지로 OCR 실행
+                val results = recognizePageTextUseCase(croppedBytes)
 
                 println("=== Crop Area OCR Results ===")
                 results.forEachIndexed { index, block ->
                     println("  [$index] (${block.x}, ${block.y}, ${block.width}x${block.height}): ${block.text}")
                 }
 
-                // 크롭 영역 내 결과 필터링 (화면 좌표 기준)
-                val filteredResults = results.filter { block ->
-                    val blockCenterX = block.x + block.width / 2f
-                    val blockCenterY = block.y + block.height / 2f
-                    val minX = minOf(crop.startX, crop.endX)
-                    val maxX = maxOf(crop.startX, crop.endX)
-                    val minY = minOf(crop.startY, crop.endY)
-                    val maxY = maxOf(crop.startY, crop.endY)
-                    blockCenterX in minX..maxX && blockCenterY in minY..maxY
-                }
-
-                val combinedText = filteredResults.joinToString("\n") { it.text }
+                val combinedText = results.joinToString("\n") { it.text }
 
                 updateState {
                     copy(
                         pipelineStage = PipelineStage.DONE,
                         isOcrProcessing = false,
-                        ocrResults = filteredResults,
+                        ocrResults = results,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
-                        translationMode = TranslationMode.NONE,
-                        cropRect = null,
+                        isOcrSheetExpanded = combinedText.isNotEmpty(),
                     )
                 }
-
-                // TODO: Stage 5 - 번역 파이프라인 연동
             } catch (e: Exception) {
                 println("Crop OCR Error: ${e.message}")
                 updateState {
