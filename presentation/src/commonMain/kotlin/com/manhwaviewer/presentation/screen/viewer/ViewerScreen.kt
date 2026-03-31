@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.BackgroundColor
+import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.ViewMode
@@ -546,7 +547,7 @@ fun ViewerScreen(
 
                 // 파일명
                 Text(
-                    text = state.archive?.fileName ?: "",
+                    text = state.archive?.displayName() ?: "",
                     color = Color.White,
                     fontSize = 13.sp,
                     maxLines = 1,

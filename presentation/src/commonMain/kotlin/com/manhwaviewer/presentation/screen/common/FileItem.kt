@@ -37,6 +37,11 @@ import manhwa_viewer.presentation.generated.resources.ic_folder_open
 import manhwa_viewer.presentation.generated.resources.ic_image_gallery
 import org.jetbrains.compose.resources.painterResource
 
+fun ArchiveFile.displayName(): String = when (type) {
+    ArchiveType.FOLDER -> filePath.trimEnd('/').substringAfterLast('/')
+    else -> filePath.substringBeforeLast('/').substringAfterLast('/')
+}
+
 @Composable
 fun FileItem(
     archive: ArchiveFile,
@@ -68,7 +73,7 @@ fun FileItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = archive.fileName,
+                    text = archive.displayName(),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -85,7 +90,7 @@ fun FileItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (showProgress && archive.totalPages > 0) {
-                        val progress = (archive.lastReadIndex.toFloat() / archive.totalPages).coerceIn(0f, 1f)
+                        val progress = ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
                         LinearProgressIndicator(
                             progress = { progress },
                             modifier = Modifier.size(width = 60.dp, height = 4.dp)
@@ -244,7 +249,7 @@ fun FileGridItem(
         }
 
         Text(
-            text = archive.fileName,
+            text = archive.displayName(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
