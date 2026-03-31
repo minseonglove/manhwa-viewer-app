@@ -65,7 +65,9 @@ class ImageGalleryViewModel(
                 hasImages = true,
             )
             val id = upsertArchiveUseCase(archive)
-            sendSideEffect(ImageGallerySideEffect.NavigateToViewer(id, pageIndex))
+            val sortByDate = currentState.sortState.field == SortField.DATE
+            val sortAscending = currentState.sortState.ascending
+            sendSideEffect(ImageGallerySideEffect.NavigateToViewer(id, pageIndex, sortByDate, sortAscending))
         }
     }
 

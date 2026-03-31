@@ -69,6 +69,9 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
     override suspend fun getImageEntries(filePath: String): List<String> =
         archiveReader.getImageEntries(filePath)
 
+    override suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> =
+        archiveReader.getImageEntriesSorted(filePath, sortByDate, ascending)
+
     override suspend fun getImageBytes(filePath: String, entryName: String): ByteArray? =
         archiveReader.getImageBytes(filePath, entryName)
 }

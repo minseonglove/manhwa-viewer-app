@@ -37,7 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FileBrowserScreen(
-    onNavigateToViewer: (archiveId: Long, startPage: Int) -> Unit,
+    onNavigateToViewer: (archiveId: Long, startPage: Int, sortByDate: Boolean, sortAscending: Boolean) -> Unit,
     onBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     viewModel: FileBrowserViewModel = koinViewModel(),
@@ -51,7 +51,7 @@ fun FileBrowserScreen(
     LaunchedEffect(Unit) {
         viewModel.sideEffect.collect { effect ->
             when (effect) {
-                is FileBrowserSideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage)
+                is FileBrowserSideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage, effect.sortByDate, effect.sortAscending)
                 FileBrowserSideEffect.NavigateToHome -> onBack()
             }
         }

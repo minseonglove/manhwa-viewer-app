@@ -7,4 +7,7 @@ class GetImageEntriesUseCase(
 ) {
     suspend operator fun invoke(filePath: String): List<String> =
         repository.getImageEntries(filePath)
+
+    suspend operator fun invoke(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> =
+        repository.getImageEntriesSorted(filePath, sortByDate, ascending)
 }

@@ -22,6 +22,7 @@ class FakeArchiveFileRepository : ArchiveFileRepository {
     override suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile> = emptyList()
     override suspend fun scanArchiveEntries(archivePath: String): List<ArchiveFile> = emptyList()
     override suspend fun getImageEntries(filePath: String): List<String> = emptyList()
+    override suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> = emptyList()
     override suspend fun getImageBytes(filePath: String, entryName: String): ByteArray? = null
 
     companion object {

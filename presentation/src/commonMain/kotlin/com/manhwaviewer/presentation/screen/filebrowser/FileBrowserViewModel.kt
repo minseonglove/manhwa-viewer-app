@@ -104,7 +104,9 @@ class FileBrowserViewModel(
                 archive
             }
             val id = upsertArchiveUseCase(archiveForDb)
-            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, archiveForDb.lastReadIndex))
+            val sortByDate = currentState.sortState.field == SortField.DATE
+            val sortAscending = currentState.sortState.ascending
+            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, archiveForDb.lastReadIndex, sortByDate, sortAscending))
         }
     }
 
@@ -135,7 +137,9 @@ class FileBrowserViewModel(
                 lastReadIndex = pageIndex,
             )
             val id = upsertArchiveUseCase(archiveForDb)
-            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, pageIndex))
+            val sortByDate = currentState.sortState.field == SortField.DATE
+            val sortAscending = currentState.sortState.ascending
+            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, pageIndex, sortByDate, sortAscending))
         }
     }
 
@@ -163,15 +167,20 @@ class FileBrowserViewModel(
         field: SortField = currentState.sortState.field,
         ascending: Boolean = currentState.sortState.ascending,
     ): List<ArchiveFile> {
-        val comparator = when (field) {
+        val typeOrder = { type: ArchiveType ->
+            when (type) {
+                ArchiveType.FOLDER -> 0
+                ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR -> 1
+                ArchiveType.IMAGE -> 2
+            }
+        }
+        val secondaryComparator = when (field) {
             SortField.NAME -> compareBy<ArchiveFile> { naturalSortKey(it.fileName) }
             SortField.DATE -> compareBy { it.addedAt }
         }
-        return if (ascending) {
-            files.sortedWith(comparator)
-        } else {
-            files.sortedWith(comparator.reversed())
-        }
+        val comparator = compareBy<ArchiveFile> { typeOrder(it.type) }
+            .then(if (ascending) secondaryComparator else secondaryComparator.reversed())
+        return files.sortedWith(comparator)
     }
 
     private fun naturalSortKey(name: String): String {

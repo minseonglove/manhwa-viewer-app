@@ -1,6 +1,7 @@
 package com.manhwaviewer.presentation.screen.filebrowser
 
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -47,6 +48,7 @@ class FileBrowserViewModelTest {
         scanLocalFilesUseCase = ScanLocalFilesUseCase(fakeRepo),
         upsertArchiveUseCase = UpsertArchiveUseCase(fakeRepo),
         scanArchiveEntriesUseCase = ScanArchiveEntriesUseCase(fakeRepo),
+        getImageEntriesUseCase = GetImageEntriesUseCase(fakeRepo),
         defaultScanPath = defaultPath,
         ioDispatcher = testDispatcher,
     )
@@ -220,6 +222,7 @@ class FileBrowserViewModelTest {
             scanLocalFilesUseCase = ScanLocalFilesUseCase(errorRepo),
             upsertArchiveUseCase = UpsertArchiveUseCase(errorRepo),
             scanArchiveEntriesUseCase = ScanArchiveEntriesUseCase(errorRepo),
+            getImageEntriesUseCase = GetImageEntriesUseCase(errorRepo),
             defaultScanPath = defaultPath,
             ioDispatcher = testDispatcher,
         )

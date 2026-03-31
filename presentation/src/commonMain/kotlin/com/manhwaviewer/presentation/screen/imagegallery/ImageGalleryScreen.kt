@@ -27,7 +27,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ImageGalleryScreen(
-    onNavigateToViewer: (archiveId: Long, startPage: Int) -> Unit,
+    onNavigateToViewer: (archiveId: Long, startPage: Int, sortByDate: Boolean, sortAscending: Boolean) -> Unit,
     onBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     viewModel: ImageGalleryViewModel = koinViewModel(),
@@ -37,7 +37,7 @@ fun ImageGalleryScreen(
     LaunchedEffect(Unit) {
         viewModel.sideEffect.collect { effect ->
             when (effect) {
-                is ImageGallerySideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage)
+                is ImageGallerySideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage, effect.sortByDate, effect.sortAscending)
             }
         }
     }

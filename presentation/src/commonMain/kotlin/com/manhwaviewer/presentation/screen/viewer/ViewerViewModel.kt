@@ -29,7 +29,7 @@ class ViewerViewModel(
 
     override fun handleIntent(intent: ViewerIntent) {
         when (intent) {
-            is ViewerIntent.LoadArchive -> loadArchive(intent.archiveId, intent.startPage)
+            is ViewerIntent.LoadArchive -> loadArchive(intent.archiveId, intent.startPage, intent.sortByDate, intent.sortAscending)
             is ViewerIntent.SetPage -> {
                 if (currentState.totalPages == 0) return
                 updateState {
@@ -69,14 +69,14 @@ class ViewerViewModel(
         }
     }
 
-    private fun loadArchive(archiveId: Long, startPage: Int = 0) {
+    private fun loadArchive(archiveId: Long, startPage: Int = 0, sortByDate: Boolean = false, sortAscending: Boolean = true) {
         viewModelScope.launch {
             val archive = getArchiveByIdUseCase(archiveId) ?: run {
                 updateState { copy(isLoading = false) }
                 return@launch
             }
-            val entries = getImageEntriesUseCase(archive.filePath)
-            val page = if (startPage > 0) startPage else archive.lastReadIndex
+            val entries = getImageEntriesUseCase(archive.filePath, sortByDate, sortAscending)
+            val page = if (startPage >= 0) startPage else archive.lastReadIndex
             updateState {
                 copy(
                     archive = archive,

@@ -37,7 +37,7 @@ data class ViewerState(
 )
 
 sealed interface ViewerIntent {
-    data class LoadArchive(val archiveId: Long, val startPage: Int = 0) : ViewerIntent
+    data class LoadArchive(val archiveId: Long, val startPage: Int = -1, val sortByDate: Boolean = false, val sortAscending: Boolean = true) : ViewerIntent
     data class SetPage(val page: Int) : ViewerIntent
     data object NextPage : ViewerIntent
     data object PreviousPage : ViewerIntent

@@ -2,7 +2,10 @@ package com.manhwaviewer.data.archive
 
 import kotlinx.cinterop.*
 import libarchive.*
+import platform.Foundation.NSDate
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileModificationDate
+import platform.Foundation.timeIntervalSince1970
 import platform.posix.free
 import platform.posix.malloc
 
@@ -103,6 +106,67 @@ actual class ArchiveReader actual constructor() {
     actual fun getPageCount(archivePath: String): Int = getImageEntries(archivePath).size
 
     actual fun close() {}
+
+    actual fun getImageEntriesSorted(archivePath: String, sortByDate: Boolean, ascending: Boolean): List<String> {
+        val fileManager = NSFileManager.defaultManager
+
+        // Check if directory
+        memScoped {
+            val isDir = alloc<BooleanVar>()
+            if (fileManager.fileExistsAtPath(archivePath, isDirectory = isDir.ptr)) {
+                if (isDir.value) {
+                    return getImagesFromFolderSorted(archivePath, sortByDate, ascending)
+                }
+            }
+        }
+
+        // Archive file: sort by name only (date not available per-entry)
+        val entries = mutableListOf<String>()
+        val a = archive_read_new() ?: return emptyList()
+
+        archive_read_support_format_all(a)
+        archive_read_support_filter_all(a)
+
+        if (archive_read_open_filename(a, archivePath, 10240u) == ARCHIVE_OK) {
+            memScoped {
+                val entryPtr = alloc<CPointerVar<archive_entry>>()
+                while (archive_read_next_header(a, entryPtr.ptr) == ARCHIVE_OK) {
+                    val entry = entryPtr.value ?: continue
+                    val name = archive_entry_pathname(entry)?.toKString() ?: continue
+
+                    if (archive_entry_filetype(entry).toInt() != 0x4000 && isImageFile(name)) {
+                        entries.add(name)
+                    }
+                    archive_read_data_skip(a)
+                }
+            }
+        }
+
+        archive_read_free(a)
+        val sorted = entries.sorted()
+        return if (ascending) sorted else sorted.reversed()
+    }
+
+    private fun getImagesFromFolderSorted(folderPath: String, sortByDate: Boolean, ascending: Boolean): List<String> {
+        val fileManager = NSFileManager.defaultManager
+        val contents = fileManager.contentsOfDirectoryAtPath(folderPath, error = null) ?: return emptyList()
+
+        val imageNames = (0 until contents.count.toInt())
+            .mapNotNull { contents.objectAtIndex(it.toULong()) as? String }
+            .filter { isImageFile(it) }
+
+        val sorted = if (sortByDate) {
+            imageNames.sortedBy { name ->
+                val attrs = fileManager.attributesOfItemAtPath("$folderPath/$name", error = null)
+                val date = attrs?.get(NSFileModificationDate) as? NSDate
+                date?.timeIntervalSince1970 ?: 0.0
+            }
+        } else {
+            imageNames.sorted()
+        }
+
+        return if (ascending) sorted else sorted.reversed()
+    }
 
     private fun getImagesFromFolder(folderPath: String): List<String> {
         val fileManager = NSFileManager.defaultManager

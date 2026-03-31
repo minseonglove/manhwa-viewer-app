@@ -17,5 +17,5 @@ sealed interface ImageGalleryIntent {
 }
 
 sealed interface ImageGallerySideEffect {
-    data class NavigateToViewer(val archiveId: Long, val startPage: Int = 0) : ImageGallerySideEffect
+    data class NavigateToViewer(val archiveId: Long, val startPage: Int = 0, val sortByDate: Boolean = false, val sortAscending: Boolean = true) : ImageGallerySideEffect
 }

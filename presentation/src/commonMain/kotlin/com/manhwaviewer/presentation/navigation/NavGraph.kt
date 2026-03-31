@@ -53,16 +53,22 @@ fun NavGraph(navController: NavHostController) {
             route = Route.VIEWER,
             arguments = listOf(
                 navArgument("archiveId") { type = NavType.LongType },
-                navArgument("startPage") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("startPage") { type = NavType.IntType; defaultValue = -1 },
+                navArgument("sortByDate") { type = NavType.BoolType; defaultValue = false },
+                navArgument("sortAscending") { type = NavType.BoolType; defaultValue = true },
             ),
         ) { backStackEntry ->
             val archiveId = backStackEntry.arguments?.getLong("archiveId")
                 ?.takeIf { it > 0L }
                 ?: run { navController.popBackStack(); return@composable }
             val startPage = backStackEntry.arguments?.getInt("startPage") ?: 0
+            val sortByDate = backStackEntry.arguments?.getBoolean("sortByDate") ?: false
+            val sortAscending = backStackEntry.arguments?.getBoolean("sortAscending") ?: true
             ViewerScreen(
                 archiveId = archiveId,
                 startPage = startPage,
+                sortByDate = sortByDate,
+                sortAscending = sortAscending,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -73,8 +79,8 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Route.FILE_BROWSER) {
             FileBrowserScreen(
-                onNavigateToViewer = { archiveId, startPage ->
-                    navController.navigate(Route.viewer(archiveId, startPage))
+                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
@@ -91,8 +97,8 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Route.IMAGE_GALLERY) {
             ImageGalleryScreen(
-                onNavigateToViewer = { archiveId, startPage ->
-                    navController.navigate(Route.viewer(archiveId, startPage))
+                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },

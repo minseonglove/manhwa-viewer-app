@@ -28,6 +28,6 @@ sealed interface FileBrowserIntent {
 }
 
 sealed interface FileBrowserSideEffect {
-    data class NavigateToViewer(val archiveId: Long, val startPage: Int = 0) : FileBrowserSideEffect
+    data class NavigateToViewer(val archiveId: Long, val startPage: Int = 0, val sortByDate: Boolean = false, val sortAscending: Boolean = true) : FileBrowserSideEffect
     data object NavigateToHome : FileBrowserSideEffect
 }

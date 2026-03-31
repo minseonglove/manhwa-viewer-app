@@ -37,6 +37,31 @@ actual class ArchiveReader actual constructor() {
         // No persistent native resources to clean up
     }
 
+    actual fun getImageEntriesSorted(archivePath: String, sortByDate: Boolean, ascending: Boolean): List<String> {
+        val file = File(archivePath)
+        return when {
+            file.isDirectory -> {
+                val imageFiles = file.listFiles()
+                    ?.filter { it.isFile && it.extension.lowercase() in imageExtensions }
+                    ?: return emptyList()
+                val sorted = if (sortByDate) {
+                    imageFiles.sortedBy { it.lastModified() }
+                } else {
+                    imageFiles.sortedBy { it.name.lowercase() }
+                }
+                val result = if (ascending) sorted else sorted.reversed()
+                result.map { it.name }
+            }
+            file.isFile -> {
+                // Archives: sort by name only (date not available per-entry)
+                val entries = bridge.nativeGetImageEntries(archivePath).toList()
+                val sorted = entries.sorted()
+                if (ascending) sorted else sorted.reversed()
+            }
+            else -> emptyList()
+        }
+    }
+
     private fun getImagesFromFolder(folder: File): List<String> =
         folder.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in imageExtensions }
