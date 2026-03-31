@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -26,11 +27,20 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ImageGalleryScreen(
+    onNavigateToViewer: (archiveId: Long, startPage: Int) -> Unit,
     onBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     viewModel: ImageGalleryViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                is ImageGallerySideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -70,7 +80,10 @@ fun ImageGalleryScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 items(state.images, key = { it.id }) { image ->
-                                    ImageFileItem(image = image)
+                                    ImageFileItem(
+                                        image = image,
+                                        onClick = { viewModel.onIntent(ImageGalleryIntent.OpenImage(image)) },
+                                    )
                                 }
                             }
                         } else {
@@ -81,7 +94,10 @@ fun ImageGalleryScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 items(state.images, key = { it.id }) { image ->
-                                    ImageFileItem(image = image)
+                                    ImageFileItem(
+                                        image = image,
+                                        onClick = { viewModel.onIntent(ImageGalleryIntent.OpenImage(image)) },
+                                    )
                                 }
                             }
                         }
@@ -94,7 +110,10 @@ fun ImageGalleryScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(state.images, key = { it.id }) { image ->
-                                ImageFileGridItem(image = image)
+                                ImageFileGridItem(
+                                    image = image,
+                                    onClick = { viewModel.onIntent(ImageGalleryIntent.OpenImage(image)) },
+                                )
                             }
                         }
                     }

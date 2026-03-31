@@ -1,15 +1,22 @@
 package com.manhwaviewer.presentation.screen.imagegallery
 
 import androidx.lifecycle.viewModelScope
+import com.manhwaviewer.domain.entity.ArchiveFile
+import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.entity.ImageFile
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 
 class ImageGalleryViewModel(
     getDeviceImagesUseCase: GetDeviceImagesUseCase,
+    private val upsertArchiveUseCase: UpsertArchiveUseCase,
+    private val getImageEntriesUseCase: GetImageEntriesUseCase,
 ) : MviViewModel<ImageGalleryState, ImageGalleryIntent, ImageGallerySideEffect>(ImageGalleryState()) {
 
     init {
@@ -39,6 +46,26 @@ class ImageGalleryViewModel(
                     )
                 }
             }
+            is ImageGalleryIntent.OpenImage -> openImage(intent.image)
+        }
+    }
+
+    private fun openImage(image: ImageFile) {
+        viewModelScope.launch {
+            val parentPath = image.filePath.substringBeforeLast('/')
+            val entries = getImageEntriesUseCase(parentPath)
+            val pageIndex = entries.indexOf(image.fileName).coerceAtLeast(0)
+            val archive = ArchiveFile(
+                filePath = parentPath,
+                fileName = parentPath.substringAfterLast('/'),
+                type = ArchiveType.FOLDER,
+                totalPages = entries.size,
+                lastReadIndex = pageIndex,
+                addedAt = Clock.System.now(),
+                hasImages = true,
+            )
+            val id = upsertArchiveUseCase(archive)
+            sendSideEffect(ImageGallerySideEffect.NavigateToViewer(id, pageIndex))
         }
     }
 

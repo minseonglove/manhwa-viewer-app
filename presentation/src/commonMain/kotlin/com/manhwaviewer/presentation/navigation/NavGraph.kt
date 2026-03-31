@@ -91,6 +91,9 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Route.IMAGE_GALLERY) {
             ImageGalleryScreen(
+                onNavigateToViewer = { archiveId, startPage ->
+                    navController.navigate(Route.viewer(archiveId, startPage))
+                },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
             )

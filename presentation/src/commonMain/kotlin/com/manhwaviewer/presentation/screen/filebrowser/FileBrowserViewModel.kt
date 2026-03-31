@@ -2,6 +2,8 @@ package com.manhwaviewer.presentation.screen.filebrowser
 
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
+import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -19,6 +21,7 @@ class FileBrowserViewModel(
     private val scanLocalFilesUseCase: ScanLocalFilesUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
     private val scanArchiveEntriesUseCase: ScanArchiveEntriesUseCase,
+    private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -85,8 +88,23 @@ class FileBrowserViewModel(
 
     private fun openFile(archive: ArchiveFile) {
         viewModelScope.launch {
-            val id = upsertArchiveUseCase(archive)
-            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id))
+            val archiveForDb = if (archive.type == ArchiveType.IMAGE) {
+                val parentPath = archive.filePath.substringBeforeLast('/')
+                val entries = withContext(ioDispatcher) {
+                    getImageEntriesUseCase(parentPath)
+                }
+                val pageIndex = entries.indexOf(archive.fileName).coerceAtLeast(0)
+                archive.copy(
+                    filePath = parentPath,
+                    type = ArchiveType.FOLDER,
+                    totalPages = entries.size,
+                    lastReadIndex = pageIndex,
+                )
+            } else {
+                archive
+            }
+            val id = upsertArchiveUseCase(archiveForDb)
+            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, archiveForDb.lastReadIndex))
         }
     }
 

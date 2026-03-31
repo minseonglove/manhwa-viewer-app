@@ -13,6 +13,9 @@ sealed interface ImageGalleryIntent {
     data class SetSortField(val field: com.manhwaviewer.presentation.screen.common.SortField) : ImageGalleryIntent
     data object ToggleSortDirection : ImageGalleryIntent
     data object ToggleViewMode : ImageGalleryIntent
+    data class OpenImage(val image: ImageFile) : ImageGalleryIntent
 }
 
-sealed interface ImageGallerySideEffect
+sealed interface ImageGallerySideEffect {
+    data class NavigateToViewer(val archiveId: Long, val startPage: Int = 0) : ImageGallerySideEffect
+}
