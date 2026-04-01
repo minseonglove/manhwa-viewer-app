@@ -25,6 +25,9 @@ interface ArchiveFileDao {
     @Query("UPDATE archive_files SET lastReadIndex = :pageIndex, lastReadAt = :timestamp WHERE id = :id")
     suspend fun updateLastReadIndex(id: Long, pageIndex: Int, timestamp: Long)
 
+    @Query("SELECT * FROM archive_files WHERE filePath = :filePath LIMIT 1")
+    suspend fun getByFilePath(filePath: String): ArchiveFileEntity?
+
     @Query("DELETE FROM archive_files WHERE id = :id")
     suspend fun deleteById(id: Long)
 

@@ -30,8 +30,15 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
     override suspend fun getArchiveById(id: Long): ArchiveFile? =
         dao.getById(id)?.toDomain()
 
-    override suspend fun upsertArchive(archive: ArchiveFile): Long =
-        dao.upsert(archive.toEntity())
+    override suspend fun upsertArchive(archive: ArchiveFile): Long {
+        val existing = dao.getByFilePath(archive.filePath)
+        val entity = if (existing != null) {
+            archive.toEntity().copy(id = existing.id, addedAt = existing.addedAt)
+        } else {
+            archive.toEntity()
+        }
+        return dao.upsert(entity)
+    }
 
     override suspend fun updateLastReadIndex(id: Long, pageIndex: Int) {
         dao.updateLastReadIndex(id, pageIndex, Clock.System.now().toEpochMilliseconds())
