@@ -3,34 +3,31 @@ package com.manhwaviewer.android.di
 import com.manhwaviewer.android.BuildConfig
 import com.manhwaviewer.data.archive.ArchiveReader
 import com.manhwaviewer.data.cache.AndroidCacheRepository
-import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
-import com.manhwaviewer.data.ocr.CtdTextDetector
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
-import com.manhwaviewer.data.ocr.OcrRepositoryImpl
-import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.db.getDatabaseBuilder
 import com.manhwaviewer.data.db.getRoomDatabase
+import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
+import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
+import com.manhwaviewer.data.ocr.CtdTextDetector
+import com.manhwaviewer.data.ocr.OcrRepositoryImpl
+import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.preference.ViewerPreferenceDataStore
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.domain.repository.ArchiveFileRepository
-import com.manhwaviewer.domain.repository.CacheRepository
-import com.manhwaviewer.domain.repository.OcrRepository
-import com.manhwaviewer.domain.repository.TextDetectionRepository
-import com.manhwaviewer.domain.repository.ImageFileRepository
-import com.manhwaviewer.domain.repository.TranslationRepository
-import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
 import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.PapagoTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
-import com.manhwaviewer.domain.usecase.TranslateTextUseCase
+import com.manhwaviewer.domain.repository.ArchiveFileRepository
+import com.manhwaviewer.domain.repository.CacheRepository
+import com.manhwaviewer.domain.repository.ImageFileRepository
+import com.manhwaviewer.domain.repository.OcrRepository
+import com.manhwaviewer.domain.repository.TextDetectionRepository
+import com.manhwaviewer.domain.repository.TranslationRepository
+import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
 import com.manhwaviewer.domain.usecase.ClearCacheUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetCacheSizeUseCase
-import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
-import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
@@ -38,8 +35,11 @@ import com.manhwaviewer.domain.usecase.GetRecentArchivesCountUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
 import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
+import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
+import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
+import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -72,12 +72,12 @@ val appModule = module {
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single<CacheRepository> { AndroidCacheRepository(androidContext()) }
-    single<OcrRepository> { OcrRepositoryImpl { AndroidMangaOcrEngine(androidContext()) } }
+    single<OcrRepository> { OcrRepositoryImpl { AndroidPaddleOcrRecognizer(androidContext()) } }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
             CtdTextDetector(androidContext()),
-            { AndroidMangaOcrEngine(androidContext()) },
-            MlKitTextRecognizer(),
+            verticalOcrProvider = { AndroidMangaOcrEngine(androidContext()) },
+            horizontalOcrProvider = { AndroidPaddleOcrRecognizer(androidContext()) },
         )
     }
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
