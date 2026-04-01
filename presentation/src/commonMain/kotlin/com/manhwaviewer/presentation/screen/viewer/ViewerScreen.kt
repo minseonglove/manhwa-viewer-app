@@ -50,8 +50,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -145,26 +146,14 @@ fun ViewerScreen(
         pageCount = { pagerPageCount },
     )
 
-    // pager → state 동기화: settledPage만 관찰하여 애니메이션 중간값 무시
+    val coroutineScope = rememberCoroutineScope()
+
+    // pager → state 단방향 동기화: pagerState가 단일 진실의 원천
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
             .collect { settledPage ->
                 val actualPage = if (isDoublePage) spreadToFirstPage(settledPage) else settledPage
                 viewModel.onIntent(ViewerIntent.SetPage(actualPage))
-            }
-    }
-
-    // state → pager 동기화: 슬라이더 등 프로그래밍적 이동
-    // pager가 idle 상태가 될 때까지 기다린 후 동기화하여 스와이프 중 snap-back 방지
-    LaunchedEffect(state.currentPage) {
-        val targetPagerPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
-        if (pagerPageCount <= 0) return@LaunchedEffect
-        snapshotFlow { pagerState.isScrollInProgress to pagerState.settledPage }
-            .first { (scrolling, _) -> !scrolling }
-            .let { (_, settledPage) ->
-                if (settledPage != targetPagerPage) {
-                    pagerState.scrollToPage(targetPagerPage)
-                }
             }
     }
 
@@ -206,9 +195,17 @@ fun ViewerScreen(
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
-                            onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                            onTapLeft = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
+                                }
+                            },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
-                            onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                            onTapRight = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                                }
+                            },
                             onUpdateCropRect = { rect ->
                                 viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
                             },
@@ -263,13 +260,15 @@ fun ViewerScreen(
                             ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
                             onTapLeft = {
-                                val prevSpread = (spreadIndex - 1).coerceAtLeast(0)
-                                viewModel.onIntent(ViewerIntent.SetPage(spreadToFirstPage(prevSpread)))
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((spreadIndex - 1).coerceAtLeast(0))
+                                }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
-                                val nextSpread = (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
-                                viewModel.onIntent(ViewerIntent.SetPage(spreadToFirstPage(nextSpread)))
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((spreadIndex + 1).coerceAtMost(pagerPageCount - 1))
+                                }
                             },
                             onUpdateCropRect = { rect ->
                                 viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
@@ -315,9 +314,17 @@ fun ViewerScreen(
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
-                            onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                            onTapLeft = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
+                                }
+                            },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
-                            onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                            onTapRight = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                                }
+                            },
                             onUpdateCropRect = { rect ->
                                 viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
                             },
@@ -644,8 +651,9 @@ fun ViewerScreen(
                     Slider(
                         value = if (isDoublePage) pageToSpread(state.currentPage).toFloat() else state.currentPage.toFloat(),
                         onValueChange = {
-                            val page = if (isDoublePage) spreadToFirstPage(it.toInt()) else it.toInt()
-                            viewModel.onIntent(ViewerIntent.SetPage(page))
+                            coroutineScope.launch {
+                                pagerState.scrollToPage(it.toInt())
+                            }
                         },
                         valueRange = 0f..(pagerPageCount - 1).toFloat().coerceAtLeast(0f),
                         steps = (pagerPageCount - 2).coerceAtLeast(0),
