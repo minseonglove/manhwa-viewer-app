@@ -2,8 +2,9 @@ package com.manhwaviewer.data.ocr
 
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.repository.TextDetectionRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
 class TextDetectionRepositoryImpl(
@@ -17,7 +18,7 @@ class TextDetectionRepositoryImpl(
     }
 
     override suspend fun detectAndRecognize(imageBytes: ByteArray): List<TextBlock> =
-        coroutineScope {
+        withContext(Dispatchers.Default) {
             val totalStart = now()
 
             // 1. CTD + Platform 병렬 검출

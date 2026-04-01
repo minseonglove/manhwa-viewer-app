@@ -4,8 +4,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 
 expect fun ByteArray.toImageBitmap(): ImageBitmap
 
-expect fun getImageDimensions(bytes: ByteArray): Pair<Int, Int>
+expect suspend fun getImageDimensions(bytes: ByteArray): Pair<Int, Int>
 
-expect fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: Int): ByteArray
+expect suspend fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: Int): ByteArray
 
-expect fun mergeImagesHorizontally(first: ByteArray, second: ByteArray): ByteArray
+expect suspend fun mergeImagesHorizontally(first: ByteArray, second: ByteArray): ByteArray

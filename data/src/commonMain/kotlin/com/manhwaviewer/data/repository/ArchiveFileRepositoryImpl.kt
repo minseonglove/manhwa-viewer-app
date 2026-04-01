@@ -8,8 +8,11 @@ import com.manhwaviewer.data.scanner.MediaScanner
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
 class ArchiveFileRepositoryImpl(
@@ -49,10 +52,12 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
     }
 
     override suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile> =
-        mediaScanner.scanDirectory(directoryPath)
+        withContext(Dispatchers.IO) {
+            mediaScanner.scanDirectory(directoryPath)
+        }
 
     override suspend fun scanArchiveEntries(archivePath: String): List<ArchiveFile> {
-        val entries = archiveReader.getImageEntries(archivePath)
+        val entries = withContext(Dispatchers.IO) { archiveReader.getImageEntries(archivePath) }
         val ext = archivePath.substringAfterLast('.').lowercase()
         val archiveType = when (ext) {
             "cbz" -> ArchiveType.CBZ
@@ -74,11 +79,17 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
     }
 
     override suspend fun getImageEntries(filePath: String): List<String> =
-        archiveReader.getImageEntries(filePath)
+        withContext(Dispatchers.IO) {
+            archiveReader.getImageEntries(filePath)
+        }
 
     override suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> =
-        archiveReader.getImageEntriesSorted(filePath, sortByDate, ascending)
+        withContext(Dispatchers.IO) {
+            archiveReader.getImageEntriesSorted(filePath, sortByDate, ascending)
+        }
 
     override suspend fun getImageBytes(filePath: String, entryName: String): ByteArray? =
-        archiveReader.getImageBytes(filePath, entryName)
+        withContext(Dispatchers.IO) {
+            archiveReader.getImageBytes(filePath, entryName)
+        }
 }

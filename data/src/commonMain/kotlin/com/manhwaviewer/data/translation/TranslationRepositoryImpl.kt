@@ -5,6 +5,9 @@ import com.manhwaviewer.data.db.TranslationCacheEntity
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.repository.TranslationRepository
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
 class TranslationRepositoryImpl(
@@ -21,12 +24,12 @@ class TranslationRepositoryImpl(
         text: String,
         sourceLanguage: String,
         targetLanguage: String,
-    ): String {
-        if (text.isBlank()) return text
+    ): String = withContext(Dispatchers.IO) {
+        if (text.isBlank()) return@withContext text
 
         // 1. 캐시 확인
         val cached = cacheDao.findCache(text, sourceLanguage, targetLanguage)
-        if (cached != null) return cached.translatedText
+        if (cached != null) return@withContext cached.translatedText
 
         // 2. Google 번역 시도 (현재 TODO - null 반환)
         val googleResult = try {
@@ -58,15 +61,15 @@ class TranslationRepositoryImpl(
             )
         )
 
-        return translatedText
+        translatedText
     }
 
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
         targetLanguage: String,
-    ): List<TranslationResult> {
-        if (texts.isEmpty()) return emptyList()
+    ): List<TranslationResult> = withContext(Dispatchers.IO) {
+        if (texts.isEmpty()) return@withContext emptyList()
 
         // 1. 각 텍스트별 캐시 조회 → cached / uncached 분리
         val results = arrayOfNulls<TranslationResult>(texts.size)
@@ -87,7 +90,7 @@ class TranslationRepositoryImpl(
 
         // 2. 모두 캐시 히트 시 즉시 반환
         if (uncachedIndices.isEmpty()) {
-            return results.map { it!! }
+            return@withContext results.map { it!! }
         }
 
         // 3. 미캐시 텍스트를 합쳐서 1회 API 호출
@@ -111,7 +114,7 @@ class TranslationRepositoryImpl(
             for (idx in uncachedIndices) {
                 results[idx] = TranslationResult(texts[idx], texts[idx])
             }
-            return results.map { it!! }
+            return@withContext results.map { it!! }
         }
 
         // 4. 결과를 구분자로 split → 개별 캐시 저장
@@ -136,6 +139,6 @@ class TranslationRepositoryImpl(
             )
         }
 
-        return results.map { it!! }
+        results.map { it!! }
     }
 }
