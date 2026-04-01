@@ -6,6 +6,7 @@ import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
+import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.util.cropImageBytes
@@ -19,6 +20,7 @@ class ViewerViewModel(
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val getImageBytesUseCase: GetImageBytesUseCase,
     private val recognizePageTextUseCase: RecognizePageTextUseCase,
+    private val translateTextUseCase: TranslateTextUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     init {
@@ -35,19 +37,40 @@ class ViewerViewModel(
             is ViewerIntent.SetPage -> {
                 if (currentState.totalPages == 0) return
                 updateState {
-                    copy(currentPage = intent.page.coerceIn(0, totalPages - 1))
+                    copy(
+                        currentPage = intent.page.coerceIn(0, totalPages - 1),
+                        ocrResults = emptyList(),
+                        ocrBottomSheetText = null,
+                        translatedText = null,
+                        pipelineStage = PipelineStage.IDLE,
+                        isOcrSheetExpanded = false,
+                    )
                 }
             }
             is ViewerIntent.NextPage -> {
                 if (currentState.totalPages == 0) return
                 updateState {
-                    copy(currentPage = (currentPage + 1).coerceIn(0, totalPages - 1))
+                    copy(
+                        currentPage = (currentPage + 1).coerceIn(0, totalPages - 1),
+                        ocrResults = emptyList(),
+                        ocrBottomSheetText = null,
+                        translatedText = null,
+                        pipelineStage = PipelineStage.IDLE,
+                        isOcrSheetExpanded = false,
+                    )
                 }
             }
             is ViewerIntent.PreviousPage -> {
                 if (currentState.totalPages == 0) return
                 updateState {
-                    copy(currentPage = (currentPage - 1).coerceIn(0, totalPages - 1))
+                    copy(
+                        currentPage = (currentPage - 1).coerceIn(0, totalPages - 1),
+                        ocrResults = emptyList(),
+                        ocrBottomSheetText = null,
+                        translatedText = null,
+                        pipelineStage = PipelineStage.IDLE,
+                        isOcrSheetExpanded = false,
+                    )
                 }
             }
             is ViewerIntent.ToggleControls -> updateState {
@@ -71,6 +94,8 @@ class ViewerViewModel(
                     ocrResults = if (clearOcr) emptyList() else ocrResults,
                     isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
                     pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
+                    translatedText = if (clearOcr) null else translatedText,
+                    isTranslating = if (clearOcr) false else isTranslating,
                 )
             }
             is ViewerIntent.UpdateCropRect -> updateState {
@@ -141,31 +166,47 @@ class ViewerViewModel(
                 updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
                 val results = recognizePageTextUseCase(imageBytes)
 
-                println("=== OCR Results for page ${currentState.currentPage + 1} ===")
-                results.forEachIndexed { index, block ->
-                    println("  [$index] (${block.x}, ${block.y}, ${block.width}x${block.height}): ${block.text}")
-                }
-                println("=== Total: ${results.size} text blocks detected ===")
-
                 val combinedText = results.joinToString("\n") { it.text }
 
                 updateState {
                     copy(
                         isOcrProcessing = false,
                         ocrResults = results,
-                        pipelineStage = PipelineStage.DONE,
+                        pipelineStage = PipelineStage.TRANSLATING,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
                     )
                 }
 
-                // TODO: Stage 5 - 번역 파이프라인 연동
+                if (results.isNotEmpty()) {
+                    updateState { copy(isTranslating = true) }
+                    try {
+                        val translatedTexts = translateTextUseCase(results.map { it.text })
+                        val translatedCombined = translatedTexts.joinToString("\n")
+                        updateState {
+                            copy(
+                                translatedText = translatedCombined,
+                                pipelineStage = PipelineStage.DONE,
+                                isTranslating = false,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        updateState {
+                            copy(
+                                translatedText = null,
+                                pipelineStage = PipelineStage.DONE,
+                                isTranslating = false,
+                            )
+                        }
+                    }
+                } else {
+                    updateState { copy(pipelineStage = PipelineStage.DONE) }
+                }
+
                 // TODO: 번역 결과를 오버레이 UI로 표시
-                // TODO: 번역 캐시 (Room DB) 저장
                 // TODO: Dominant Color 배경 처리
                 // TODO: Auto-resizing 텍스트 배치
             } catch (e: Exception) {
-                println("OCR Error: ${e.message}")
                 updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
             }
         }
@@ -211,8 +252,6 @@ class ViewerViewModel(
                 val cropW = (imgRight - imgLeft).coerceAtLeast(1)
                 val cropH = (imgBottom - imgTop).coerceAtLeast(1)
 
-                println("=== Crop: screen(${cropMinX},${cropMinY})-(${cropMaxX},${cropMaxY}) → image($imgLeft,$imgTop)-($imgRight,$imgBottom) ===")
-
                 // 이미지 크롭
                 val croppedBytes = cropImageBytes(imageBytes, imgLeft, imgTop, cropW, cropH)
 
@@ -221,24 +260,43 @@ class ViewerViewModel(
                 // 크롭된 이미지로 OCR 실행
                 val results = recognizePageTextUseCase(croppedBytes)
 
-                println("=== Crop Area OCR Results ===")
-                results.forEachIndexed { index, block ->
-                    println("  [$index] (${block.x}, ${block.y}, ${block.width}x${block.height}): ${block.text}")
-                }
-
                 val combinedText = results.joinToString("\n") { it.text }
 
                 updateState {
                     copy(
-                        pipelineStage = PipelineStage.DONE,
+                        pipelineStage = PipelineStage.TRANSLATING,
                         isOcrProcessing = false,
                         ocrResults = results,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
                     )
                 }
+
+                if (results.isNotEmpty()) {
+                    updateState { copy(isTranslating = true) }
+                    try {
+                        val translatedTexts = translateTextUseCase(results.map { it.text })
+                        val translatedCombined = translatedTexts.joinToString("\n")
+                        updateState {
+                            copy(
+                                translatedText = translatedCombined,
+                                pipelineStage = PipelineStage.DONE,
+                                isTranslating = false,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        updateState {
+                            copy(
+                                translatedText = null,
+                                isTranslating = false,
+                                pipelineStage = PipelineStage.DONE,
+                            )
+                        }
+                    }
+                } else {
+                    updateState { copy(pipelineStage = PipelineStage.DONE) }
+                }
             } catch (e: Exception) {
-                println("Crop OCR Error: ${e.message}")
                 updateState {
                     copy(
                         pipelineStage = PipelineStage.IDLE,

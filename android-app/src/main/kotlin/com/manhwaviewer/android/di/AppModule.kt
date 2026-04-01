@@ -1,5 +1,6 @@
 package com.manhwaviewer.android.di
 
+import com.manhwaviewer.android.BuildConfig
 import com.manhwaviewer.data.archive.ArchiveReader
 import com.manhwaviewer.data.cache.AndroidCacheRepository
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
@@ -19,7 +20,12 @@ import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.OcrRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
+import com.manhwaviewer.domain.repository.TranslationRepository
 import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
+import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.PapagoTranslationService
+import com.manhwaviewer.data.translation.TranslationRepositoryImpl
+import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.ClearCacheUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetCacheSizeUseCase
@@ -52,6 +58,7 @@ val appModule = module {
     // Database
     single { getRoomDatabase(getDatabaseBuilder(androidContext())) }
     single { get<com.manhwaviewer.data.db.AppDatabase>().archiveFileDao() }
+    single { get<com.manhwaviewer.data.db.AppDatabase>().translationCacheDao() }
 
     // DataStore
     single { createPlatformDataStore(androidContext()) }
@@ -73,6 +80,9 @@ val appModule = module {
             MlKitTextRecognizer(),
         )
     }
+    single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
+    single { GoogleTranslationService() }
+    single<TranslationRepository> { TranslationRepositoryImpl(get(), get(), get()) }
 
     // UseCases
     factory { GetRecentArchivesUseCase(get()) }
@@ -92,6 +102,7 @@ val appModule = module {
     factory { RecognizePageTextUseCase(get()) }
     factory { GetCacheSizeUseCase(get()) }
     factory { ClearCacheUseCase(get()) }
+    factory { TranslateTextUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
@@ -99,6 +110,6 @@ val appModule = module {
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }

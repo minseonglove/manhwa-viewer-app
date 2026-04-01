@@ -35,6 +35,8 @@ data class ViewerState(
     val pipelineStage: PipelineStage = PipelineStage.IDLE,
     val ocrBottomSheetText: String? = null,
     val isOcrSheetExpanded: Boolean = false,
+    val translatedText: String? = null,
+    val isTranslating: Boolean = false,
 )
 
 sealed interface ViewerIntent {

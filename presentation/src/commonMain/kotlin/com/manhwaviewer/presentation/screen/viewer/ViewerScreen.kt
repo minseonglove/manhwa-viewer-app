@@ -729,6 +729,7 @@ fun ViewerScreen(
         ) {
             OcrBottomSheet(
                 text = state.ocrBottomSheetText ?: "",
+                translatedText = state.translatedText,
                 onDismiss = { viewModel.onIntent(ViewerIntent.DismissOcrResult) },
             )
         }
@@ -872,6 +873,7 @@ private fun PipelineIndicator(
 @Composable
 private fun OcrBottomSheet(
     text: String,
+    translatedText: String?,
     onDismiss: () -> Unit,
 ) {
     Column(
@@ -907,9 +909,9 @@ private fun OcrBottomSheet(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // 번역 결과 (TODO)
+        // 번역 결과
         Text(
-            text = "\u2192 번역 결과 (TODO)",
+            text = "\u2192 ${translatedText ?: "번역 중..."}",
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
@@ -917,7 +919,7 @@ private fun OcrBottomSheet(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // OCR 엔진 배지
+        // 엔진 배지
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(
                 modifier = Modifier
@@ -933,6 +935,23 @@ private fun OcrBottomSheet(
                     fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
+            }
+            if (translatedText != null) {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = Color(0xFF1DB954).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = "papago",
+                        color = Color(0xFF1DB954),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }

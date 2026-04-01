@@ -7,7 +7,7 @@ import kotlinx.coroutines.IO
 
 fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
     builder
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
