@@ -56,7 +56,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -84,8 +83,8 @@ import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
-import com.manhwaviewer.presentation.util.mergeImagesHorizontally
-import com.manhwaviewer.presentation.util.toImageBitmap
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
 import me.saket.telephoto.zoomable.rememberZoomableState
@@ -182,13 +181,15 @@ fun ViewerScreen(
                     VerticalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = 1,
                         userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { page ->
-                        val imageBytes = produceState<ByteArray?>(null, page) {
-                            value = viewModel.getImageBytes(page)
+                        val entryName = state.imageEntries.getOrNull(page)
+                        val pageModel = entryName?.let {
+                            ViewerPageModel(archivePath = state.filePath, entryNames = listOf(it))
                         }
                         ZoomableImage(
-                            imageBytes = imageBytes.value,
+                            pageModel = pageModel,
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
@@ -237,22 +238,23 @@ fun ViewerScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = isRtl,
+                        beyondViewportPageCount = 1,
                         userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { spreadIndex ->
                         val (firstPage, secondPage) = spreadToPages(spreadIndex, state.totalPages)
-                        val mergedBytes = produceState<ByteArray?>(null, firstPage, secondPage) {
-                            val first = viewModel.getImageBytes(firstPage) ?: return@produceState
-                            val second = if (secondPage != null) viewModel.getImageBytes(secondPage) else null
-                            value = if (second != null) {
-                                if (isRtl) mergeImagesHorizontally(second, first)
-                                else mergeImagesHorizontally(first, second)
+                        val firstEntry = state.imageEntries.getOrNull(firstPage)
+                        val secondEntry = secondPage?.let { state.imageEntries.getOrNull(it) }
+                        val pageModel = firstEntry?.let {
+                            val entries = if (secondEntry != null) {
+                                if (isRtl) listOf(secondEntry, firstEntry) else listOf(firstEntry, secondEntry)
                             } else {
-                                first
+                                listOf(firstEntry)
                             }
+                            ViewerPageModel(archivePath = state.filePath, entryNames = entries, isRtl = isRtl)
                         }
                         val isCurrentSpread = firstPage == state.currentPage || secondPage == state.currentPage
                         ZoomableImage(
-                            imageBytes = mergedBytes.value,
+                            pageModel = pageModel,
                             page = spreadIndex,
                             keepZoomState = state.preference.keepZoomState,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
@@ -301,13 +303,15 @@ fun ViewerScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
+                        beyondViewportPageCount = 1,
                         userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { page ->
-                        val imageBytes = produceState<ByteArray?>(null, page) {
-                            value = viewModel.getImageBytes(page)
+                        val entryName = state.imageEntries.getOrNull(page)
+                        val pageModel = entryName?.let {
+                            ViewerPageModel(archivePath = state.filePath, entryNames = listOf(it))
                         }
                         ZoomableImage(
-                            imageBytes = imageBytes.value,
+                            pageModel = pageModel,
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
@@ -1002,7 +1006,7 @@ private fun OcrCollapsedHandle(
 
 @Composable
 private fun ZoomableImage(
-    imageBytes: ByteArray?,
+    pageModel: ViewerPageModel?,
     page: Int,
     keepZoomState: Boolean,
     isAreaSelectMode: Boolean,
@@ -1047,33 +1051,49 @@ private fun ZoomableImage(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (imageBytes != null) {
-            val imageBitmap = remember(imageBytes) { imageBytes.toImageBitmap() }
+        if (pageModel != null) {
+            val painter = rememberAsyncImagePainter(
+                model = pageModel,
+                contentScale = ContentScale.Fit,
+            )
+
             Image(
-                bitmap = imageBitmap,
+                painter = painter,
                 contentDescription = "Page ${page + 1}",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
             )
 
-            // Bounding Box 하이라이트
-            if (ocrResults.isNotEmpty()) {
-                BoundingBoxOverlay(
-                    textBlocks = ocrResults,
-                    imageWidth = imageBitmap.width,
-                    imageHeight = imageBitmap.height,
-                    onBlockTap = onTextBlockTap,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            val painterState = painter.state.collectAsState().value
+            when (painterState) {
+                is AsyncImagePainter.State.Loading -> {
+                    CircularProgressIndicator(color = Color.White)
+                }
+                is AsyncImagePainter.State.Success -> {
+                    val imgWidth = painterState.result.image.width
+                    val imgHeight = painterState.result.image.height
 
-            // 선택 영역 크롭 오버레이
-            if (isAreaSelectMode) {
-                CropOverlay(
-                    cropRect = cropRect,
-                    onUpdateCropRect = onUpdateCropRect,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                    // Bounding Box 하이라이트
+                    if (ocrResults.isNotEmpty()) {
+                        BoundingBoxOverlay(
+                            textBlocks = ocrResults,
+                            imageWidth = imgWidth,
+                            imageHeight = imgHeight,
+                            onBlockTap = onTextBlockTap,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    // 선택 영역 크롭 오버레이
+                    if (isAreaSelectMode) {
+                        CropOverlay(
+                            cropRect = cropRect,
+                            onUpdateCropRect = onUpdateCropRect,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                else -> {}
             }
         } else {
             CircularProgressIndicator(color = Color.White)
