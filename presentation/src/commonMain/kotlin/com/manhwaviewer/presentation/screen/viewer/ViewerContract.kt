@@ -58,3 +58,27 @@ sealed interface ViewerIntent {
 sealed interface ViewerSideEffect {
     data object NavigateBack : ViewerSideEffect
 }
+
+// ── DOUBLE_PAGE 모드: 스프레드(양면) 인덱스 ↔ 실제 페이지 인덱스 변환 ──
+
+fun spreadCount(totalPages: Int): Int {
+    if (totalPages <= 1) return totalPages
+    return 1 + (totalPages - 1 + 1) / 2  // 표지(1) + 나머지 짝수 묶음
+}
+
+fun spreadToFirstPage(spreadIndex: Int): Int {
+    if (spreadIndex == 0) return 0  // 표지
+    return spreadIndex * 2 - 1
+}
+
+fun spreadToPages(spreadIndex: Int, totalPages: Int): Pair<Int, Int?> {
+    if (spreadIndex == 0) return Pair(0, null)  // 표지는 단면
+    val first = spreadIndex * 2 - 1
+    val second = first + 1
+    return Pair(first, if (second < totalPages) second else null)
+}
+
+fun pageToSpread(pageIndex: Int): Int {
+    if (pageIndex == 0) return 0
+    return (pageIndex + 1) / 2
+}

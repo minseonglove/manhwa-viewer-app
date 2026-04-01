@@ -56,3 +56,31 @@ actual fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: 
     val encoded = croppedImage.encodeToData() ?: return bytes
     return encoded.bytes
 }
+
+actual fun mergeImagesHorizontally(first: ByteArray, second: ByteArray): ByteArray {
+    val img1 = Image.makeFromEncoded(first)
+    val img2 = Image.makeFromEncoded(second)
+
+    val targetH = maxOf(img1.height, img2.height)
+    val w1 = (img1.width.toFloat() * targetH / img1.height).toInt()
+    val w2 = (img2.width.toFloat() * targetH / img2.height).toInt()
+
+    val info = ImageInfo(w1 + w2, targetH, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
+    val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(w1 + w2, targetH)
+    val canvas = surface.canvas
+
+    canvas.drawImageRect(
+        img1,
+        org.jetbrains.skia.Rect.makeWH(img1.width.toFloat(), img1.height.toFloat()),
+        org.jetbrains.skia.Rect.makeXYWH(0f, 0f, w1.toFloat(), targetH.toFloat()),
+    )
+    canvas.drawImageRect(
+        img2,
+        org.jetbrains.skia.Rect.makeWH(img2.width.toFloat(), img2.height.toFloat()),
+        org.jetbrains.skia.Rect.makeXYWH(w1.toFloat(), 0f, w2.toFloat(), targetH.toFloat()),
+    )
+
+    val snapshot = surface.makeImageSnapshot()
+    val encoded = snapshot.encodeToData() ?: return first
+    return encoded.bytes
+}

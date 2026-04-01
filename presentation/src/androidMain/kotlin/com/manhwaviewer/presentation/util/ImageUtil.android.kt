@@ -44,3 +44,32 @@ actual fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: 
     bitmap.recycle()
     return stream.toByteArray()
 }
+
+actual fun mergeImagesHorizontally(first: ByteArray, second: ByteArray): ByteArray {
+    val bmp1 = BitmapFactory.decodeByteArray(first, 0, first.size)
+    val bmp2 = BitmapFactory.decodeByteArray(second, 0, second.size)
+
+    val targetH = maxOf(bmp1.height, bmp2.height)
+    val w1 = (bmp1.width.toFloat() * targetH / bmp1.height).toInt()
+    val w2 = (bmp2.width.toFloat() * targetH / bmp2.height).toInt()
+
+    val merged = Bitmap.createBitmap(w1 + w2, targetH, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(merged)
+
+    val scaled1 = Bitmap.createScaledBitmap(bmp1, w1, targetH, true)
+    val scaled2 = Bitmap.createScaledBitmap(bmp2, w2, targetH, true)
+
+    canvas.drawBitmap(scaled1, 0f, 0f, null)
+    canvas.drawBitmap(scaled2, w1.toFloat(), 0f, null)
+
+    val stream = ByteArrayOutputStream()
+    merged.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+
+    if (scaled1 !== bmp1) scaled1.recycle()
+    if (scaled2 !== bmp2) scaled2.recycle()
+    bmp1.recycle()
+    bmp2.recycle()
+    merged.recycle()
+
+    return stream.toByteArray()
+}

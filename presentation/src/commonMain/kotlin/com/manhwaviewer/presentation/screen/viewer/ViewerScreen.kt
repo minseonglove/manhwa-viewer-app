@@ -51,6 +51,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,7 @@ import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
+import com.manhwaviewer.presentation.util.mergeImagesHorizontally
 import com.manhwaviewer.presentation.util.toImageBitmap
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
@@ -102,29 +104,6 @@ private val PageTranslateText = Color(0xFF10B981)
 private val BoundingBoxColor = Color(0xFF10B981)
 private val PipelineGreen = Color(0xFF10B981)
 private val PipelineOrange = Color(0xFFF59E0B)
-
-/** DOUBLE_PAGE 모드: 스프레드(양면) 인덱스 ↔ 실제 페이지 인덱스 변환 */
-private fun spreadCount(totalPages: Int): Int {
-    if (totalPages <= 1) return totalPages
-    return 1 + (totalPages - 1 + 1) / 2  // 표지(1) + 나머지 짝수 묶음
-}
-
-private fun spreadToFirstPage(spreadIndex: Int): Int {
-    if (spreadIndex == 0) return 0  // 표지
-    return spreadIndex * 2 - 1
-}
-
-private fun spreadToPages(spreadIndex: Int, totalPages: Int): Pair<Int, Int?> {
-    if (spreadIndex == 0) return Pair(0, null)  // 표지는 단면
-    val first = spreadIndex * 2 - 1
-    val second = first + 1
-    return Pair(first, if (second < totalPages) second else null)
-}
-
-private fun pageToSpread(pageIndex: Int): Int {
-    if (pageIndex == 0) return 0
-    return (pageIndex + 1) / 2
-}
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -176,11 +155,17 @@ fun ViewerScreen(
     }
 
     // state → pager 동기화: 슬라이더 등 프로그래밍적 이동
+    // pager가 idle 상태가 될 때까지 기다린 후 동기화하여 스와이프 중 snap-back 방지
     LaunchedEffect(state.currentPage) {
         val targetPagerPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
-        if (pagerState.settledPage != targetPagerPage && pagerPageCount > 0) {
-            pagerState.scrollToPage(targetPagerPage)
-        }
+        if (pagerPageCount <= 0) return@LaunchedEffect
+        snapshotFlow { pagerState.isScrollInProgress to pagerState.settledPage }
+            .first { (scrolling, _) -> !scrolling }
+            .let { (_, settledPage) ->
+                if (settledPage != targetPagerPage) {
+                    pagerState.scrollToPage(targetPagerPage)
+                }
+            }
     }
 
     var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
@@ -208,7 +193,7 @@ fun ViewerScreen(
                     VerticalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { page ->
                         val imageBytes = produceState<ByteArray?>(null, page) {
                             value = viewModel.getImageBytes(page)
@@ -250,38 +235,62 @@ fun ViewerScreen(
                 }
 
                 ViewMode.DOUBLE_PAGE -> {
+                    val isRtl = state.preference.readingDirection == ReadingDirection.RTL
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
-                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                        reverseLayout = isRtl,
+                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { spreadIndex ->
                         val (firstPage, secondPage) = spreadToPages(spreadIndex, state.totalPages)
-                        val firstBytes = produceState<ByteArray?>(null, firstPage) {
-                            value = viewModel.getImageBytes(firstPage)
-                        }
-                        val secondBytes = if (secondPage != null) {
-                            produceState<ByteArray?>(null, secondPage) {
-                                value = viewModel.getImageBytes(secondPage)
+                        val mergedBytes = produceState<ByteArray?>(null, firstPage, secondPage) {
+                            val first = viewModel.getImageBytes(firstPage) ?: return@produceState
+                            val second = if (secondPage != null) viewModel.getImageBytes(secondPage) else null
+                            value = if (second != null) {
+                                if (isRtl) mergeImagesHorizontally(second, first)
+                                else mergeImagesHorizontally(first, second)
+                            } else {
+                                first
                             }
-                        } else {
-                            null
                         }
-
-                        DoublePageSpread(
-                            firstImageBytes = firstBytes.value,
-                            secondImageBytes = secondBytes?.value,
-                            isRtl = state.preference.readingDirection == ReadingDirection.RTL,
+                        val isCurrentSpread = firstPage == state.currentPage || secondPage == state.currentPage
+                        ZoomableImage(
+                            imageBytes = mergedBytes.value,
+                            page = spreadIndex,
                             keepZoomState = state.preference.keepZoomState,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
-                            cropRect = if (firstPage == state.currentPage || secondPage == state.currentPage) state.cropRect else null,
+                            cropRect = if (isCurrentSpread) state.cropRect else null,
+                            ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
-                            spreadIndex = spreadIndex,
-                            onTapLeft = { viewModel.onIntent(ViewerIntent.PreviousPage) },
+                            onTapLeft = {
+                                val prevSpread = (spreadIndex - 1).coerceAtLeast(0)
+                                viewModel.onIntent(ViewerIntent.SetPage(spreadToFirstPage(prevSpread)))
+                            },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
-                            onTapRight = { viewModel.onIntent(ViewerIntent.NextPage) },
+                            onTapRight = {
+                                val nextSpread = (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
+                                viewModel.onIntent(ViewerIntent.SetPage(spreadToFirstPage(nextSpread)))
+                            },
                             onUpdateCropRect = { rect ->
                                 viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
+                            },
+                            onTextBlockTap = { block ->
+                                viewModel.onIntent(
+                                    ViewerIntent.UpdateCropRect(
+                                        CropRect(
+                                            startX = block.x.toFloat(),
+                                            startY = block.y.toFloat(),
+                                            endX = (block.x + block.width).toFloat(),
+                                            endY = (block.y + block.height).toFloat(),
+                                        )
+                                    )
+                                )
+                                viewModel.onIntent(
+                                    ViewerIntent.ConfirmCrop(
+                                        containerWidth = viewerContainerSize.width,
+                                        containerHeight = viewerContainerSize.height,
+                                    )
+                                )
                             },
                         )
                     }
@@ -293,7 +302,7 @@ fun ViewerScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
-                        userScrollEnabled = state.translationMode != TranslationMode.AREA_SELECT,
+                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { page ->
                         val imageBytes = produceState<ByteArray?>(null, page) {
                             value = viewModel.getImageBytes(page)
@@ -363,7 +372,7 @@ fun ViewerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(OverlayBackground)
+                    .background(Color.Transparent)
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -439,7 +448,7 @@ fun ViewerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(OverlayBackground)
+                    .background(Color.Transparent)
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -564,9 +573,9 @@ fun ViewerScreen(
             )
         }
 
-        // 하단 컨트롤
+        // 하단 컨트롤 (번역 모드에서는 숨김)
         AnimatedVisibility(
-            visible = state.showControls,
+            visible = state.showControls && state.translationMode == TranslationMode.NONE,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -836,6 +845,8 @@ private fun OcrBottomSheet(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             )
+            .pointerInput(Unit) { detectTapGestures { /* 터치 소비: 하위 zoomable로 이벤트 전파 방지 */ } }
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         // 드래그 핸들 (닫기 영역)
@@ -1049,125 +1060,6 @@ private fun ZoomableImage(
             }
 
             // 선택 영역 크롭 오버레이
-            if (isAreaSelectMode) {
-                CropOverlay(
-                    cropRect = cropRect,
-                    onUpdateCropRect = onUpdateCropRect,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-        } else {
-            CircularProgressIndicator(color = Color.White)
-        }
-    }
-}
-
-// ── 양면 스프레드 (두 이미지를 하나로 합성) ─────────────────────
-
-@Composable
-private fun DoublePageSpread(
-    firstImageBytes: ByteArray?,
-    secondImageBytes: ByteArray?,
-    isRtl: Boolean,
-    keepZoomState: Boolean,
-    isAreaSelectMode: Boolean,
-    cropRect: CropRect?,
-    pagerSettledPage: Int,
-    spreadIndex: Int,
-    onTapLeft: () -> Unit,
-    onTapCenter: () -> Unit,
-    onTapRight: () -> Unit,
-    onUpdateCropRect: (CropRect) -> Unit,
-) {
-    val zoomableState = rememberZoomableState()
-
-    if (!keepZoomState && pagerSettledPage != spreadIndex) {
-        LaunchedEffect(Unit) {
-            zoomableState.resetZoom(animationSpec = snap())
-        }
-    }
-
-    var containerWidth by remember { mutableIntStateOf(0) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { containerWidth = it.width }
-            .zoomable(
-                state = zoomableState,
-                enabled = !isAreaSelectMode,
-                onClick = if (!isAreaSelectMode) {
-                    { offset ->
-                        when {
-                            offset.x < containerWidth * 0.2f -> onTapLeft()
-                            offset.x > containerWidth * 0.8f -> onTapRight()
-                            else -> onTapCenter()
-                        }
-                    }
-                } else {
-                    null
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        val firstBitmap = firstImageBytes?.let { bytes -> remember(bytes) { bytes.toImageBitmap() } }
-        val secondBitmap = secondImageBytes?.let { bytes -> remember(bytes) { bytes.toImageBitmap() } }
-
-        if (firstBitmap != null) {
-            // RTL: 오른쪽→왼쪽 읽기이므로 (n+1)|(n) 배치 — second를 왼쪽, first를 오른쪽에
-            val leftBitmap = if (isRtl && secondBitmap != null) secondBitmap else firstBitmap
-            val rightBitmap = if (isRtl && secondBitmap != null) firstBitmap else secondBitmap
-
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                if (rightBitmap != null) {
-                    // 두 이미지를 같은 높이로 정규화 후 간격 없이 나란히 배치
-                    val leftAR = leftBitmap.width.toFloat() / leftBitmap.height
-                    val rightAR = rightBitmap.width.toFloat() / rightBitmap.height
-                    val combinedAR = leftAR + rightAR
-
-                    val fitScale = minOf(size.width / combinedAR, size.height)
-                    val drawH = fitScale
-                    val drawLeftW = leftAR * fitScale
-                    val drawRightW = rightAR * fitScale
-
-                    val startX = (size.width - (drawLeftW + drawRightW)) / 2f
-                    val startY = (size.height - drawH) / 2f
-
-                    drawImage(
-                        image = leftBitmap,
-                        srcOffset = IntOffset.Zero,
-                        srcSize = IntSize(leftBitmap.width, leftBitmap.height),
-                        dstOffset = IntOffset(startX.toInt(), startY.toInt()),
-                        dstSize = IntSize(drawLeftW.toInt(), drawH.toInt()),
-                    )
-                    drawImage(
-                        image = rightBitmap,
-                        srcOffset = IntOffset.Zero,
-                        srcSize = IntSize(rightBitmap.width, rightBitmap.height),
-                        dstOffset = IntOffset((startX + drawLeftW).toInt(), startY.toInt()),
-                        dstSize = IntSize(drawRightW.toInt(), drawH.toInt()),
-                    )
-                } else {
-                    // 단면 (표지 또는 마지막 홀수 페이지)
-                    val imgW = leftBitmap.width.toFloat()
-                    val imgH = leftBitmap.height.toFloat()
-                    val fitScale = minOf(size.width / imgW, size.height / imgH)
-                    val drawW = imgW * fitScale
-                    val drawH = imgH * fitScale
-                    val startX = (size.width - drawW) / 2f
-                    val startY = (size.height - drawH) / 2f
-
-                    drawImage(
-                        image = leftBitmap,
-                        srcOffset = IntOffset.Zero,
-                        srcSize = IntSize(leftBitmap.width, leftBitmap.height),
-                        dstOffset = IntOffset(startX.toInt(), startY.toInt()),
-                        dstSize = IntSize(drawW.toInt(), drawH.toInt()),
-                    )
-                }
-            }
-
-            // 크롭 오버레이 (영역 선택 모드)
             if (isAreaSelectMode) {
                 CropOverlay(
                     cropRect = cropRect,

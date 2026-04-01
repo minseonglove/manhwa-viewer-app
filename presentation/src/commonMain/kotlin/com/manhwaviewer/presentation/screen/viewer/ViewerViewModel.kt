@@ -8,9 +8,12 @@ import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
+import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.util.cropImageBytes
 import com.manhwaviewer.presentation.util.getImageDimensions
+import com.manhwaviewer.presentation.util.mergeImagesHorizontally
+import com.manhwaviewer.domain.entity.ReadingDirection
 import kotlinx.coroutines.launch
 
 class ViewerViewModel(
@@ -140,6 +143,24 @@ class ViewerViewModel(
         return getImageBytesUseCase(state.filePath, entryName)
     }
 
+    private suspend fun getSpreadImageBytes(): ByteArray? {
+        val state = currentState
+        if (state.preference.viewMode != ViewMode.DOUBLE_PAGE) {
+            return getImageBytes(state.currentPage)
+        }
+        val spread = pageToSpread(state.currentPage)
+        val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
+        val firstBytes = getImageBytes(firstPage) ?: return null
+        val secondBytes = if (secondPage != null) getImageBytes(secondPage) else null
+        return if (secondBytes != null) {
+            val isRtl = state.preference.readingDirection == ReadingDirection.RTL
+            if (isRtl) mergeImagesHorizontally(secondBytes, firstBytes)
+            else mergeImagesHorizontally(firstBytes, secondBytes)
+        } else {
+            firstBytes
+        }
+    }
+
     private fun saveProgress() {
         viewModelScope.launch {
             val state = currentState
@@ -160,7 +181,7 @@ class ViewerViewModel(
                 )
             }
             try {
-                val imageBytes = getImageBytes(currentState.currentPage) ?: run {
+                val imageBytes = getSpreadImageBytes() ?: run {
                     updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
                     return@launch
                 }
@@ -218,7 +239,7 @@ class ViewerViewModel(
         viewModelScope.launch {
             updateState { copy(pipelineStage = PipelineStage.DETECTING, isOcrProcessing = true) }
             try {
-                val imageBytes = getImageBytes(currentState.currentPage) ?: run {
+                val imageBytes = getSpreadImageBytes() ?: run {
                     updateState {
                         copy(
                             pipelineStage = PipelineStage.IDLE,
