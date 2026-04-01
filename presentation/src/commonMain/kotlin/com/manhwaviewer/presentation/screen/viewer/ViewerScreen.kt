@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -33,7 +34,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +80,7 @@ import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.util.toImageBitmap
 import manhwa_viewer.presentation.generated.resources.Res
@@ -161,22 +166,20 @@ fun ViewerScreen(
         pageCount = { pagerPageCount },
     )
 
-    // 프로그래밍적 페이지 이동(슬라이더, 초기 이동 등)인지 추적
-    var isProgrammaticScroll by remember { mutableStateOf(false) }
-
-    LaunchedEffect(pagerState.currentPage) {
-        if (!isProgrammaticScroll) {
-            val actualPage = if (isDoublePage) spreadToFirstPage(pagerState.currentPage) else pagerState.currentPage
-            viewModel.onIntent(ViewerIntent.SetPage(actualPage))
-        }
+    // pager → state 동기화: settledPage만 관찰하여 애니메이션 중간값 무시
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }
+            .collect { settledPage ->
+                val actualPage = if (isDoublePage) spreadToFirstPage(settledPage) else settledPage
+                viewModel.onIntent(ViewerIntent.SetPage(actualPage))
+            }
     }
 
+    // state → pager 동기화: 슬라이더 등 프로그래밍적 이동
     LaunchedEffect(state.currentPage) {
         val targetPagerPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
-        if (pagerState.currentPage != targetPagerPage && pagerPageCount > 0) {
-            isProgrammaticScroll = true
+        if (pagerState.settledPage != targetPagerPage && pagerPageCount > 0) {
             pagerState.scrollToPage(targetPagerPage)
-            isProgrammaticScroll = false
         }
     }
 
@@ -673,8 +676,9 @@ fun ViewerScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             OcrBottomSheet(
-                text = state.ocrBottomSheetText ?: "",
-                translatedText = state.translatedText,
+                ocrText = state.ocrBottomSheetText ?: "",
+                translationResults = state.translationResults,
+                isTranslating = state.isTranslating,
                 onDismiss = { viewModel.onIntent(ViewerIntent.DismissOcrResult) },
             )
         }
@@ -817,50 +821,85 @@ private fun PipelineIndicator(
 
 @Composable
 private fun OcrBottomSheet(
-    text: String,
-    translatedText: String?,
+    ocrText: String,
+    translationResults: List<TranslationResult>,
+    isTranslating: Boolean,
     onDismiss: () -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(max = 300.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             )
-            .clickable { onDismiss() }
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        // 드래그 핸들
+        // 드래그 핸들 (닫기 영역)
         Box(
             modifier = Modifier
-                .width(32.dp)
-                .height(3.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(2.dp),
-                )
-                .align(Alignment.CenterHorizontally),
-        )
+                .fillMaxWidth()
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(3.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(2.dp),
+                    ),
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 원문 텍스트
-        Text(
-            text = text,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // 번역 결과
-        Text(
-            text = "\u2192 ${translatedText ?: "번역 중..."}",
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+        // 스크롤 가능한 번역 결과 영역
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(scrollState),
+        ) {
+            if (translationResults.isNotEmpty()) {
+                // 라인별 원문/번역 쌍 표시
+                translationResults.forEachIndexed { index, result ->
+                    // 원문
+                    Text(
+                        text = result.originalText,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                    )
+                    // 번역
+                    Text(
+                        text = "\u2192 ${result.translatedText}",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (index < translationResults.lastIndex) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            } else {
+                // 번역 결과 없을 때 원문만 표시
+                Text(
+                    text = ocrText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (isTranslating) "\u2192 번역 중..." else "\u2192 번역 대기",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(6.dp))
 
@@ -881,7 +920,7 @@ private fun OcrBottomSheet(
                     fontWeight = FontWeight.SemiBold,
                 )
             }
-            if (translatedText != null) {
+            if (translationResults.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .background(

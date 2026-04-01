@@ -1,5 +1,7 @@
 package com.manhwaviewer.domain.repository
 
+import com.manhwaviewer.domain.entity.TranslationResult
+
 interface TranslationRepository {
     /**
      * 텍스트를 번역합니다. 캐시가 있으면 캐시를 반환합니다.
@@ -12,11 +14,12 @@ interface TranslationRepository {
     ): String
 
     /**
-     * 여러 텍스트를 일괄 번역합니다. 각 텍스트별 캐시를 활용합니다.
+     * 여러 텍스트를 일괄 번역합니다.
+     * 캐시된 텍스트는 건너뛰고, 미캐시 텍스트를 합쳐서 1회 API 호출합니다.
      */
     suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String = "ja",
         targetLanguage: String = "ko",
-    ): List<String>
+    ): List<TranslationResult>
 }

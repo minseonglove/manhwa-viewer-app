@@ -60,9 +60,22 @@ class TranslationRepositoryImplTest {
 
     @Test
     fun translateBatchTranslatesAllTexts() = runTest {
-        val repo = createRepo(papagoResult = "번역")
+        val repo = createRepo(papagoResult = "번역A\n번역B\n번역C")
         val results = repo.translateBatch(listOf("a", "b", "c"))
         assertEquals(3, results.size)
+        assertEquals("a", results[0].originalText)
+        assertEquals("번역A", results[0].translatedText)
+        assertEquals("번역C", results[2].translatedText)
+    }
+
+    @Test
+    fun translateBatchMakesSingleApiCall() = runTest {
+        val papago = FakePapagoService("X\nY\nZ")
+        val cacheDao = FakeTranslationCacheDao()
+        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+
+        repo.translateBatch(listOf("a", "b", "c"))
+        assertEquals(1, papago.callCount)
     }
 
     @Test
@@ -71,9 +84,30 @@ class TranslationRepositoryImplTest {
         val cacheDao = FakeTranslationCacheDao()
         val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
 
+        // 첫 번째 배치: 1회 API 호출, 3개 모두 캐시 저장
         repo.translateBatch(listOf("same", "same", "same"))
-        // 첫 번째만 API 호출, 나머지는 캐시
         assertEquals(1, papago.callCount)
+
+        // 두 번째 배치: 캐시 히트, API 호출 없음
+        repo.translateBatch(listOf("same"))
+        assertEquals(1, papago.callCount)
+    }
+
+    @Test
+    fun translateBatchReturnsCachedAndFresh() = runTest {
+        val papago = FakePapagoService("번역됨")
+        val cacheDao = FakeTranslationCacheDao()
+        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+
+        // "a"를 미리 캐시
+        repo.translate("a")
+        assertEquals(1, papago.callCount)
+
+        // 배치: "a"는 캐시, "b"만 API 호출
+        val results = repo.translateBatch(listOf("a", "b"))
+        assertEquals(2, papago.callCount) // "b"만 추가 호출
+        assertEquals("번역됨", results[0].translatedText) // 캐시
+        assertEquals("번역됨", results[1].translatedText) // API
     }
 
     @Test

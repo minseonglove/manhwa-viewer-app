@@ -36,12 +36,14 @@ class ViewerViewModel(
             is ViewerIntent.LoadArchive -> loadArchive(intent.archiveId, intent.startPage, intent.sortByDate, intent.sortAscending)
             is ViewerIntent.SetPage -> {
                 if (currentState.totalPages == 0) return
+                val newPage = intent.page.coerceIn(0, currentState.totalPages - 1)
+                if (newPage == currentState.currentPage) return
                 updateState {
                     copy(
-                        currentPage = intent.page.coerceIn(0, totalPages - 1),
+                        currentPage = newPage,
                         ocrResults = emptyList(),
                         ocrBottomSheetText = null,
-                        translatedText = null,
+                        translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
                     )
@@ -54,7 +56,7 @@ class ViewerViewModel(
                         currentPage = (currentPage + 1).coerceIn(0, totalPages - 1),
                         ocrResults = emptyList(),
                         ocrBottomSheetText = null,
-                        translatedText = null,
+                        translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
                     )
@@ -67,7 +69,7 @@ class ViewerViewModel(
                         currentPage = (currentPage - 1).coerceIn(0, totalPages - 1),
                         ocrResults = emptyList(),
                         ocrBottomSheetText = null,
-                        translatedText = null,
+                        translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
                     )
@@ -94,7 +96,7 @@ class ViewerViewModel(
                     ocrResults = if (clearOcr) emptyList() else ocrResults,
                     isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
                     pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
-                    translatedText = if (clearOcr) null else translatedText,
+                    translationResults = if (clearOcr) emptyList() else translationResults,
                     isTranslating = if (clearOcr) false else isTranslating,
                 )
             }
@@ -181,11 +183,10 @@ class ViewerViewModel(
                 if (results.isNotEmpty()) {
                     updateState { copy(isTranslating = true) }
                     try {
-                        val translatedTexts = translateTextUseCase(results.map { it.text })
-                        val translatedCombined = translatedTexts.joinToString("\n")
+                        val translationResults = translateTextUseCase(results.map { it.text })
                         updateState {
                             copy(
-                                translatedText = translatedCombined,
+                                translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
                             )
@@ -193,7 +194,7 @@ class ViewerViewModel(
                     } catch (e: Exception) {
                         updateState {
                             copy(
-                                translatedText = null,
+                                translationResults = emptyList(),
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
                             )
@@ -275,11 +276,10 @@ class ViewerViewModel(
                 if (results.isNotEmpty()) {
                     updateState { copy(isTranslating = true) }
                     try {
-                        val translatedTexts = translateTextUseCase(results.map { it.text })
-                        val translatedCombined = translatedTexts.joinToString("\n")
+                        val translationResults = translateTextUseCase(results.map { it.text })
                         updateState {
                             copy(
-                                translatedText = translatedCombined,
+                                translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
                             )
@@ -287,7 +287,7 @@ class ViewerViewModel(
                     } catch (e: Exception) {
                         updateState {
                             copy(
-                                translatedText = null,
+                                translationResults = emptyList(),
                                 isTranslating = false,
                                 pipelineStage = PipelineStage.DONE,
                             )

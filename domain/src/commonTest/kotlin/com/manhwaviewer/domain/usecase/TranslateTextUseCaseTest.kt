@@ -1,5 +1,6 @@
 package com.manhwaviewer.domain.usecase
 
+import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.repository.TranslationRepository
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -12,7 +13,9 @@ class TranslateTextUseCaseTest {
         val repo = FakeTranslationRepository(mapOf("hello" to "안녕"))
         val useCase = TranslateTextUseCase(repo)
         val result = useCase(listOf("hello"))
-        assertEquals(listOf("안녕"), result)
+        assertEquals(1, result.size)
+        assertEquals("hello", result.first().originalText)
+        assertEquals("안녕", result.first().translatedText)
     }
 
     @Test
@@ -20,7 +23,9 @@ class TranslateTextUseCaseTest {
         val repo = FakeTranslationRepository(mapOf("a" to "가", "b" to "나"))
         val useCase = TranslateTextUseCase(repo)
         val result = useCase(listOf("a", "b"))
-        assertEquals(listOf("가", "나"), result)
+        assertEquals(2, result.size)
+        assertEquals("가", result[0].translatedText)
+        assertEquals("나", result[1].translatedText)
     }
 
     @Test
@@ -53,9 +58,9 @@ class FakeTranslationRepository(
         texts: List<String>,
         sourceLanguage: String,
         targetLanguage: String,
-    ): List<String> {
+    ): List<TranslationResult> {
         lastSourceLang = sourceLanguage
         lastTargetLang = targetLanguage
-        return texts.map { translate(it, sourceLanguage, targetLanguage) }
+        return texts.map { TranslationResult(it, translate(it, sourceLanguage, targetLanguage)) }
     }
 }

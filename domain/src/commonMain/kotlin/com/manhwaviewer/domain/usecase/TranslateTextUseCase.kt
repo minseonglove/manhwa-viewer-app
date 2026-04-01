@@ -1,5 +1,6 @@
 package com.manhwaviewer.domain.usecase
 
+import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.repository.TranslationRepository
 
 class TranslateTextUseCase(
@@ -9,7 +10,7 @@ class TranslateTextUseCase(
         texts: List<String>,
         sourceLanguage: String = "ja",
         targetLanguage: String = "ko",
-    ): List<String> {
+    ): List<TranslationResult> {
         return repository.translateBatch(texts, sourceLanguage, targetLanguage)
     }
 }

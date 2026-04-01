@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
@@ -43,7 +44,7 @@ open class PapagoTranslationService(
     }
 
     companion object {
-        private const val API_URL = "https://naveropenapi.apigw.ntruss.com/nmt/v1/translation"
+        private const val API_URL = "https://papago.apigw.ntruss.com/nmt/v1/translation"
     }
 
     open suspend fun translate(
@@ -51,7 +52,7 @@ open class PapagoTranslationService(
         source: String = "ja",
         target: String = "ko",
     ): String {
-        val response: PapagoResponse = httpClient.submitForm(
+        val httpResponse = httpClient.submitForm(
             url = API_URL,
             formParameters = parameters {
                 append("source", source)
@@ -61,8 +62,14 @@ open class PapagoTranslationService(
         ) {
             header("X-NCP-APIGW-API-KEY-ID", clientId)
             header("X-NCP-APIGW-API-KEY", clientSecret)
-        }.body()
+        }
 
+        if (httpResponse.status.value !in 200..299) {
+            val errorBody = httpResponse.bodyAsText()
+            throw RuntimeException("Papago API error ${httpResponse.status.value}: $errorBody")
+        }
+
+        val response: PapagoResponse = httpResponse.body()
         return response.message.result.translatedText
     }
 

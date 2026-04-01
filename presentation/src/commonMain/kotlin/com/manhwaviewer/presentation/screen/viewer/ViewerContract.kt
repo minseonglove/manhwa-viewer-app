@@ -2,6 +2,7 @@ package com.manhwaviewer.presentation.screen.viewer
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewerPreference
 
 enum class TranslationMode {
@@ -35,7 +36,7 @@ data class ViewerState(
     val pipelineStage: PipelineStage = PipelineStage.IDLE,
     val ocrBottomSheetText: String? = null,
     val isOcrSheetExpanded: Boolean = false,
-    val translatedText: String? = null,
+    val translationResults: List<TranslationResult> = emptyList(),
     val isTranslating: Boolean = false,
 )
 
