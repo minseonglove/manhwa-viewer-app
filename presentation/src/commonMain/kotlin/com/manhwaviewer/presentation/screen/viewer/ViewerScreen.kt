@@ -201,6 +201,8 @@ fun ViewerScreen(
                             translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
+                            ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
+                            ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
@@ -270,6 +272,8 @@ fun ViewerScreen(
                             translationResults = if (isCurrentSpread) state.translationResults else emptyList(),
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (isCurrentSpread) state.overlayColors else emptyList(),
+                            ocrImageWidth = if (isCurrentSpread) state.ocrImageWidth else 0,
+                            ocrImageHeight = if (isCurrentSpread) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
@@ -331,6 +335,8 @@ fun ViewerScreen(
                             translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
+                            ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
+                            ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
@@ -1043,6 +1049,8 @@ private fun ZoomableImage(
     translationResults: List<TranslationResult>,
     showTranslationOverlay: Boolean,
     overlayColors: List<androidx.compose.ui.graphics.Color>,
+    ocrImageWidth: Int,
+    ocrImageHeight: Int,
     pagerSettledPage: Int,
     isTranslationActive: Boolean,
     onTapLeft: () -> Unit,
@@ -1105,12 +1113,16 @@ private fun ZoomableImage(
                     val imgWidth = painterState.result.image.width
                     val imgHeight = painterState.result.image.height
 
+                    // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
+                    val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
+                    val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
+
                     // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
                     if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
                         BoundingBoxOverlay(
                             textBlocks = ocrResults,
-                            imageWidth = imgWidth,
-                            imageHeight = imgHeight,
+                            imageWidth = overlayWidth,
+                            imageHeight = overlayHeight,
                             onBlockTap = onTextBlockTap,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -1122,8 +1134,8 @@ private fun ZoomableImage(
                             textBlocks = ocrResults,
                             translationResults = translationResults,
                             dominantColors = overlayColors,
-                            imageWidth = imgWidth,
-                            imageHeight = imgHeight,
+                            imageWidth = overlayWidth,
+                            imageHeight = overlayHeight,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

@@ -41,6 +41,8 @@ data class ViewerState(
     val isTranslating: Boolean = false,
     val showTranslationOverlay: Boolean = false,
     val overlayColors: List<Color> = emptyList(),
+    val ocrImageWidth: Int = 0,
+    val ocrImageHeight: Int = 0,
 )
 
 sealed interface ViewerIntent {

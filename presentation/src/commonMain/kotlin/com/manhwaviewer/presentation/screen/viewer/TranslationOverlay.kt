@@ -1,6 +1,8 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -44,92 +46,103 @@ fun TranslationOverlay(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current.density
 
-    // 텍스트 크기 측정 결과를 캐싱 — recomposition 시 재계산 방지
-    val measuredBlocks = remember(textBlocks, translationResults, dominantColors, imageWidth, imageHeight) {
-        val minCount = minOf(textBlocks.size, translationResults.size, dominantColors.size)
-        val padding = 2f * density
-
-        (0 until minCount).mapNotNull { i ->
-            val block = textBlocks[i]
-            val translation = translationResults[i]
-            val bgColor = dominantColors[i]
-
-            if (translation.translatedText.isBlank()) return@mapNotNull null
-
-            val screenW = block.width.toFloat()
-            val screenH = block.height.toFloat()
-            if (screenW < 2f || screenH < 2f) return@mapNotNull null
-
-            val availableWidth = (screenW - padding * 2).coerceAtLeast(1f).toInt()
-            val availableHeight = (screenH - padding * 2).coerceAtLeast(1f).toInt()
-
-            val bestSize = findBestFontSize(
-                textMeasurer = textMeasurer,
-                text = translation.translatedText,
-                availableWidth = availableWidth,
-                availableHeight = availableHeight,
+    BoxWithConstraints(modifier = modifier) {
+        val fitScale = if (imageWidth > 0 && imageHeight > 0) {
+            minOf(
+                constraints.maxWidth.toFloat() / imageWidth,
+                constraints.maxHeight.toFloat() / imageHeight,
             )
-
-            val textColor = contrastingTextColor(bgColor)
-            val finalStyle = TextStyle(
-                fontSize = bestSize.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                textAlign = TextAlign.Center,
-            )
-            val finalLayout = textMeasurer.measure(
-                text = translation.translatedText,
-                style = finalStyle,
-                constraints = Constraints(maxWidth = availableWidth),
-                overflow = TextOverflow.Clip,
-            )
-
-            MeasuredBlock(
-                fontSize = bestSize,
-                textLayout = finalLayout,
-                textColor = textColor,
-            )
+        } else {
+            1f
         }
-    }
 
-    Canvas(modifier = modifier) {
-        if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
+        // 텍스트 크기 측정 결과를 캐싱 — recomposition 시 재계산 방지
+        val measuredBlocks = remember(textBlocks, translationResults, dominantColors, imageWidth, imageHeight, fitScale) {
+            val minCount = minOf(textBlocks.size, translationResults.size, dominantColors.size)
+            val padding = 2f * density
 
-        val fitScale = minOf(
-            size.width / imageWidth.toFloat(),
-            size.height / imageHeight.toFloat(),
-        )
-        val offsetX = (size.width - imageWidth * fitScale) / 2f
-        val offsetY = (size.height - imageHeight * fitScale) / 2f
+            (0 until minCount).mapNotNull { i ->
+                val block = textBlocks[i]
+                val translation = translationResults[i]
+                val bgColor = dominantColors[i]
 
-        val minCount = minOf(textBlocks.size, translationResults.size, dominantColors.size)
-        var measuredIdx = 0
+                if (translation.translatedText.isBlank()) return@mapNotNull null
 
-        for (i in 0 until minCount) {
-            val block = textBlocks[i]
-            val translation = translationResults[i]
-            val bgColor = dominantColors[i]
+                val screenW = block.width * fitScale
+                val screenH = block.height * fitScale
+                if (screenW < 2f || screenH < 2f) return@mapNotNull null
 
-            if (translation.translatedText.isBlank()) continue
+                val availableWidth = (screenW - padding * 2).coerceAtLeast(1f).toInt()
+                val availableHeight = (screenH - padding * 2).coerceAtLeast(1f).toInt()
 
-            val screenW = block.width * fitScale
-            val screenH = block.height * fitScale
-            if (screenW < 2f || screenH < 2f) continue
+                val bestSize = findBestFontSize(
+                    textMeasurer = textMeasurer,
+                    text = translation.translatedText,
+                    availableWidth = availableWidth,
+                    availableHeight = availableHeight,
+                )
 
-            if (measuredIdx >= measuredBlocks.size) break
-            val measured = measuredBlocks[measuredIdx++]
+                val textColor = contrastingTextColor(bgColor)
+                val finalStyle = TextStyle(
+                    fontSize = bestSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    textAlign = TextAlign.Center,
+                )
+                val finalLayout = textMeasurer.measure(
+                    text = translation.translatedText,
+                    style = finalStyle,
+                    constraints = Constraints(maxWidth = availableWidth),
+                    overflow = TextOverflow.Clip,
+                )
 
-            val screenX = block.x * fitScale + offsetX
-            val screenY = block.y * fitScale + offsetY
+                MeasuredBlock(
+                    fontSize = bestSize,
+                    textLayout = finalLayout,
+                    textColor = textColor,
+                )
+            }
+        }
 
-            drawOverlayBlock(
-                measured = measured,
-                bgColor = bgColor,
-                x = screenX,
-                y = screenY,
-                width = screenW,
-                height = screenH,
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
+
+            val canvasFitScale = minOf(
+                size.width / imageWidth.toFloat(),
+                size.height / imageHeight.toFloat(),
             )
+            val offsetX = (size.width - imageWidth * canvasFitScale) / 2f
+            val offsetY = (size.height - imageHeight * canvasFitScale) / 2f
+
+            val minCount = minOf(textBlocks.size, translationResults.size, dominantColors.size)
+            var measuredIdx = 0
+
+            for (i in 0 until minCount) {
+                val block = textBlocks[i]
+                val translation = translationResults[i]
+                val bgColor = dominantColors[i]
+
+                if (translation.translatedText.isBlank()) continue
+
+                val screenW = block.width * canvasFitScale
+                val screenH = block.height * canvasFitScale
+                if (screenW < 2f || screenH < 2f) continue
+
+                if (measuredIdx >= measuredBlocks.size) break
+                val measured = measuredBlocks[measuredIdx++]
+
+                val screenX = block.x * canvasFitScale + offsetX
+                val screenY = block.y * canvasFitScale + offsetY
+
+                drawOverlayBlock(
+                    measured = measured,
+                    bgColor = bgColor,
+                    x = screenX,
+                    y = screenY,
+                    width = screenW,
+                    height = screenH,
+                )
+            }
         }
     }
 }

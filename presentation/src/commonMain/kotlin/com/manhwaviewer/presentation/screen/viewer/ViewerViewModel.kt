@@ -56,6 +56,8 @@ class ViewerViewModel(
                         isOcrSheetExpanded = false,
                         showTranslationOverlay = false,
                         overlayColors = emptyList(),
+                        ocrImageWidth = 0,
+                        ocrImageHeight = 0,
                     )
                 }
             }
@@ -72,6 +74,8 @@ class ViewerViewModel(
                         isOcrSheetExpanded = false,
                         showTranslationOverlay = false,
                         overlayColors = emptyList(),
+                        ocrImageWidth = 0,
+                        ocrImageHeight = 0,
                     )
                 }
             }
@@ -88,6 +92,8 @@ class ViewerViewModel(
                         isOcrSheetExpanded = false,
                         showTranslationOverlay = false,
                         overlayColors = emptyList(),
+                        ocrImageWidth = 0,
+                        ocrImageHeight = 0,
                     )
                 }
             }
@@ -116,6 +122,8 @@ class ViewerViewModel(
                     isTranslating = if (clearOcr) false else isTranslating,
                     showTranslationOverlay = if (clearOcr) false else showTranslationOverlay,
                     overlayColors = if (clearOcr) emptyList() else overlayColors,
+                    ocrImageWidth = if (clearOcr) 0 else ocrImageWidth,
+                    ocrImageHeight = if (clearOcr) 0 else ocrImageHeight,
                 )
             }
             is ViewerIntent.UpdateCropRect -> updateState {
@@ -205,6 +213,8 @@ class ViewerViewModel(
                     return@launch
                 }
 
+                val (ocrW, ocrH) = getImageDimensions(imageBytes)
+
                 updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
                 val results = recognizePageTextUseCase(imageBytes)
 
@@ -217,6 +227,8 @@ class ViewerViewModel(
                         pipelineStage = PipelineStage.TRANSLATING,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
+                        ocrImageWidth = ocrW,
+                        ocrImageHeight = ocrH,
                     )
                 }
 
@@ -300,6 +312,7 @@ class ViewerViewModel(
 
                 // 크롭된 이미지로 OCR 실행
                 val results = recognizePageTextUseCase(croppedBytes)
+                val (cropImgW, cropImgH) = getImageDimensions(croppedBytes)
 
                 val combinedText = results.joinToString("\n") { it.text }
 
@@ -310,6 +323,8 @@ class ViewerViewModel(
                         ocrResults = results,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
+                        ocrImageWidth = cropImgW,
+                        ocrImageHeight = cropImgH,
                     )
                 }
 
