@@ -46,6 +46,7 @@ fun ImageGalleryScreen(
         topBar = {
             SubHeader(
                 title = "이미지 (${state.images.size})",
+                onBack = onBack,
                 sortState = state.sortState,
                 onSortFieldChange = { viewModel.onIntent(ImageGalleryIntent.SetSortField(it)) },
                 onToggleDirection = { viewModel.onIntent(ImageGalleryIntent.ToggleSortDirection) },

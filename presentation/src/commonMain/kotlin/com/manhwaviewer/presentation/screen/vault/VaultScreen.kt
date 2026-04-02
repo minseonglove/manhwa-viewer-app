@@ -61,6 +61,7 @@ fun VaultScreen(
         topBar = {
             SubHeader(
                 title = "보관함",
+                onBack = onBack,
                 sortState = state.sortState,
                 onSortFieldChange = { viewModel.onIntent(VaultIntent.SetSortField(it)) },
                 onToggleDirection = { viewModel.onIntent(VaultIntent.ToggleSortDirection) },

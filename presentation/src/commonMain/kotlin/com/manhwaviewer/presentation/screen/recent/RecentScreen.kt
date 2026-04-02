@@ -49,6 +49,7 @@ fun RecentScreen(
         topBar = {
             SubHeader(
                 title = "최근",
+                onBack = onBack,
                 sortState = state.sortState,
                 onSortFieldChange = { viewModel.onIntent(RecentIntent.SetSortField(it)) },
                 onToggleDirection = { viewModel.onIntent(RecentIntent.ToggleSortDirection) },
