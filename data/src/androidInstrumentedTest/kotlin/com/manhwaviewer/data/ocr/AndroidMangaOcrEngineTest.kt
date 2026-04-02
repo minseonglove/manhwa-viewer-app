@@ -73,10 +73,11 @@ class AndroidMangaOcrEngineTest {
         Log.d(TAG, "[06.png COMPARE] Image loaded: ${imageBytes.size} bytes")
 
         // === MangaOCR (CTD + MangaOCR for both)
+        val mangaOcrEngine = AndroidMangaOcrEngine(context)
         val mangaRepo = TextDetectionRepositoryImpl(
             CtdTextDetector(context),
-            verticalOcrProvider = { AndroidMangaOcrEngine(context) },
-            horizontalOcrProvider = { AndroidMangaOcrEngine(context) },
+            verticalOcr = mangaOcrEngine,
+            horizontalOcr = mangaOcrEngine,
         )
         val mangaStart = System.currentTimeMillis()
         val mangaBlocks = mangaRepo.detectAndRecognize(imageBytes)
@@ -91,8 +92,8 @@ class AndroidMangaOcrEngineTest {
         // === Hybrid: CTD 검출 → 가로는 PaddleOCR, 세로는 MangaOCR ===
         val paddleRepo = TextDetectionRepositoryImpl(
             CtdTextDetector(context),
-            verticalOcrProvider = { AndroidMangaOcrEngine(context) },
-            horizontalOcrProvider = { AndroidPaddleOcrRecognizer(context) },
+            verticalOcr = AndroidMangaOcrEngine(context),
+            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
         val paddleStart = System.currentTimeMillis()
         val paddleBlocks = paddleRepo.detectAndRecognize(imageBytes)
@@ -124,8 +125,8 @@ class AndroidMangaOcrEngineTest {
         val detector = CtdTextDetector(context)
         val repo = TextDetectionRepositoryImpl(
             detector,
-            verticalOcrProvider = { AndroidMangaOcrEngine(context) },
-            horizontalOcrProvider = { AndroidPaddleOcrRecognizer(context) },
+            verticalOcr = AndroidMangaOcrEngine(context),
+            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
 
         val startTime = System.currentTimeMillis()

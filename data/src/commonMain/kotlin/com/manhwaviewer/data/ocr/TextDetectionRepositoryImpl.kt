@@ -3,13 +3,15 @@ package com.manhwaviewer.data.ocr
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.repository.TextDetectionRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
 class TextDetectionRepositoryImpl(
     private val textDetector: TextDetector,
-    private val verticalOcrProvider: () -> MangaOcrEngine,
-    private val horizontalOcrProvider: () -> MangaOcrEngine,
+    private val verticalOcr: MangaOcrEngine,
+    private val horizontalOcr: MangaOcrEngine,
 ) : TextDetectionRepository {
 
     companion object {
@@ -31,43 +33,31 @@ class TextDetectionRepositoryImpl(
             }
             println("PageOCR | Split: ${horizontal.size} horizontal, ${vertical.size} vertical")
 
-            // 3. 가로 텍스트 → PaddleOCR rec
-            val horizontalBlocks = if (horizontal.isNotEmpty()) {
-                val engine = horizontalOcrProvider()
-                try {
+            // 3. 가로/세로 병렬 인식 (서로 다른 엔진이므로 동시 실행 안전)
+            coroutineScope {
+                val horizontalDeferred = async {
                     horizontal.mapIndexed { i, region ->
                         val ocrStart = now()
-                        val text = engine.recognizeText(region.croppedImageBytes)
+                        val text = horizontalOcr.recognizeText(region.croppedImageBytes)
                         println("PageOCR |   H[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
                         TextBlock(region.x, region.y, region.width, region.height, text)
                     }
-                } finally {
-                    engine.close()
                 }
-            } else {
-                emptyList()
-            }
 
-            // 4. 세로 텍스트 → MangaOCR
-            val verticalBlocks = if (vertical.isNotEmpty()) {
-                val engine = verticalOcrProvider()
-                try {
+                val verticalDeferred = async {
                     vertical.mapIndexed { i, region ->
                         val ocrStart = now()
-                        val text = engine.recognizeText(region.croppedImageBytes)
+                        val text = verticalOcr.recognizeText(region.croppedImageBytes)
                         println("PageOCR |   V[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
                         TextBlock(region.x, region.y, region.width, region.height, text)
                     }
-                } finally {
-                    engine.close()
                 }
-            } else {
-                emptyList()
-            }
 
-            val result = (horizontalBlocks + verticalBlocks).sortedWith(compareBy({ it.y }, { it.x }))
-            println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
-            result
+                val result = (horizontalDeferred.await() + verticalDeferred.await())
+                    .sortedWith(compareBy({ it.y }, { it.x }))
+                println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
+                result
+            }
         }
 
     private fun now(): Long = Clock.System.now().toEpochMilliseconds()

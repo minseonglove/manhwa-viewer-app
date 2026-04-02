@@ -5,15 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class OcrRepositoryImpl(
-    private val engineProvider: () -> MangaOcrEngine,
+    private val engine: MangaOcrEngine,
 ) : OcrRepository {
     override suspend fun recognizeText(imageBytes: ByteArray): String =
         withContext(Dispatchers.Default) {
-            val engine = engineProvider()
-            try {
-                engine.recognizeText(imageBytes)
-            } finally {
-                engine.close()
-            }
+            engine.recognizeText(imageBytes)
         }
 }

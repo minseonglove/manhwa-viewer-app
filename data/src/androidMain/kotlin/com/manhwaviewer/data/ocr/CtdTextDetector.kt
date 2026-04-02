@@ -71,7 +71,7 @@ class CtdTextDetector(
 
             val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
             val baos = ByteArrayOutputStream()
-            cropped.compress(Bitmap.CompressFormat.PNG, 100, baos)
+            cropped.compress(Bitmap.CompressFormat.JPEG, 85, baos)
             if (cropped !== bitmap) cropped.recycle()
 
             DetectedRegion(
@@ -90,7 +90,7 @@ class CtdTextDetector(
     private fun initialize() {
         ortEnv = OrtEnvironment.getEnvironment()
         val options = OrtSession.SessionOptions().apply {
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT)
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
         }
         session = ortEnv!!.createSession(getModelPath(MangaOcrConfig.CTD_MODEL), options)
     }

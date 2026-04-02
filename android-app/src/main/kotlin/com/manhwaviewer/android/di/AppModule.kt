@@ -8,6 +8,8 @@ import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
 import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
 import com.manhwaviewer.data.ocr.CtdTextDetector
+import com.manhwaviewer.data.ocr.ManagedOcrEngine
+import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.OcrRepositoryImpl
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.preference.ViewerPreferenceDataStore
@@ -52,6 +54,7 @@ import com.manhwaviewer.presentation.screen.vault.VaultViewModel
 import com.manhwaviewer.presentation.screen.viewer.ViewerViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val appModule = module {
@@ -72,12 +75,14 @@ val appModule = module {
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single<CacheRepository> { AndroidCacheRepository(androidContext()) }
-    single<OcrRepository> { OcrRepositoryImpl { AndroidPaddleOcrRecognizer(androidContext()) } }
+    single<MangaOcrEngine>(named("manga")) { ManagedOcrEngine { AndroidMangaOcrEngine(androidContext()) } }
+    single<MangaOcrEngine>(named("paddle")) { ManagedOcrEngine { AndroidPaddleOcrRecognizer(androidContext()) } }
+    single<OcrRepository> { OcrRepositoryImpl(get(qualifier = named("paddle"))) }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
             CtdTextDetector(androidContext()),
-            verticalOcrProvider = { AndroidMangaOcrEngine(androidContext()) },
-            horizontalOcrProvider = { AndroidPaddleOcrRecognizer(androidContext()) },
+            verticalOcr = get(qualifier = named("manga")),
+            horizontalOcr = get(qualifier = named("paddle")),
         )
     }
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
