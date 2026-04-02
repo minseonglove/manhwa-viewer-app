@@ -39,7 +39,7 @@ import org.jetbrains.compose.resources.painterResource
 
 fun ArchiveFile.displayName(): String = when (type) {
     ArchiveType.FOLDER -> filePath.trimEnd('/').substringAfterLast('/')
-    else -> filePath.substringBeforeLast('/').substringAfterLast('/')
+    else -> fileName
 }
 
 @Composable
