@@ -11,9 +11,8 @@ class TranslationRepositoryImplTest {
         papagoShouldFail: Boolean = false,
     ): TranslationRepositoryImpl {
         val papago = FakePapagoService(papagoResult, papagoShouldFail)
-        val google = GoogleTranslationService()
         val cacheDao = FakeTranslationCacheDao()
-        return TranslationRepositoryImpl(papago, google, cacheDao)
+        return TranslationRepositoryImpl(papago, cacheDao)
     }
 
     @Test
@@ -27,7 +26,7 @@ class TranslationRepositoryImplTest {
     fun translateUsesCacheOnSecondCall() = runTest {
         val papago = FakePapagoService("번역됨")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         repo.translate("テスト")
         assertEquals(1, papago.callCount)
@@ -42,7 +41,7 @@ class TranslationRepositoryImplTest {
     fun translateReturnsOriginalTextOnPapagoFailure() = runTest {
         val papago = FakePapagoService(shouldFail = true)
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
         val result = try {
             repo.translate("テスト")
         } catch (_: Exception) {
@@ -72,7 +71,7 @@ class TranslationRepositoryImplTest {
     fun translateBatchMakesSingleApiCall() = runTest {
         val papago = FakePapagoService("X\nY\nZ")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         repo.translateBatch(listOf("a", "b", "c"))
         assertEquals(1, papago.callCount)
@@ -82,7 +81,7 @@ class TranslationRepositoryImplTest {
     fun translateBatchUsesCacheForDuplicates() = runTest {
         val papago = FakePapagoService("번역됨")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         // 첫 번째 배치: 1회 API 호출, 3개 모두 캐시 저장
         repo.translateBatch(listOf("same", "same", "same"))
@@ -97,7 +96,7 @@ class TranslationRepositoryImplTest {
     fun translateBatchReturnsCachedAndFresh() = runTest {
         val papago = FakePapagoService("번역됨")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         // "a"를 미리 캐시
         repo.translate("a")
@@ -115,7 +114,6 @@ class TranslationRepositoryImplTest {
         val cacheDao = FakeTranslationCacheDao()
         val repo = TranslationRepositoryImpl(
             FakePapagoService("결과"),
-            GoogleTranslationService(),
             cacheDao,
         )
         repo.translate("テスト")
@@ -128,7 +126,7 @@ class TranslationRepositoryImplTest {
     fun translateDelegatesToTranslateBatchAndUsesCache() = runTest {
         val papago = FakePapagoService("번역됨")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         // translate()로 캐시 저장
         repo.translate("テスト")
@@ -144,7 +142,7 @@ class TranslationRepositoryImplTest {
     fun translateBatchPartialCacheHit() = runTest {
         val papago = FakePapagoService("번역A")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         // "a"를 미리 캐시
         repo.translateBatch(listOf("a"))
@@ -163,7 +161,7 @@ class TranslationRepositoryImplTest {
     fun translateBatchCrossBatchCacheHit() = runTest {
         val papago = FakePapagoService("X\nY")
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, GoogleTranslationService(), cacheDao)
+        val repo = TranslationRepositoryImpl(papago, cacheDao)
 
         // 배치1: "a", "b" 번역 → 캐시 저장
         repo.translateBatch(listOf("a", "b"))

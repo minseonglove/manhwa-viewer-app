@@ -17,7 +17,6 @@ import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.PapagoTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
@@ -86,8 +85,7 @@ val appModule = module {
         )
     }
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
-    single { GoogleTranslationService() }
-    single<TranslationRepository> { TranslationRepositoryImpl(get(), get(), get()) }
+    single<TranslationRepository> { TranslationRepositoryImpl(get(), get()) }
 
     // UseCases
     factory { GetRecentArchivesUseCase(get()) }

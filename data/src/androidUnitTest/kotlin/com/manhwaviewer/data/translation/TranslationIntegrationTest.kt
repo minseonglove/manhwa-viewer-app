@@ -38,7 +38,6 @@ class TranslationIntegrationTest {
         val (clientId, clientSecret) = loadApiKeys()
         return TranslationRepositoryImpl(
             papagoService = PapagoTranslationService(clientId, clientSecret),
-            googleService = GoogleTranslationService(),
             cacheDao = FakeTranslationCacheDao(),
         )
     }

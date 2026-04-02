@@ -18,7 +18,6 @@ import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
 import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
 import com.manhwaviewer.data.ocr.CtdTextDetector
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
-import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.PapagoTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.entity.TextBlock
@@ -67,7 +66,6 @@ class TranslationOverlayRenderTest {
                 BuildConfig.PAPAGO_CLIENT_ID,
                 BuildConfig.PAPAGO_CLIENT_SECRET,
             ),
-            googleService = GoogleTranslationService(),
             cacheDao = InMemoryCacheDao(),
         )
 
@@ -134,7 +132,6 @@ class TranslationOverlayRenderTest {
                 BuildConfig.PAPAGO_CLIENT_ID,
                 BuildConfig.PAPAGO_CLIENT_SECRET,
             ),
-            googleService = GoogleTranslationService(),
             cacheDao = InMemoryCacheDao(),
         )
 

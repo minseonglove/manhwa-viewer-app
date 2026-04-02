@@ -12,7 +12,6 @@ import kotlinx.datetime.Clock
 
 class TranslationRepositoryImpl(
     private val papagoService: PapagoTranslationService,
-    private val googleService: GoogleTranslationService,
     private val cacheDao: TranslationCacheDao,
 ) : TranslationRepository {
 
@@ -115,18 +114,6 @@ class TranslationRepositoryImpl(
         sourceLanguage: String,
         targetLanguage: String,
     ): Pair<String, String> {
-        val googleResult = try {
-            googleService.translate(text, sourceLanguage, targetLanguage)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
-        }
-
-        return if (googleResult != null) {
-            googleResult to "GOOGLE_CLOUD"
-        } else {
-            papagoService.translate(text, sourceLanguage, targetLanguage) to "PAPAGO"
-        }
+        return papagoService.translate(text, sourceLanguage, targetLanguage) to "PAPAGO"
     }
 }
