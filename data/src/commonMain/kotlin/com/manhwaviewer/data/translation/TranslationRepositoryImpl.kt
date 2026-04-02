@@ -27,41 +27,8 @@ class TranslationRepositoryImpl(
     ): String = withContext(Dispatchers.IO) {
         if (text.isBlank()) return@withContext text
 
-        // 1. 캐시 확인
-        val cached = cacheDao.findCache(text, sourceLanguage, targetLanguage)
-        if (cached != null) return@withContext cached.translatedText
-
-        // 2. Google 번역 시도 (현재 TODO - null 반환)
-        val googleResult = try {
-            googleService.translate(text, sourceLanguage, targetLanguage)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
-        }
-
-        // 3. Google 성공 시 반환, 실패 시 Papago로 폴백
-        val translatedText = googleResult ?: try {
-            papagoService.translate(text, sourceLanguage, targetLanguage)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            text // 원문 폴백
-        }
-
-        // 4. 캐시 저장
-        cacheDao.insertCache(
-            TranslationCacheEntity(
-                sourceText = text,
-                translatedText = translatedText,
-                sourceLanguage = sourceLanguage,
-                targetLanguage = targetLanguage,
-                engine = if (googleResult != null) "GOOGLE_CLOUD" else "PAPAGO",
-                createdAt = Clock.System.now().toEpochMilliseconds(),
-            )
-        )
-
-        translatedText
+        val result = translateBatch(listOf(text), sourceLanguage, targetLanguage)
+        result.first().translatedText
     }
 
     override suspend fun translateBatch(
@@ -71,18 +38,28 @@ class TranslationRepositoryImpl(
     ): List<TranslationResult> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyList()
 
-        // 1. 각 텍스트별 캐시 조회 → cached / uncached 분리
+        // 1. 비어있지 않은 텍스트만 모아서 배치 캐시 조회
         val results = arrayOfNulls<TranslationResult>(texts.size)
         val uncachedIndices = mutableListOf<Int>()
+        val nonBlankTexts = texts.withIndex()
+            .filter { it.value.isNotBlank() }
+            .map { it.value }
+
+        val cacheMap = if (nonBlankTexts.isNotEmpty()) {
+            cacheDao.findCacheByTexts(nonBlankTexts, sourceLanguage, targetLanguage)
+                .associate { it.sourceText to it.translatedText }
+        } else {
+            emptyMap()
+        }
 
         for ((index, text) in texts.withIndex()) {
             if (text.isBlank()) {
                 results[index] = TranslationResult(text, text)
                 continue
             }
-            val cached = cacheDao.findCache(text, sourceLanguage, targetLanguage)
+            val cached = cacheMap[text]
             if (cached != null) {
-                results[index] = TranslationResult(text, cached.translatedText)
+                results[index] = TranslationResult(text, cached)
             } else {
                 uncachedIndices.add(index)
             }
@@ -97,16 +74,8 @@ class TranslationRepositoryImpl(
         val uncachedTexts = uncachedIndices.map { texts[it] }
         val joinedText = uncachedTexts.joinToString(BATCH_DELIMITER)
 
-        val translatedJoined = try {
-            val googleResult = try {
-                googleService.translate(joinedText, sourceLanguage, targetLanguage)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                null
-            }
-
-            googleResult ?: papagoService.translate(joinedText, sourceLanguage, targetLanguage)
+        val (translatedJoined, engine) = try {
+            callTranslationApi(joinedText, sourceLanguage, targetLanguage)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -119,7 +88,6 @@ class TranslationRepositoryImpl(
 
         // 4. 결과를 구분자로 split → 개별 캐시 저장
         val translatedParts = translatedJoined.split(BATCH_DELIMITER)
-        val engine = "PAPAGO"
         val now = Clock.System.now().toEpochMilliseconds()
 
         for ((i, idx) in uncachedIndices.withIndex()) {
@@ -140,5 +108,25 @@ class TranslationRepositoryImpl(
         }
 
         results.map { it!! }
+    }
+
+    private suspend fun callTranslationApi(
+        text: String,
+        sourceLanguage: String,
+        targetLanguage: String,
+    ): Pair<String, String> {
+        val googleResult = try {
+            googleService.translate(text, sourceLanguage, targetLanguage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+
+        return if (googleResult != null) {
+            googleResult to "GOOGLE_CLOUD"
+        } else {
+            papagoService.translate(text, sourceLanguage, targetLanguage) to "PAPAGO"
+        }
     }
 }

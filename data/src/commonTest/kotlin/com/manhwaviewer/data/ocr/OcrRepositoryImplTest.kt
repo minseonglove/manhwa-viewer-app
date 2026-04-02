@@ -9,7 +9,7 @@ class OcrRepositoryImplTest {
 
     @Test
     fun delegatesToEngineAndReturnsResult() = runTest {
-        val repo = OcrRepositoryImpl { FakeMangaOcrEngine("素直にあやまるしか") }
+        val repo = OcrRepositoryImpl(FakeMangaOcrEngine("素直にあやまるしか"))
         val result = repo.recognizeText(byteArrayOf(1, 2, 3))
         assertEquals("素直にあやまるしか", result)
     }
@@ -17,7 +17,7 @@ class OcrRepositoryImplTest {
     @Test
     fun closesEngineAfterRecognition() = runTest {
         val engine = FakeMangaOcrEngine("テスト")
-        val repo = OcrRepositoryImpl { engine }
+        val repo = OcrRepositoryImpl(engine)
         repo.recognizeText(byteArrayOf(1, 2, 3))
         assertTrue(engine.closed)
     }
@@ -25,7 +25,7 @@ class OcrRepositoryImplTest {
     @Test
     fun closesEngineEvenOnError() = runTest {
         val engine = FailingMangaOcrEngine()
-        val repo = OcrRepositoryImpl { engine }
+        val repo = OcrRepositoryImpl(engine)
         try {
             repo.recognizeText(byteArrayOf(1, 2, 3))
         } catch (_: RuntimeException) {

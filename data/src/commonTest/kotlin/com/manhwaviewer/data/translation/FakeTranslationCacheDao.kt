@@ -31,5 +31,17 @@ class FakeTranslationCacheDao : TranslationCacheDao {
         cache.clear()
     }
 
+    override suspend fun findCacheByTexts(
+        sourceTexts: List<String>,
+        sourceLanguage: String,
+        targetLanguage: String,
+    ): List<TranslationCacheEntity> {
+        return cache.filter {
+            it.sourceText in sourceTexts &&
+                it.sourceLanguage == sourceLanguage &&
+                it.targetLanguage == targetLanguage
+        }
+    }
+
     override suspend fun getCacheCount(): Int = cache.size
 }

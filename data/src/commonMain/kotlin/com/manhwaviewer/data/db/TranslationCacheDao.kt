@@ -18,6 +18,15 @@ interface TranslationCacheDao {
     @Query("DELETE FROM translation_cache")
     suspend fun clearAll()
 
+    @Query(
+        "SELECT * FROM translation_cache WHERE sourceText IN (:sourceTexts) AND sourceLanguage = :sourceLanguage AND targetLanguage = :targetLanguage"
+    )
+    suspend fun findCacheByTexts(
+        sourceTexts: List<String>,
+        sourceLanguage: String,
+        targetLanguage: String,
+    ): List<TranslationCacheEntity>
+
     @Query("SELECT COUNT(*) FROM translation_cache")
     suspend fun getCacheCount(): Int
 }
