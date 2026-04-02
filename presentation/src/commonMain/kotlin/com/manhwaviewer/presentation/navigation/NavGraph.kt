@@ -70,6 +70,7 @@ fun NavGraph(navController: NavHostController) {
                 sortByDate = sortByDate,
                 sortAscending = sortAscending,
                 onBack = { navController.popBackStack() },
+                onSettings = { navController.navigate(Route.SETTINGS) },
             )
         }
         composable(Route.SETTINGS) {

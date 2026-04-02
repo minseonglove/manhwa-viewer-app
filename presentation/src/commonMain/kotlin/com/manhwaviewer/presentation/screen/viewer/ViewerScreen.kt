@@ -113,6 +113,7 @@ fun ViewerScreen(
     sortByDate: Boolean = false,
     sortAscending: Boolean = true,
     onBack: () -> Unit,
+    onSettings: () -> Unit,
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -549,7 +550,7 @@ fun ViewerScreen(
                 Spacer(modifier = Modifier.width(4.dp))
 
                 // 설정 아이콘
-                IconButton(onClick = { /* 설정 화면 연동 예정 */ }) {
+                IconButton(onClick = onSettings) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "설정",
