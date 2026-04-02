@@ -1,6 +1,7 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import com.manhwaviewer.domain.entity.ArchiveFile
+import androidx.compose.ui.graphics.Color
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewerPreference
@@ -38,6 +39,8 @@ data class ViewerState(
     val isOcrSheetExpanded: Boolean = false,
     val translationResults: List<TranslationResult> = emptyList(),
     val isTranslating: Boolean = false,
+    val showTranslationOverlay: Boolean = false,
+    val overlayColors: List<Color> = emptyList(),
 )
 
 sealed interface ViewerIntent {
@@ -53,6 +56,7 @@ sealed interface ViewerIntent {
     data class ConfirmCrop(val containerWidth: Int, val containerHeight: Int) : ViewerIntent
     data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent
+    data object ToggleTranslationOverlay : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {

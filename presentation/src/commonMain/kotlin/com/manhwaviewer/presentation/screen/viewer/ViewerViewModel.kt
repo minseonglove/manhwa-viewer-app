@@ -11,9 +11,11 @@ import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.util.cropImageBytes
+import com.manhwaviewer.presentation.util.extractDominantColors
 import com.manhwaviewer.presentation.util.getImageDimensions
 import com.manhwaviewer.presentation.util.mergeImagesHorizontally
 import com.manhwaviewer.domain.entity.ReadingDirection
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ViewerViewModel(
@@ -25,6 +27,8 @@ class ViewerViewModel(
     private val recognizePageTextUseCase: RecognizePageTextUseCase,
     private val translateTextUseCase: TranslateTextUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
+
+    private var ocrJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -41,6 +45,7 @@ class ViewerViewModel(
                 if (currentState.totalPages == 0) return
                 val newPage = intent.page.coerceIn(0, currentState.totalPages - 1)
                 if (newPage == currentState.currentPage) return
+                ocrJob?.cancel()
                 updateState {
                     copy(
                         currentPage = newPage,
@@ -49,11 +54,14 @@ class ViewerViewModel(
                         translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
+                        showTranslationOverlay = false,
+                        overlayColors = emptyList(),
                     )
                 }
             }
             is ViewerIntent.NextPage -> {
                 if (currentState.totalPages == 0) return
+                ocrJob?.cancel()
                 updateState {
                     copy(
                         currentPage = (currentPage + 1).coerceIn(0, totalPages - 1),
@@ -62,11 +70,14 @@ class ViewerViewModel(
                         translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
+                        showTranslationOverlay = false,
+                        overlayColors = emptyList(),
                     )
                 }
             }
             is ViewerIntent.PreviousPage -> {
                 if (currentState.totalPages == 0) return
+                ocrJob?.cancel()
                 updateState {
                     copy(
                         currentPage = (currentPage - 1).coerceIn(0, totalPages - 1),
@@ -75,6 +86,8 @@ class ViewerViewModel(
                         translationResults = emptyList(),
                         pipelineStage = PipelineStage.IDLE,
                         isOcrSheetExpanded = false,
+                        showTranslationOverlay = false,
+                        overlayColors = emptyList(),
                     )
                 }
             }
@@ -101,6 +114,8 @@ class ViewerViewModel(
                     pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
                     translationResults = if (clearOcr) emptyList() else translationResults,
                     isTranslating = if (clearOcr) false else isTranslating,
+                    showTranslationOverlay = if (clearOcr) false else showTranslationOverlay,
+                    overlayColors = if (clearOcr) emptyList() else overlayColors,
                 )
             }
             is ViewerIntent.UpdateCropRect -> updateState {
@@ -112,6 +127,9 @@ class ViewerViewModel(
             }
             is ViewerIntent.DismissOcrResult -> updateState {
                 copy(isOcrSheetExpanded = false)
+            }
+            is ViewerIntent.ToggleTranslationOverlay -> updateState {
+                copy(showTranslationOverlay = !showTranslationOverlay)
             }
         }
     }
@@ -171,7 +189,8 @@ class ViewerViewModel(
 
     private fun runPageOcr() {
         if (currentState.isOcrProcessing) return
-        viewModelScope.launch {
+        ocrJob?.cancel()
+        ocrJob = viewModelScope.launch {
             updateState {
                 copy(
                     isOcrProcessing = true,
@@ -205,11 +224,14 @@ class ViewerViewModel(
                     updateState { copy(isTranslating = true) }
                     try {
                         val translationResults = translateTextUseCase(results.map { it.text })
+                        val colors = extractDominantColors(imageBytes, results)
                         updateState {
                             copy(
                                 translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
+                                showTranslationOverlay = translationResults.isNotEmpty(),
+                                overlayColors = colors,
                             )
                         }
                     } catch (e: Exception) {
@@ -224,10 +246,6 @@ class ViewerViewModel(
                 } else {
                     updateState { copy(pipelineStage = PipelineStage.DONE) }
                 }
-
-                // TODO: 번역 결과를 오버레이 UI로 표시
-                // TODO: Dominant Color 배경 처리
-                // TODO: Auto-resizing 텍스트 배치
             } catch (e: Exception) {
                 updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
             }
@@ -236,7 +254,8 @@ class ViewerViewModel(
 
     private fun confirmCrop(containerWidth: Int, containerHeight: Int) {
         val crop = currentState.cropRect ?: return
-        viewModelScope.launch {
+        ocrJob?.cancel()
+        ocrJob = viewModelScope.launch {
             updateState { copy(pipelineStage = PipelineStage.DETECTING, isOcrProcessing = true) }
             try {
                 val imageBytes = getSpreadImageBytes() ?: run {
@@ -298,11 +317,14 @@ class ViewerViewModel(
                     updateState { copy(isTranslating = true) }
                     try {
                         val translationResults = translateTextUseCase(results.map { it.text })
+                        val colors = extractDominantColors(croppedBytes, results)
                         updateState {
                             copy(
                                 translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
+                                showTranslationOverlay = translationResults.isNotEmpty(),
+                                overlayColors = colors,
                             )
                         }
                     } catch (e: Exception) {

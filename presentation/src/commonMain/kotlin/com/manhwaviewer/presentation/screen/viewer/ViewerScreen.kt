@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -196,6 +198,9 @@ fun ViewerScreen(
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
+                            translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
+                            showTranslationOverlay = state.showTranslationOverlay,
+                            overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
                             onTapLeft = {
                                 coroutineScope.launch {
@@ -261,6 +266,9 @@ fun ViewerScreen(
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (isCurrentSpread) state.cropRect else null,
                             ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
+                            translationResults = if (isCurrentSpread) state.translationResults else emptyList(),
+                            showTranslationOverlay = state.showTranslationOverlay,
+                            overlayColors = if (isCurrentSpread) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
                             onTapLeft = {
                                 coroutineScope.launch {
@@ -318,6 +326,9 @@ fun ViewerScreen(
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
+                            translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
+                            showTranslationOverlay = state.showTranslationOverlay,
+                            overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
                             onTapLeft = {
                                 coroutineScope.launch {
@@ -483,6 +494,19 @@ fun ViewerScreen(
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
+
+                IconButton(
+                    onClick = { viewModel.onIntent(ViewerIntent.ToggleTranslationOverlay) },
+                    enabled = state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty(),
+                ) {
+                    Icon(
+                        imageVector = if (state.showTranslationOverlay) Icons.Default.Visibility
+                        else Icons.Default.VisibilityOff,
+                        contentDescription = "번역 오버레이 토글",
+                        tint = if (state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty()) Color.White
+                        else Color.White.copy(alpha = 0.3f),
+                    )
+                }
             }
         }
 
@@ -1013,6 +1037,9 @@ private fun ZoomableImage(
     isAreaSelectMode: Boolean,
     cropRect: CropRect?,
     ocrResults: List<TextBlock>,
+    translationResults: List<TranslationResult>,
+    showTranslationOverlay: Boolean,
+    overlayColors: List<androidx.compose.ui.graphics.Color>,
     pagerSettledPage: Int,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
@@ -1074,13 +1101,25 @@ private fun ZoomableImage(
                     val imgWidth = painterState.result.image.width
                     val imgHeight = painterState.result.image.height
 
-                    // Bounding Box 하이라이트
-                    if (ocrResults.isNotEmpty()) {
+                    // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                    if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
                         BoundingBoxOverlay(
                             textBlocks = ocrResults,
                             imageWidth = imgWidth,
                             imageHeight = imgHeight,
                             onBlockTap = onTextBlockTap,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    // 번역 오버레이
+                    if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                        TranslationOverlay(
+                            textBlocks = ocrResults,
+                            translationResults = translationResults,
+                            dominantColors = overlayColors,
+                            imageWidth = imgWidth,
+                            imageHeight = imgHeight,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
