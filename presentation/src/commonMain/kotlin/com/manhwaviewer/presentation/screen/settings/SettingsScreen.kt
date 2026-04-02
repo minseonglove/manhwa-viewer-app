@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.domain.entity.ReadingDirection
-import com.manhwaviewer.domain.entity.TranslationEngine
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
 import manhwa_viewer.presentation.generated.resources.Res
@@ -159,8 +158,6 @@ fun SettingsScreen(
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        TranslationEngineSection(preference, viewModel)
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         AppInfoSection()
                     }
                 }
@@ -171,8 +168,6 @@ fun SettingsScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     ViewerSection(preference, viewModel)
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    TranslationEngineSection(preference, viewModel)
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     StorageSection(
                         state = state,
@@ -256,55 +251,6 @@ private fun ViewerSection(
                 ),
             )
         },
-    )
-}
-
-@Composable
-private fun TranslationEngineSection(
-    preference: ViewerPreference,
-    viewModel: SettingsViewModel,
-) {
-    SectionHeader("번역 엔진")
-
-    SettingsDropdown(
-        title = "기본 엔진",
-        currentValue = when (preference.defaultTranslationEngine) {
-            TranslationEngine.ML_KIT -> "ML Kit (오프라인)"
-            TranslationEngine.GOOGLE_CLOUD -> "Google Cloud"
-            TranslationEngine.PAPAGO -> "Papago"
-        },
-        options = listOf("ML Kit (오프라인)", "Google Cloud", "Papago"),
-        onSelect = { index ->
-            viewModel.onIntent(
-                SettingsIntent.UpdateTranslationEngine(
-                    when (index) {
-                        0 -> TranslationEngine.ML_KIT
-                        1 -> TranslationEngine.GOOGLE_CLOUD
-                        else -> TranslationEngine.PAPAGO
-                    },
-                ),
-            )
-        },
-    )
-
-    SettingsSwitch(
-        title = "오프라인 번역",
-        subtitle = "ML Kit 오프라인 번역 사용",
-        checked = preference.offlineTranslation,
-        onCheckedChange = { viewModel.onIntent(SettingsIntent.UpdateOfflineTranslation(it)) },
-    )
-
-    SettingsClickable(
-        title = "API 키 관리 (BYOK)",
-        value = "설정",
-        onClick = { /* 추후 구현 */ },
-    )
-
-    SettingsSwitch(
-        title = "자동 전체 번역",
-        subtitle = "페이지 진입 시 자동 번역",
-        checked = preference.autoTranslateOnPageLoad,
-        onCheckedChange = { viewModel.onIntent(SettingsIntent.UpdateAutoTranslate(it)) },
     )
 }
 

@@ -31,9 +31,6 @@ class SettingsViewModel(
             is SettingsIntent.UpdateViewMode -> updatePref { copy(viewMode = intent.mode) }
             is SettingsIntent.UpdateKeepZoomState -> updatePref { copy(keepZoomState = intent.keep) }
             is SettingsIntent.UpdateBackgroundColor -> updatePref { copy(backgroundColor = intent.color) }
-            is SettingsIntent.UpdateTranslationEngine -> updatePref { copy(defaultTranslationEngine = intent.engine) }
-            is SettingsIntent.UpdateOfflineTranslation -> updatePref { copy(offlineTranslation = intent.enabled) }
-            is SettingsIntent.UpdateAutoTranslate -> updatePref { copy(autoTranslateOnPageLoad = intent.enabled) }
             is SettingsIntent.ClearTranslationCache -> clearTranslationCache()
             is SettingsIntent.ClearImageCache -> clearImageCache()
             is SettingsIntent.RefreshCacheSize -> refreshCacheSize()
