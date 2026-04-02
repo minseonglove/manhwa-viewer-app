@@ -54,6 +54,7 @@ class TextDetectionRepositoryImpl(
                 }
 
                 val result = (horizontalDeferred.await() + verticalDeferred.await())
+                    .filter { it.text.containsCjkOrKana() }
                     .sortedWith(compareBy({ it.y }, { it.x }))
                 println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
                 result
@@ -61,4 +62,7 @@ class TextDetectionRepositoryImpl(
         }
 
     private fun now(): Long = Clock.System.now().toEpochMilliseconds()
+
+    private fun String.containsCjkOrKana(): Boolean =
+        any { it in '\u3040'..'\u309F' || it in '\u30A0'..'\u30FF' || it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF' }
 }

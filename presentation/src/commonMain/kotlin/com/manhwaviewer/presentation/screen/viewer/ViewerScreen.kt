@@ -202,6 +202,7 @@ fun ViewerScreen(
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
+                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
@@ -270,6 +271,7 @@ fun ViewerScreen(
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (isCurrentSpread) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
+                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage((spreadIndex - 1).coerceAtLeast(0))
@@ -330,6 +332,7 @@ fun ViewerScreen(
                             showTranslationOverlay = state.showTranslationOverlay,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             pagerSettledPage = pagerState.settledPage,
+                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
@@ -1041,6 +1044,7 @@ private fun ZoomableImage(
     showTranslationOverlay: Boolean,
     overlayColors: List<androidx.compose.ui.graphics.Color>,
     pagerSettledPage: Int,
+    isTranslationActive: Boolean,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
@@ -1065,7 +1069,7 @@ private fun ZoomableImage(
             .zoomable(
                 state = zoomableState,
                 enabled = !isAreaSelectMode,
-                onClick = if (!isAreaSelectMode) {
+                onClick = if (!isAreaSelectMode && !isTranslationActive) {
                     { offset ->
                         when {
                             offset.x < containerWidth * 0.2f -> onTapLeft()
