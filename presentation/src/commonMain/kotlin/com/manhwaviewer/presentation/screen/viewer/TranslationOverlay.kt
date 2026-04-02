@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
+import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.presentation.util.contrastingTextColor
@@ -41,20 +42,20 @@ fun TranslationOverlay(
     dominantColors: List<Color>,
     imageWidth: Int,
     imageHeight: Int,
+    imageScaleMode: ImageScaleMode = ImageScaleMode.AUTO_FIT,
     modifier: Modifier = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current.density
 
     BoxWithConstraints(modifier = modifier) {
-        val fitScale = if (imageWidth > 0 && imageHeight > 0) {
-            minOf(
-                constraints.maxWidth.toFloat() / imageWidth,
-                constraints.maxHeight.toFloat() / imageHeight,
-            )
-        } else {
-            1f
-        }
+        val (fitScale, _) = calculateImageTransform(
+            imageScaleMode,
+            constraints.maxWidth.toFloat(),
+            constraints.maxHeight.toFloat(),
+            imageWidth.toFloat(),
+            imageHeight.toFloat(),
+        )
 
         // 텍스트 크기 측정 결과를 캐싱 — recomposition 시 재계산 방지
         val measuredBlocks = remember(textBlocks, translationResults, dominantColors, imageWidth, imageHeight, fitScale) {
@@ -107,12 +108,10 @@ fun TranslationOverlay(
         Canvas(modifier = Modifier.fillMaxSize()) {
             if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
 
-            val canvasFitScale = minOf(
-                size.width / imageWidth.toFloat(),
-                size.height / imageHeight.toFloat(),
+            val (canvasFitScale, transformOffset) = calculateImageTransform(
+                imageScaleMode, size.width, size.height,
+                imageWidth.toFloat(), imageHeight.toFloat(),
             )
-            val offsetX = (size.width - imageWidth * canvasFitScale) / 2f
-            val offsetY = (size.height - imageHeight * canvasFitScale) / 2f
 
             val minCount = minOf(textBlocks.size, translationResults.size, dominantColors.size)
             var measuredIdx = 0
@@ -131,8 +130,8 @@ fun TranslationOverlay(
                 if (measuredIdx >= measuredBlocks.size) break
                 val measured = measuredBlocks[measuredIdx++]
 
-                val screenX = block.x * canvasFitScale + offsetX
-                val screenY = block.y * canvasFitScale + offsetY
+                val screenX = block.x * canvasFitScale + transformOffset.x
+                val screenY = block.y * canvasFitScale + transformOffset.y
 
                 drawOverlayBlock(
                     measured = measured,

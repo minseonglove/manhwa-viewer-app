@@ -8,6 +8,7 @@ import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
+import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.util.cropImageBytes
@@ -26,6 +27,7 @@ class ViewerViewModel(
     private val getImageBytesUseCase: GetImageBytesUseCase,
     private val recognizePageTextUseCase: RecognizePageTextUseCase,
     private val translateTextUseCase: TranslateTextUseCase,
+    private val updateViewerPreferenceUseCase: UpdateViewerPreferenceUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var ocrJob: Job? = null
@@ -138,6 +140,13 @@ class ViewerViewModel(
             }
             is ViewerIntent.ToggleTranslationOverlay -> updateState {
                 copy(showTranslationOverlay = !showTranslationOverlay)
+            }
+            is ViewerIntent.SetImageScaleMode -> {
+                viewModelScope.launch {
+                    updateViewerPreferenceUseCase(
+                        currentState.preference.copy(imageScaleMode = intent.mode)
+                    )
+                }
             }
         }
     }
@@ -285,13 +294,16 @@ class ViewerViewModel(
                 // 이미지 원본 크기 조회
                 val (imgW, imgH) = getImageDimensions(imageBytes)
 
-                // ContentScale.Fit 좌표 변환: screen → image 좌표
-                val fitScale = minOf(
-                    containerWidth.toFloat() / imgW,
-                    containerHeight.toFloat() / imgH,
+                // ImageScaleMode에 따른 좌표 변환: screen → image 좌표
+                val (fitScale, transformOffset) = calculateImageTransform(
+                    currentState.preference.imageScaleMode,
+                    containerWidth.toFloat(),
+                    containerHeight.toFloat(),
+                    imgW.toFloat(),
+                    imgH.toFloat(),
                 )
-                val offsetX = (containerWidth - imgW * fitScale) / 2f
-                val offsetY = (containerHeight - imgH * fitScale) / 2f
+                val offsetX = transformOffset.x
+                val offsetY = transformOffset.y
 
                 val cropMinX = minOf(crop.startX, crop.endX)
                 val cropMinY = minOf(crop.startY, crop.endY)

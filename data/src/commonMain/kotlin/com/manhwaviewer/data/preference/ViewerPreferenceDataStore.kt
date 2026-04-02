@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.manhwaviewer.domain.entity.BackgroundColor
+import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TranslationEngine
 import com.manhwaviewer.domain.entity.ViewMode
@@ -26,6 +27,7 @@ class ViewerPreferenceDataStore(
         val DEFAULT_TRANSLATION_ENGINE = stringPreferencesKey("default_translation_engine")
         val OFFLINE_TRANSLATION = booleanPreferencesKey("offline_translation")
         val AUTO_TRANSLATE_ON_PAGE_LOAD = booleanPreferencesKey("auto_translate_on_page_load")
+        val IMAGE_SCALE_MODE = stringPreferencesKey("image_scale_mode")
     }
 
     override fun getPreference(): Flow<ViewerPreference> =
@@ -46,6 +48,9 @@ class ViewerPreferenceDataStore(
                     ?: TranslationEngine.ML_KIT,
                 offlineTranslation = prefs[Keys.OFFLINE_TRANSLATION] ?: true,
                 autoTranslateOnPageLoad = prefs[Keys.AUTO_TRANSLATE_ON_PAGE_LOAD] ?: false,
+                imageScaleMode = prefs[Keys.IMAGE_SCALE_MODE]
+                    ?.let { runCatching { ImageScaleMode.valueOf(it) }.getOrNull() }
+                    ?: ImageScaleMode.AUTO_FIT,
             )
         }
 
@@ -58,6 +63,7 @@ class ViewerPreferenceDataStore(
             prefs[Keys.DEFAULT_TRANSLATION_ENGINE] = preference.defaultTranslationEngine.name
             prefs[Keys.OFFLINE_TRANSLATION] = preference.offlineTranslation
             prefs[Keys.AUTO_TRANSLATE_ON_PAGE_LOAD] = preference.autoTranslateOnPageLoad
+            prefs[Keys.IMAGE_SCALE_MODE] = preference.imageScaleMode.name
         }
     }
 }

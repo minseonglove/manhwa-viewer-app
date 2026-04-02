@@ -4,6 +4,8 @@ import com.manhwaviewer.domain.entity.ArchiveFile
 import androidx.compose.ui.graphics.Color
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
+import androidx.compose.ui.geometry.Offset
+import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ViewerPreference
 
 enum class TranslationMode {
@@ -59,6 +61,7 @@ sealed interface ViewerIntent {
     data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent
     data object ToggleTranslationOverlay : ViewerIntent
+    data class SetImageScaleMode(val mode: ImageScaleMode) : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {
@@ -82,6 +85,29 @@ fun spreadToPages(spreadIndex: Int, totalPages: Int): Pair<Int, Int?> {
     val first = spreadIndex * 2 - 1
     val second = first + 1
     return Pair(first, if (second < totalPages) second else null)
+}
+
+/**
+ * ImageScaleMode에 따른 이미지 → 화면 좌표 변환용 스케일/오프셋 계산.
+ * @return Pair(scale, Offset(offsetX, offsetY))
+ */
+fun calculateImageTransform(
+    scaleMode: ImageScaleMode,
+    containerWidth: Float,
+    containerHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float,
+): Pair<Float, Offset> {
+    if (imageWidth <= 0f || imageHeight <= 0f) return Pair(1f, Offset.Zero)
+    val scale = when (scaleMode) {
+        ImageScaleMode.FIT_WIDTH -> containerWidth / imageWidth
+        ImageScaleMode.FIT_HEIGHT -> containerHeight / imageHeight
+        ImageScaleMode.AUTO_FIT -> minOf(containerWidth / imageWidth, containerHeight / imageHeight)
+        ImageScaleMode.ORIGINAL -> 1f
+    }
+    val offsetX = (containerWidth - imageWidth * scale) / 2f
+    val offsetY = (containerHeight - imageHeight * scale) / 2f
+    return Pair(scale, Offset(offsetX, offsetY))
 }
 
 fun pageToSpread(pageIndex: Int): Int {

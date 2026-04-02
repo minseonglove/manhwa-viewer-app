@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
@@ -70,6 +72,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.backhandler.BackHandler
@@ -81,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.presentation.screen.common.displayName
+import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
@@ -195,6 +199,7 @@ fun ViewerScreen(
                             pageModel = pageModel,
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
+                            imageScaleMode = state.preference.imageScaleMode,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
@@ -266,6 +271,7 @@ fun ViewerScreen(
                             pageModel = pageModel,
                             page = spreadIndex,
                             keepZoomState = state.preference.keepZoomState,
+                            imageScaleMode = state.preference.imageScaleMode,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (isCurrentSpread) state.cropRect else null,
                             ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
@@ -329,6 +335,7 @@ fun ViewerScreen(
                             pageModel = pageModel,
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
+                            imageScaleMode = state.preference.imageScaleMode,
                             isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
@@ -683,6 +690,15 @@ fun ViewerScreen(
                         )
                     }
                 }
+
+                // 이미지 비율 선택
+                ImageScaleModeSelector(
+                    currentMode = state.preference.imageScaleMode,
+                    onModeSelected = { mode ->
+                        viewModel.onIntent(ViewerIntent.SetImageScaleMode(mode))
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
 
                 // 2행: 슬라이더
                 if (state.totalPages > 1) {
@@ -1043,6 +1059,7 @@ private fun ZoomableImage(
     pageModel: ViewerPageModel?,
     page: Int,
     keepZoomState: Boolean,
+    imageScaleMode: ImageScaleMode,
     isAreaSelectMode: Boolean,
     cropRect: CropRect?,
     ocrResults: List<TextBlock>,
@@ -1068,20 +1085,20 @@ private fun ZoomableImage(
         }
     }
 
-    var containerWidth by remember { mutableIntStateOf(0) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerWidth = it.width }
+            .onSizeChanged { containerSize = it }
             .zoomable(
                 state = zoomableState,
                 enabled = !isAreaSelectMode,
                 onClick = if (!isAreaSelectMode && !isTranslationActive) {
                     { offset ->
                         when {
-                            offset.x < containerWidth * 0.2f -> onTapLeft()
-                            offset.x > containerWidth * 0.8f -> onTapRight()
+                            offset.x < containerSize.width * 0.2f -> onTapLeft()
+                            offset.x > containerSize.width * 0.8f -> onTapRight()
                             else -> onTapCenter()
                         }
                     }
@@ -1092,16 +1109,40 @@ private fun ZoomableImage(
         contentAlignment = Alignment.Center,
     ) {
         if (pageModel != null) {
+            val contentScale = imageScaleMode.toContentScale()
+            val density = LocalDensity.current
+
             val painter = rememberAsyncImagePainter(
                 model = pageModel,
-                contentScale = ContentScale.Fit,
+                contentScale = contentScale,
             )
+
+            val intrinsicSize = painter.intrinsicSize
+            val imageModifier = if (imageScaleMode == ImageScaleMode.AUTO_FIT || intrinsicSize == androidx.compose.ui.geometry.Size.Unspecified || containerSize == IntSize.Zero) {
+                Modifier.fillMaxSize()
+            } else {
+                val imgW = intrinsicSize.width
+                val imgH = intrinsicSize.height
+                val cW = containerSize.width.toFloat()
+                val cH = containerSize.height.toFloat()
+                val (displayW, displayH) = when (imageScaleMode) {
+                    ImageScaleMode.FIT_WIDTH -> cW to (cW * imgH / imgW)
+                    ImageScaleMode.FIT_HEIGHT -> (cH * imgW / imgH) to cH
+                    ImageScaleMode.ORIGINAL -> imgW to imgH
+                    else -> cW to cH
+                }
+                with(density) {
+                    Modifier
+                        .requiredWidth(maxOf(displayW, cW).toDp())
+                        .requiredHeight(maxOf(displayH, cH).toDp())
+                }
+            }
 
             Image(
                 painter = painter,
                 contentDescription = "Page ${page + 1}",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
+                modifier = imageModifier,
+                contentScale = contentScale,
             )
 
             val painterState = painter.state.collectAsState().value
@@ -1123,6 +1164,7 @@ private fun ZoomableImage(
                             textBlocks = ocrResults,
                             imageWidth = overlayWidth,
                             imageHeight = overlayHeight,
+                            imageScaleMode = imageScaleMode,
                             onBlockTap = onTextBlockTap,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -1136,6 +1178,7 @@ private fun ZoomableImage(
                             dominantColors = overlayColors,
                             imageWidth = overlayWidth,
                             imageHeight = overlayHeight,
+                            imageScaleMode = imageScaleMode,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -1164,6 +1207,7 @@ private fun BoundingBoxOverlay(
     textBlocks: List<TextBlock>,
     imageWidth: Int,
     imageHeight: Int,
+    imageScaleMode: ImageScaleMode,
     onBlockTap: (TextBlock) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1171,45 +1215,39 @@ private fun BoundingBoxOverlay(
 
     Canvas(
         modifier = modifier
-            .pointerInput(textBlocks, imageWidth, imageHeight) {
+            .pointerInput(textBlocks, imageWidth, imageHeight, imageScaleMode) {
                 detectTapGestures { offset ->
-                    // ContentScale.Fit 변환 계산
-                    val fitScale = minOf(
-                        size.width.toFloat() / imageWidth,
-                        size.height.toFloat() / imageHeight,
+                    val (scale, transformOffset) = calculateImageTransform(
+                        imageScaleMode, size.width.toFloat(), size.height.toFloat(),
+                        imageWidth.toFloat(), imageHeight.toFloat(),
                     )
-                    val offsetX = (size.width - imageWidth * fitScale) / 2f
-                    val offsetY = (size.height - imageHeight * fitScale) / 2f
 
                     textBlocks.firstOrNull { block ->
-                        val lx = block.x * fitScale + offsetX
-                        val ly = block.y * fitScale + offsetY
-                        val lw = block.width * fitScale
-                        val lh = block.height * fitScale
+                        val lx = block.x * scale + transformOffset.x
+                        val ly = block.y * scale + transformOffset.y
+                        val lw = block.width * scale
+                        val lh = block.height * scale
                         offset.x in lx..(lx + lw) && offset.y in ly..(ly + lh)
                     }?.let { onBlockTap(it) }
                 }
             },
     ) {
         if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
-        // ContentScale.Fit 변환: 이미지 픽셀 좌표 → 레이아웃 좌표
-        val fitScale = minOf(
-            size.width / imageWidth.toFloat(),
-            size.height / imageHeight.toFloat(),
+        val (scale, transformOffset) = calculateImageTransform(
+            imageScaleMode, size.width, size.height,
+            imageWidth.toFloat(), imageHeight.toFloat(),
         )
-        val offsetX = (size.width - imageWidth * fitScale) / 2f
-        val offsetY = (size.height - imageHeight * fitScale) / 2f
 
         textBlocks.forEach { block ->
             drawRect(
                 color = BoundingBoxColor,
                 topLeft = Offset(
-                    x = block.x * fitScale + offsetX,
-                    y = block.y * fitScale + offsetY,
+                    x = block.x * scale + transformOffset.x,
+                    y = block.y * scale + transformOffset.y,
                 ),
                 size = Size(
-                    width = block.width * fitScale,
-                    height = block.height * fitScale,
+                    width = block.width * scale,
+                    height = block.height * scale,
                 ),
                 style = Stroke(
                     width = 2f,
@@ -1386,4 +1424,54 @@ private fun CropOverlay(
 
 private enum class DragMode {
     NONE, MOVE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
+}
+
+// ── 이미지 비율 모드 ─────────────────────────────────────────────
+
+private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
+    ImageScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+    ImageScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+    ImageScaleMode.AUTO_FIT -> ContentScale.Fit
+    ImageScaleMode.ORIGINAL -> ContentScale.None
+}
+
+private fun ImageScaleMode.displayLabel(): String = when (this) {
+    ImageScaleMode.FIT_WIDTH -> "가로"
+    ImageScaleMode.FIT_HEIGHT -> "세로"
+    ImageScaleMode.AUTO_FIT -> "자동"
+    ImageScaleMode.ORIGINAL -> "원본"
+}
+
+@Composable
+private fun ImageScaleModeSelector(
+    currentMode: ImageScaleMode,
+    onModeSelected: (ImageScaleMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ImageScaleMode.entries.forEach { mode ->
+            val isSelected = mode == currentMode
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = if (isSelected) OcrButtonColor.copy(alpha = 0.3f)
+                        else Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .clickable { onModeSelected(mode) }
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = mode.displayLabel(),
+                    color = if (isSelected) OcrButtonColor else Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+    }
 }
