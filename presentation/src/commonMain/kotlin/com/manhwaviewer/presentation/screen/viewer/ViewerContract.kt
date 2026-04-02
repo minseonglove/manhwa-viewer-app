@@ -6,6 +6,8 @@ import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import androidx.compose.ui.geometry.Offset
 import com.manhwaviewer.domain.entity.ImageScaleMode
+import com.manhwaviewer.domain.entity.ReadingDirection
+import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
 
 enum class TranslationMode {
@@ -62,6 +64,8 @@ sealed interface ViewerIntent {
     data object DismissOcrResult : ViewerIntent
     data object ToggleTranslationOverlay : ViewerIntent
     data class SetImageScaleMode(val mode: ImageScaleMode) : ViewerIntent
+    data class SetViewMode(val mode: ViewMode) : ViewerIntent
+    data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {

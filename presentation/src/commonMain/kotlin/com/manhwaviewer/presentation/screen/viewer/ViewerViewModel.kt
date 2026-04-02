@@ -148,6 +148,20 @@ class ViewerViewModel(
                     )
                 }
             }
+            is ViewerIntent.SetViewMode -> {
+                viewModelScope.launch {
+                    updateViewerPreferenceUseCase(
+                        currentState.preference.copy(viewMode = intent.mode)
+                    )
+                }
+            }
+            is ViewerIntent.SetReadingDirection -> {
+                viewModelScope.launch {
+                    updateViewerPreferenceUseCase(
+                        currentState.preference.copy(readingDirection = intent.direction)
+                    )
+                }
+            }
         }
     }
 

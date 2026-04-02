@@ -43,13 +43,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,6 +93,7 @@ import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
+import com.manhwaviewer.domain.entity.ViewerPreference
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import manhwa_viewer.presentation.generated.resources.Res
@@ -147,10 +152,12 @@ fun ViewerScreen(
 
     val pagerPageCount = if (isDoublePage) spreadCount(state.totalPages) else state.totalPages
 
-    val pagerState = rememberPagerState(
-        initialPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage,
-        pageCount = { pagerPageCount },
-    )
+    val pagerState = key(viewMode) {
+        rememberPagerState(
+            initialPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage,
+            pageCount = { pagerPageCount },
+        )
+    }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -164,6 +171,16 @@ fun ViewerScreen(
     }
 
     var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
+    var showViewModeDialog by remember { mutableStateOf(false) }
+
+    if (showViewModeDialog) {
+        ViewModeSettingsDialog(
+            preference = state.preference,
+            onSetViewMode = { viewModel.onIntent(ViewerIntent.SetViewMode(it)) },
+            onSetReadingDirection = { viewModel.onIntent(ViewerIntent.SetReadingDirection(it)) },
+            onDismiss = { showViewModeDialog = false },
+        )
+    }
 
     val viewerBackground = when (state.preference.backgroundColor) {
         BackgroundColor.BLACK -> Color.Black
@@ -670,6 +687,7 @@ fun ViewerScreen(
                     )
                     Box(
                         modifier = Modifier
+                            .clickable { showViewModeDialog = true }
                             .background(
                                 color = Color.White.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(4.dp),
@@ -974,43 +992,6 @@ private fun OcrBottomSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // 엔진 배지
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(4.dp),
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = "manga-ocr",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            if (translationResults.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = Color(0xFF1DB954).copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp),
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "papago",
-                        color = Color(0xFF1DB954),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -1474,4 +1455,84 @@ private fun ImageScaleModeSelector(
             }
         }
     }
+}
+
+@Composable
+private fun ViewModeSettingsDialog(
+    preference: ViewerPreference,
+    onSetViewMode: (ViewMode) -> Unit,
+    onSetReadingDirection: (ReadingDirection) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("보기 설정") },
+        text = {
+            Column {
+                Text(
+                    text = "읽기 방향",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                ReadingDirection.entries.forEach { direction ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSetReadingDirection(direction) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = preference.readingDirection == direction,
+                            onClick = { onSetReadingDirection(direction) },
+                        )
+                        Text(
+                            text = when (direction) {
+                                ReadingDirection.LTR -> "왼쪽 → 오른쪽 (LTR)"
+                                ReadingDirection.RTL -> "오른쪽 → 왼쪽 (RTL)"
+                            },
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "보기 모드",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                ViewMode.entries.forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSetViewMode(mode) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = preference.viewMode == mode,
+                            onClick = { onSetViewMode(mode) },
+                        )
+                        Text(
+                            text = when (mode) {
+                                ViewMode.SINGLE_PAGE -> "단면"
+                                ViewMode.DOUBLE_PAGE -> "양면"
+                                ViewMode.WEBTOON -> "웹툰 (세로 스크롤)"
+                            },
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+    )
 }
