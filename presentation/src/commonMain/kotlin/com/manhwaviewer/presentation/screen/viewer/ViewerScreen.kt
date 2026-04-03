@@ -96,11 +96,15 @@ import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
+import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
+import me.saket.telephoto.subsamplingimage.SubSamplingImage
+import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 private val OcrButtonColor = Color(0xFF4A90D9)
@@ -229,13 +233,13 @@ fun ViewerScreen(
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
+                                    pagerState.scrollToPage((page - 1).coerceAtLeast(0))
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                                    pagerState.scrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
                                 }
                             },
                             onUpdateCropRect = { rect ->
@@ -301,13 +305,13 @@ fun ViewerScreen(
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((spreadIndex - 1).coerceAtLeast(0))
+                                    pagerState.scrollToPage((spreadIndex - 1).coerceAtLeast(0))
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((spreadIndex + 1).coerceAtMost(pagerPageCount - 1))
+                                    pagerState.scrollToPage((spreadIndex + 1).coerceAtMost(pagerPageCount - 1))
                                 }
                             },
                             onUpdateCropRect = { rect ->
@@ -365,13 +369,13 @@ fun ViewerScreen(
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
+                                    pagerState.scrollToPage((page - 1).coerceAtLeast(0))
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                                    pagerState.scrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
                                 }
                             },
                             onUpdateCropRect = { rect ->
@@ -1068,115 +1072,179 @@ private fun ZoomableImage(
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .zoomable(
-                state = zoomableState,
-                enabled = !isAreaSelectMode,
-                onClick = if (!isAreaSelectMode && !isTranslationActive) {
-                    { offset ->
-                        when {
-                            offset.x < containerSize.width * 0.2f -> onTapLeft()
-                            offset.x > containerSize.width * 0.8f -> onTapRight()
-                            else -> onTapCenter()
+    // 번역 모드 활성화 여부: 오버레이가 필요하면 기존 Image+painter, 아니면 SubSamplingImage
+    val needsOverlay = isTranslationActive || ocrResults.isNotEmpty()
+    // SubSamplingImage는 단일 페이지 + 오버레이 불필요 시에만 사용
+    // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
+    val useSubSampling = !needsOverlay && pageModel != null && pageModel.entryNames.size == 1
+
+    // subSamplingFailed 상태를 이 스코프에서 관리 (fallback 용)
+    var subSamplingFailed by remember { mutableStateOf(false) }
+
+    if (useSubSampling && !subSamplingFailed && pageModel != null) {
+        // SubSamplingImage 경로: 보이는 영역만 타일 디코딩 (메모리 안전)
+        val getImageBytesUseCase: GetImageBytesUseCase = koinInject()
+        var imageSource by remember { mutableStateOf<me.saket.telephoto.subsamplingimage.SubSamplingImageSource?>(null) }
+
+        LaunchedEffect(pageModel) {
+            try {
+                imageSource = createArchiveImageSource(
+                    archivePath = pageModel.archivePath,
+                    entryName = pageModel.entryNames[0],
+                    getImageBytesUseCase = getImageBytesUseCase,
+                )
+                subSamplingFailed = false
+            } catch (_: Exception) {
+                subSamplingFailed = true
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { containerSize = it },
+            contentAlignment = Alignment.Center,
+        ) {
+            val source = imageSource
+            if (source != null) {
+                val imageState = rememberSubSamplingImageState(
+                    imageSource = source,
+                    zoomableState = zoomableState,
+                )
+
+                SubSamplingImage(
+                    state = imageState,
+                    contentDescription = "Page ${page + 1}",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zoomable(
+                            state = zoomableState,
+                            enabled = true,
+                            onClick = { offset ->
+                                when {
+                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> onTapRight()
+                                    else -> onTapCenter()
+                                }
+                            },
+                        ),
+                )
+            } else {
+                CircularProgressIndicator(color = Color.White)
+            }
+        }
+    } else {
+        // 기존 Image+painter 경로: 오버레이가 필요할 때 사용
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { containerSize = it }
+                .zoomable(
+                    state = zoomableState,
+                    enabled = !isAreaSelectMode,
+                    onClick = if (!isAreaSelectMode && !isTranslationActive) {
+                        { offset ->
+                            when {
+                                offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                offset.x > containerSize.width * 0.8f -> onTapRight()
+                                else -> onTapCenter()
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (pageModel != null) {
+                val contentScale = imageScaleMode.toContentScale()
+                val density = LocalDensity.current
+
+                val painter = rememberAsyncImagePainter(
+                    model = pageModel,
+                    contentScale = contentScale,
+                )
+
+                val intrinsicSize = painter.intrinsicSize
+                val imageModifier = if (imageScaleMode == ImageScaleMode.AUTO_FIT || intrinsicSize == androidx.compose.ui.geometry.Size.Unspecified || containerSize == IntSize.Zero) {
+                    Modifier.fillMaxSize()
+                } else {
+                    val imgW = intrinsicSize.width
+                    val imgH = intrinsicSize.height
+                    val cW = containerSize.width.toFloat()
+                    val cH = containerSize.height.toFloat()
+                    val (displayW, displayH) = when (imageScaleMode) {
+                        ImageScaleMode.FIT_WIDTH -> cW to (cW * imgH / imgW)
+                        ImageScaleMode.FIT_HEIGHT -> (cH * imgW / imgH) to cH
+                        ImageScaleMode.ORIGINAL -> imgW to imgH
+                        else -> cW to cH
+                    }
+                    with(density) {
+                        Modifier
+                            .requiredWidth(maxOf(displayW, cW).toDp())
+                            .requiredHeight(maxOf(displayH, cH).toDp())
+                    }
+                }
+
+                Image(
+                    painter = painter,
+                    contentDescription = "Page ${page + 1}",
+                    modifier = imageModifier,
+                    contentScale = contentScale,
+                )
+
+                val painterState = painter.state.collectAsState().value
+                when (painterState) {
+                    is AsyncImagePainter.State.Loading -> {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                    is AsyncImagePainter.State.Success -> {
+                        val imgWidth = painterState.result.image.width
+                        val imgHeight = painterState.result.image.height
+
+                        // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
+                        val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
+                        val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
+
+                        // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                        if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                            BoundingBoxOverlay(
+                                textBlocks = ocrResults,
+                                imageWidth = overlayWidth,
+                                imageHeight = overlayHeight,
+                                imageScaleMode = imageScaleMode,
+                                onBlockTap = onTextBlockTap,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        // 번역 오버레이
+                        if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                            TranslationOverlay(
+                                textBlocks = ocrResults,
+                                translationResults = translationResults,
+                                dominantColors = overlayColors,
+                                imageWidth = overlayWidth,
+                                imageHeight = overlayHeight,
+                                imageScaleMode = imageScaleMode,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        // 선택 영역 크롭 오버레이
+                        if (isAreaSelectMode) {
+                            CropOverlay(
+                                cropRect = cropRect,
+                                onUpdateCropRect = onUpdateCropRect,
+                                modifier = Modifier.fillMaxSize(),
+                            )
                         }
                     }
-                } else {
-                    null
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (pageModel != null) {
-            val contentScale = imageScaleMode.toContentScale()
-            val density = LocalDensity.current
-
-            val painter = rememberAsyncImagePainter(
-                model = pageModel,
-                contentScale = contentScale,
-            )
-
-            val intrinsicSize = painter.intrinsicSize
-            val imageModifier = if (imageScaleMode == ImageScaleMode.AUTO_FIT || intrinsicSize == androidx.compose.ui.geometry.Size.Unspecified || containerSize == IntSize.Zero) {
-                Modifier.fillMaxSize()
+                    else -> {}
+                }
             } else {
-                val imgW = intrinsicSize.width
-                val imgH = intrinsicSize.height
-                val cW = containerSize.width.toFloat()
-                val cH = containerSize.height.toFloat()
-                val (displayW, displayH) = when (imageScaleMode) {
-                    ImageScaleMode.FIT_WIDTH -> cW to (cW * imgH / imgW)
-                    ImageScaleMode.FIT_HEIGHT -> (cH * imgW / imgH) to cH
-                    ImageScaleMode.ORIGINAL -> imgW to imgH
-                    else -> cW to cH
-                }
-                with(density) {
-                    Modifier
-                        .requiredWidth(maxOf(displayW, cW).toDp())
-                        .requiredHeight(maxOf(displayH, cH).toDp())
-                }
+                CircularProgressIndicator(color = Color.White)
             }
-
-            Image(
-                painter = painter,
-                contentDescription = "Page ${page + 1}",
-                modifier = imageModifier,
-                contentScale = contentScale,
-            )
-
-            val painterState = painter.state.collectAsState().value
-            when (painterState) {
-                is AsyncImagePainter.State.Loading -> {
-                    CircularProgressIndicator(color = Color.White)
-                }
-                is AsyncImagePainter.State.Success -> {
-                    val imgWidth = painterState.result.image.width
-                    val imgHeight = painterState.result.image.height
-
-                    // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
-                    val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
-                    val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
-
-                    // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                    if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
-                        BoundingBoxOverlay(
-                            textBlocks = ocrResults,
-                            imageWidth = overlayWidth,
-                            imageHeight = overlayHeight,
-                            imageScaleMode = imageScaleMode,
-                            onBlockTap = onTextBlockTap,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    // 번역 오버레이
-                    if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
-                        TranslationOverlay(
-                            textBlocks = ocrResults,
-                            translationResults = translationResults,
-                            dominantColors = overlayColors,
-                            imageWidth = overlayWidth,
-                            imageHeight = overlayHeight,
-                            imageScaleMode = imageScaleMode,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    // 선택 영역 크롭 오버레이
-                    if (isAreaSelectMode) {
-                        CropOverlay(
-                            cropRect = cropRect,
-                            onUpdateCropRect = onUpdateCropRect,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-                else -> {}
-            }
-        } else {
-            CircularProgressIndicator(color = Color.White)
         }
     }
 }

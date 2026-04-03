@@ -36,17 +36,33 @@ actual suspend fun getImageDimensions(bytes: ByteArray): Pair<Int, Int> =
 
 actual suspend fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: Int): ByteArray =
     withContext(Dispatchers.Default) {
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        val safeX = x.coerceIn(0, bitmap.width - 1)
-        val safeY = y.coerceIn(0, bitmap.height - 1)
-        val safeW = width.coerceIn(1, bitmap.width - safeX)
-        val safeH = height.coerceIn(1, bitmap.height - safeY)
-        val cropped = Bitmap.createBitmap(bitmap, safeX, safeY, safeW, safeH)
-        val stream = ByteArrayOutputStream()
-        cropped.compress(Bitmap.CompressFormat.PNG, 100, stream)
-        if (cropped !== bitmap) cropped.recycle()
-        bitmap.recycle()
-        stream.toByteArray()
+        val decoder = android.graphics.BitmapRegionDecoder.newInstance(bytes, 0, bytes.size, false)
+        if (decoder != null) {
+            val safeX = x.coerceIn(0, decoder.width - 1)
+            val safeY = y.coerceIn(0, decoder.height - 1)
+            val safeW = width.coerceIn(1, decoder.width - safeX)
+            val safeH = height.coerceIn(1, decoder.height - safeY)
+            val rect = android.graphics.Rect(safeX, safeY, safeX + safeW, safeY + safeH)
+            val cropped = decoder.decodeRegion(rect, BitmapFactory.Options())
+            decoder.recycle()
+            val stream = ByteArrayOutputStream()
+            cropped.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            cropped.recycle()
+            stream.toByteArray()
+        } else {
+            // Fallback: BitmapRegionDecoder 미지원 포맷
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            val safeX = x.coerceIn(0, bitmap.width - 1)
+            val safeY = y.coerceIn(0, bitmap.height - 1)
+            val safeW = width.coerceIn(1, bitmap.width - safeX)
+            val safeH = height.coerceIn(1, bitmap.height - safeY)
+            val cropped = Bitmap.createBitmap(bitmap, safeX, safeY, safeW, safeH)
+            val stream = ByteArrayOutputStream()
+            cropped.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            if (cropped !== bitmap) cropped.recycle()
+            bitmap.recycle()
+            stream.toByteArray()
+        }
     }
 
 actual suspend fun mergeImagesHorizontally(first: ByteArray, second: ByteArray): ByteArray =

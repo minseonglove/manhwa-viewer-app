@@ -45,6 +45,7 @@ datastore-preferences = { module = "androidx.datastore:datastore-preferences", v
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation" }
 # Telephoto
 telephoto-zoomable = { module = "me.saket.telephoto:zoomable", version.ref = "telephoto" }
+telephoto-sub-sampling-image = { module = "me.saket.telephoto:sub-sampling-image", version.ref = "telephoto" }
 # Lifecycle
 lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

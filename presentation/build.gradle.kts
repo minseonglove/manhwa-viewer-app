@@ -35,6 +35,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
             implementation(libs.telephoto.zoomable)
+            implementation(libs.telephoto.sub.sampling.image)
         }
         androidMain.dependencies {
         }

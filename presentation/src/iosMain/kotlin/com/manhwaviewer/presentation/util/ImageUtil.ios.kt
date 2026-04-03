@@ -2,31 +2,47 @@ package com.manhwaviewer.presentation.util
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ColorType
+import org.jetbrains.skia.Codec
+import org.jetbrains.skia.Data
 import org.jetbrains.skia.Image
-import org.jetbrains.skia.ImageInfo
-import platform.Foundation.NSData
-import platform.Foundation.create
-import platform.posix.memcpy
+import kotlin.math.sqrt
+
+private const val MAX_BITMAP_BYTES = 100_000_000L // 100MB
 
 actual fun ByteArray.toImageBitmap(): ImageBitmap {
-    return Image.makeFromEncoded(this).toComposeImageBitmap()
+    val image = Image.makeFromEncoded(this)
+    val pixelBytes = image.width.toLong() * image.height.toLong() * 4
+    if (pixelBytes <= MAX_BITMAP_BYTES) {
+        return image.toComposeImageBitmap()
+    }
+    // 다운샘플링: 원본 픽셀이 한도를 초과하면 축소 렌더링
+    val scale = sqrt(MAX_BITMAP_BYTES.toDouble() / pixelBytes).toFloat()
+    val newW = (image.width * scale).toInt().coerceAtLeast(1)
+    val newH = (image.height * scale).toInt().coerceAtLeast(1)
+    val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(newW, newH)
+    surface.canvas.drawImageRect(
+        image,
+        org.jetbrains.skia.Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
+        org.jetbrains.skia.Rect.makeWH(newW.toFloat(), newH.toFloat()),
+    )
+    return surface.makeImageSnapshot().toComposeImageBitmap()
 }
 
 actual suspend fun getImageDimensions(bytes: ByteArray): Pair<Int, Int> =
     withContext(Dispatchers.Default) {
-        val image = Image.makeFromEncoded(bytes)
-        image.width to image.height
+        try {
+            // Codec으로 메타데이터만 읽기 (풀 디코딩 제거)
+            val codec = Codec.makeFromData(Data.makeFromBytes(bytes))
+            codec.width to codec.height
+        } catch (_: Exception) {
+            // Codec 미지원 포맷 fallback: 풀 디코딩
+            val image = Image.makeFromEncoded(bytes)
+            image.width to image.height
+        }
     }
 
-@OptIn(ExperimentalForeignApi::class)
 actual suspend fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, height: Int): ByteArray =
     withContext(Dispatchers.Default) {
         val image = Image.makeFromEncoded(bytes)
@@ -35,29 +51,15 @@ actual suspend fun cropImageBytes(bytes: ByteArray, x: Int, y: Int, width: Int, 
         val safeW = width.coerceIn(1, image.width - safeX)
         val safeH = height.coerceIn(1, image.height - safeY)
 
-        val srcBitmap = Bitmap.makeFromImage(image)
-        val info = ImageInfo(safeW, safeH, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
-        val dstBitmap = Bitmap()
-        dstBitmap.allocPixels(info)
-
-        val srcPixels = srcBitmap.readPixels(
-            ImageInfo(image.width, image.height, ColorType.RGBA_8888, ColorAlphaType.PREMUL),
-        ) ?: return@withContext bytes
-
-        val bytesPerPixel = 4
-        val srcRowBytes = image.width * bytesPerPixel
-        val dstRowBytes = safeW * bytesPerPixel
-        val dstPixels = ByteArray(safeH * dstRowBytes)
-
-        for (row in 0 until safeH) {
-            val srcOffset = (safeY + row) * srcRowBytes + safeX * bytesPerPixel
-            val dstOffset = row * dstRowBytes
-            srcPixels.copyInto(dstPixels, dstOffset, srcOffset, srcOffset + dstRowBytes)
-        }
-
-        dstBitmap.installPixels(dstPixels)
-        val croppedImage = Image.makeFromBitmap(dstBitmap)
-        val encoded = croppedImage.encodeToData() ?: return@withContext bytes
+        // Surface.drawImageRect로 필요 영역만 렌더링 (전체 픽셀 복사 제거)
+        val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(safeW, safeH)
+        surface.canvas.drawImageRect(
+            image,
+            org.jetbrains.skia.Rect.makeXYWH(safeX.toFloat(), safeY.toFloat(), safeW.toFloat(), safeH.toFloat()),
+            org.jetbrains.skia.Rect.makeWH(safeW.toFloat(), safeH.toFloat()),
+        )
+        val snapshot = surface.makeImageSnapshot()
+        val encoded = snapshot.encodeToData() ?: return@withContext bytes
         encoded.bytes
     }
 

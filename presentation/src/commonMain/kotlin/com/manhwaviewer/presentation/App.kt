@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.rememberNavController
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
+import coil3.memory.MemoryCache
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.presentation.navigation.NavGraph
 import com.manhwaviewer.presentation.screen.viewer.ViewerImageFetcher
@@ -17,6 +18,11 @@ fun App() {
 
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.15)
+                    .build()
+            }
             .components {
                 add(ViewerImageKeyer())
                 add(ViewerImageFetcher.Factory(getImageBytesUseCase))
