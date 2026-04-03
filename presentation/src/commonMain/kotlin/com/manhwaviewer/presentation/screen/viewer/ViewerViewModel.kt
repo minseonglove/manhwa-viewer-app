@@ -1,14 +1,21 @@
 package com.manhwaviewer.presentation.screen.viewer
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
+import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
+import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.TranslationBlock
+import com.manhwaviewer.domain.entity.TranslationResult
+import com.manhwaviewer.domain.entity.PageTranslationCache
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.util.cropImageBytes
@@ -17,7 +24,18 @@ import com.manhwaviewer.presentation.util.getImageDimensions
 import com.manhwaviewer.presentation.util.mergeImagesHorizontally
 import com.manhwaviewer.domain.entity.ReadingDirection
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+
+private data class PageOcrResult(
+    val pageIndex: Int,
+    val imageWidth: Int,
+    val imageHeight: Int,
+    val ocrResults: List<TextBlock>,
+    val translationResults: List<TranslationResult>,
+    val overlayColors: List<Color>,
+)
 
 class ViewerViewModel(
     private val getArchiveByIdUseCase: GetArchiveByIdUseCase,
@@ -28,6 +46,8 @@ class ViewerViewModel(
     private val recognizePageTextUseCase: RecognizePageTextUseCase,
     private val translateTextUseCase: TranslateTextUseCase,
     private val updateViewerPreferenceUseCase: UpdateViewerPreferenceUseCase,
+    private val savePageTranslationCacheUseCase: SavePageTranslationCacheUseCase,
+    private val getPageTranslationCacheUseCase: GetPageTranslationCacheUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var ocrJob: Job? = null
@@ -218,6 +238,146 @@ class ViewerViewModel(
         }
     }
 
+    /**
+     * 단일 페이지에 대해 OCR + 번역을 수행하고 캐시에 저장한다.
+     * 캐시 히트 시 캐시에서 복원한다.
+     */
+    private suspend fun processPageOcr(pageIndex: Int): PageOcrResult? {
+        val state = currentState
+        val archive = state.archive ?: return null
+
+        // 캐시 먼저 확인 — 히트 시 이미지 로드는 색상 추출용으로만
+        val cached = getPageTranslationCacheUseCase(archive.id, pageIndex)
+        if (cached != null) {
+            val ocrResults = cached.blocks.map { block ->
+                TextBlock(block.x, block.y, block.width, block.height, block.originalText)
+            }
+            val translationResults = cached.blocks.map { block ->
+                TranslationResult(block.originalText, block.translatedText)
+            }
+            val imageBytes = getImageBytes(pageIndex) ?: return null
+            val colors = extractDominantColors(imageBytes, ocrResults)
+            return PageOcrResult(
+                pageIndex = pageIndex,
+                imageWidth = cached.imageWidth,
+                imageHeight = cached.imageHeight,
+                ocrResults = ocrResults,
+                translationResults = translationResults,
+                overlayColors = colors,
+            )
+        }
+
+        // 캐시 미스 — 이미지 로드 후 OCR 실행
+        val imageBytes = getImageBytes(pageIndex) ?: return null
+        val (imgW, imgH) = getImageDimensions(imageBytes)
+
+        val ocrResults = recognizePageTextUseCase(imageBytes)
+
+        // 빈 OCR 결과도 캐시 저장 — 텍스트 없는 페이지의 불필요한 재실행 방지
+        val translationResults = if (ocrResults.isNotEmpty()) {
+            translateTextUseCase(ocrResults.map { it.text })
+        } else {
+            emptyList()
+        }
+        val colors = if (ocrResults.isNotEmpty()) {
+            extractDominantColors(imageBytes, ocrResults)
+        } else {
+            emptyList()
+        }
+
+        // 캐시 저장 (빈 결과 포함)
+        val blocks = ocrResults.zip(translationResults).map { (ocr, tr) ->
+            TranslationBlock(
+                x = ocr.x,
+                y = ocr.y,
+                width = ocr.width,
+                height = ocr.height,
+                originalText = tr.originalText,
+                translatedText = tr.translatedText,
+            )
+        }
+        savePageTranslationCacheUseCase(
+            PageTranslationCache(
+                archiveId = archive.id,
+                page = pageIndex,
+                imageWidth = imgW,
+                imageHeight = imgH,
+                blocks = blocks,
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+            )
+        )
+
+        return PageOcrResult(
+            pageIndex = pageIndex,
+            imageWidth = imgW,
+            imageHeight = imgH,
+            ocrResults = ocrResults,
+            translationResults = translationResults,
+            overlayColors = colors,
+        )
+    }
+
+    /**
+     * 양면 모드에서 두 페이지의 OCR 결과를 합쳐진 이미지의 좌표계로 변환한다.
+     *
+     * mergeImagesHorizontally는 두 이미지를 targetH = max(h1, h2)로 스케일링한 후 합친다.
+     * 따라서 각 페이지의 OCR 좌표도 동일한 스케일링을 적용해야 한다.
+     *
+     * - LTR: [firstPage | secondPage]
+     * - RTL: [secondPage | firstPage]
+     */
+    private fun combinePageResults(
+        firstResult: PageOcrResult,
+        secondResult: PageOcrResult?,
+        isRtl: Boolean,
+    ): PageOcrResult {
+        if (secondResult == null) return firstResult
+
+        val leftResult: PageOcrResult
+        val rightResult: PageOcrResult
+        if (isRtl) {
+            leftResult = secondResult
+            rightResult = firstResult
+        } else {
+            leftResult = firstResult
+            rightResult = secondResult
+        }
+
+        // mergeImagesHorizontally와 동일한 높이 정규화 로직
+        val targetH = maxOf(leftResult.imageHeight, rightResult.imageHeight)
+        val leftScale = targetH.toFloat() / leftResult.imageHeight
+        val rightScale = targetH.toFloat() / rightResult.imageHeight
+        val scaledLeftW = (leftResult.imageWidth * leftScale).toInt()
+        val scaledRightW = (rightResult.imageWidth * rightScale).toInt()
+
+        val scaledLeftOcr = leftResult.ocrResults.map { block ->
+            block.copy(
+                x = (block.x * leftScale).toInt(),
+                y = (block.y * leftScale).toInt(),
+                width = (block.width * leftScale).toInt(),
+                height = (block.height * leftScale).toInt(),
+            )
+        }
+
+        val scaledRightOcr = rightResult.ocrResults.map { block ->
+            block.copy(
+                x = (block.x * rightScale).toInt() + scaledLeftW,
+                y = (block.y * rightScale).toInt(),
+                width = (block.width * rightScale).toInt(),
+                height = (block.height * rightScale).toInt(),
+            )
+        }
+
+        return PageOcrResult(
+            pageIndex = firstResult.pageIndex,
+            imageWidth = scaledLeftW + scaledRightW,
+            imageHeight = targetH,
+            ocrResults = scaledLeftOcr + scaledRightOcr,
+            translationResults = leftResult.translationResults + rightResult.translationResults,
+            overlayColors = leftResult.overlayColors + rightResult.overlayColors,
+        )
+    }
+
     private fun runPageOcr() {
         if (currentState.isOcrProcessing) return
         ocrJob?.cancel()
@@ -231,55 +391,58 @@ class ViewerViewModel(
                 )
             }
             try {
-                val imageBytes = getSpreadImageBytes() ?: run {
-                    updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
-                    return@launch
+                val state = currentState
+                val isDoublePage = state.preference.viewMode == ViewMode.DOUBLE_PAGE
+
+                val combined: PageOcrResult?
+
+                if (isDoublePage) {
+                    val spread = pageToSpread(state.currentPage)
+                    val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
+
+                    updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
+
+                    // 각 페이지를 병렬로 OCR + 번역
+                    val firstDeferred = async { processPageOcr(firstPage) }
+                    val secondDeferred = if (secondPage != null) async { processPageOcr(secondPage) } else null
+
+                    val firstResult = firstDeferred.await()
+                    val secondResult = secondDeferred?.await()
+
+                    if (firstResult == null) {
+                        updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
+                        return@launch
+                    }
+
+                    val isRtl = state.preference.readingDirection == ReadingDirection.RTL
+                    combined = combinePageResults(firstResult, secondResult, isRtl)
+                } else {
+                    // 단면/웹툰 모드: 단일 페이지 처리
+                    updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
+                    combined = processPageOcr(state.currentPage)
+
+                    if (combined == null) {
+                        updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
+                        return@launch
+                    }
                 }
 
-                val (ocrW, ocrH) = getImageDimensions(imageBytes)
-
-                updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
-                val results = recognizePageTextUseCase(imageBytes)
-
-                val combinedText = results.joinToString("\n") { it.text }
+                val combinedText = combined.ocrResults.joinToString("\n") { it.text }
 
                 updateState {
                     copy(
                         isOcrProcessing = false,
-                        ocrResults = results,
-                        pipelineStage = PipelineStage.TRANSLATING,
+                        ocrResults = combined.ocrResults,
+                        translationResults = combined.translationResults,
+                        pipelineStage = PipelineStage.DONE,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
-                        ocrImageWidth = ocrW,
-                        ocrImageHeight = ocrH,
+                        ocrImageWidth = combined.imageWidth,
+                        ocrImageHeight = combined.imageHeight,
+                        isTranslating = false,
+                        showTranslationOverlay = combined.translationResults.isNotEmpty(),
+                        overlayColors = combined.overlayColors,
                     )
-                }
-
-                if (results.isNotEmpty()) {
-                    updateState { copy(isTranslating = true) }
-                    try {
-                        val translationResults = translateTextUseCase(results.map { it.text })
-                        val colors = extractDominantColors(imageBytes, results)
-                        updateState {
-                            copy(
-                                translationResults = translationResults,
-                                pipelineStage = PipelineStage.DONE,
-                                isTranslating = false,
-                                showTranslationOverlay = translationResults.isNotEmpty(),
-                                overlayColors = colors,
-                            )
-                        }
-                    } catch (e: Exception) {
-                        updateState {
-                            copy(
-                                translationResults = emptyList(),
-                                pipelineStage = PipelineStage.DONE,
-                                isTranslating = false,
-                            )
-                        }
-                    }
-                } else {
-                    updateState { copy(pipelineStage = PipelineStage.DONE) }
                 }
             } catch (e: Exception) {
                 updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }

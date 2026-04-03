@@ -1,0 +1,240 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "ba47f3c387941703c09c97e066f2140d",
+    "entities": [
+      {
+        "tableName": "archive_files",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `filePath` TEXT NOT NULL, `fileName` TEXT NOT NULL, `type` TEXT NOT NULL, `totalPages` INTEGER NOT NULL, `lastReadIndex` INTEGER NOT NULL, `lastReadAt` INTEGER, `addedAt` INTEGER NOT NULL, `hasImages` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "filePath",
+            "columnName": "filePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalPages",
+            "columnName": "totalPages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadIndex",
+            "columnName": "lastReadIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadAt",
+            "columnName": "lastReadAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasImages",
+            "columnName": "hasImages",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_archive_files_lastReadAt",
+            "unique": false,
+            "columnNames": [
+              "lastReadAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archive_files_lastReadAt` ON `${TABLE_NAME}` (`lastReadAt`)"
+          },
+          {
+            "name": "index_archive_files_hasImages",
+            "unique": false,
+            "columnNames": [
+              "hasImages"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archive_files_hasImages` ON `${TABLE_NAME}` (`hasImages`)"
+          },
+          {
+            "name": "index_archive_files_filePath",
+            "unique": false,
+            "columnNames": [
+              "filePath"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archive_files_filePath` ON `${TABLE_NAME}` (`filePath`)"
+          }
+        ]
+      },
+      {
+        "tableName": "translation_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceText` TEXT NOT NULL, `translatedText` TEXT NOT NULL, `sourceLanguage` TEXT NOT NULL, `targetLanguage` TEXT NOT NULL, `engine` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceText",
+            "columnName": "sourceText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "translatedText",
+            "columnName": "translatedText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceLanguage",
+            "columnName": "sourceLanguage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetLanguage",
+            "columnName": "targetLanguage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "engine",
+            "columnName": "engine",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_translation_cache_sourceText_sourceLanguage_targetLanguage",
+            "unique": true,
+            "columnNames": [
+              "sourceText",
+              "sourceLanguage",
+              "targetLanguage"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_translation_cache_sourceText_sourceLanguage_targetLanguage` ON `${TABLE_NAME}` (`sourceText`, `sourceLanguage`, `targetLanguage`)"
+          }
+        ]
+      },
+      {
+        "tableName": "page_translation_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `archiveId` INTEGER NOT NULL, `page` INTEGER NOT NULL, `imageWidth` INTEGER NOT NULL, `imageHeight` INTEGER NOT NULL, `blocksJson` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archiveId",
+            "columnName": "archiveId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "page",
+            "columnName": "page",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageWidth",
+            "columnName": "imageWidth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageHeight",
+            "columnName": "imageHeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blocksJson",
+            "columnName": "blocksJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_page_translation_cache_archiveId_page",
+            "unique": true,
+            "columnNames": [
+              "archiveId",
+              "page"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_page_translation_cache_archiveId_page` ON `${TABLE_NAME}` (`archiveId`, `page`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ba47f3c387941703c09c97e066f2140d')"
+    ]
+  }
+}

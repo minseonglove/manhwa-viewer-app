@@ -18,8 +18,10 @@ import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
 import com.manhwaviewer.data.translation.PapagoTranslationService
+import com.manhwaviewer.data.repository.PageTranslationCacheRepositoryImpl
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
+import com.manhwaviewer.domain.repository.PageTranslationCacheRepository
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.OcrRepository
@@ -39,6 +41,8 @@ import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
+import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
+import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
@@ -61,6 +65,7 @@ val appModule = module {
     single { getRoomDatabase(getDatabaseBuilder(androidContext())) }
     single { get<com.manhwaviewer.data.db.AppDatabase>().archiveFileDao() }
     single { get<com.manhwaviewer.data.db.AppDatabase>().translationCacheDao() }
+    single { get<com.manhwaviewer.data.db.AppDatabase>().pageTranslationCacheDao() }
 
     // DataStore
     single { createPlatformDataStore(androidContext()) }
@@ -86,6 +91,7 @@ val appModule = module {
     }
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
     single<TranslationRepository> { TranslationRepositoryImpl(get(), get()) }
+    single<PageTranslationCacheRepository> { PageTranslationCacheRepositoryImpl(get()) }
 
     // UseCases
     factory { GetRecentArchivesUseCase(get()) }
@@ -106,6 +112,8 @@ val appModule = module {
     factory { GetCacheSizeUseCase(get()) }
     factory { ClearCacheUseCase(get()) }
     factory { TranslateTextUseCase(get()) }
+    factory { SavePageTranslationCacheUseCase(get()) }
+    factory { GetPageTranslationCacheUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
@@ -113,6 +121,6 @@ val appModule = module {
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }
