@@ -212,22 +212,120 @@ class ViewerViewModel(
         return getImageBytesUseCase(state.filePath, entryName)
     }
 
-    private suspend fun getSpreadImageBytes(): ByteArray? {
+    /**
+     * 양면 모드의 가상 합성 좌표계 메타데이터.
+     * 이미지 바이트를 보유하지 않고, 좌표 계산에 필요한 크기/페이지 정보만 저장.
+     */
+    private data class VirtualSpreadLayout(
+        val totalWidth: Int,
+        val totalHeight: Int,
+        val leftWidth: Int,
+        val leftPage: Int, // 왼쪽 페이지 인덱스 (RTL 적용 후)
+        val rightPage: Int?, // 오른쪽 페이지 인덱스
+        val leftScale: Float, // leftOrigH / targetH (가상→원본 역변환)
+        val rightScale: Float,
+    )
+
+    private suspend fun getVirtualSpreadLayout(): VirtualSpreadLayout? {
         val state = currentState
         if (state.preference.viewMode != ViewMode.DOUBLE_PAGE) {
-            return getImageBytes(state.currentPage)
+            val bytes = getImageBytes(state.currentPage) ?: return null
+            val (w, h) = getImageDimensions(bytes)
+            return VirtualSpreadLayout(
+                totalWidth = w, totalHeight = h, leftWidth = w,
+                leftPage = state.currentPage, rightPage = null,
+                leftScale = 1f, rightScale = 1f,
+            )
         }
         val spread = pageToSpread(state.currentPage)
         val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
         val firstBytes = getImageBytes(firstPage) ?: return null
         val secondBytes = if (secondPage != null) getImageBytes(secondPage) else null
-        return if (secondBytes != null) {
-            val isRtl = state.preference.readingDirection == ReadingDirection.RTL
-            if (isRtl) mergeImagesHorizontally(secondBytes, firstBytes)
-            else mergeImagesHorizontally(firstBytes, secondBytes)
-        } else {
-            firstBytes
+        if (secondBytes == null) {
+            val (w, h) = getImageDimensions(firstBytes)
+            return VirtualSpreadLayout(
+                totalWidth = w, totalHeight = h, leftWidth = w,
+                leftPage = firstPage, rightPage = null,
+                leftScale = 1f, rightScale = 1f,
+            )
         }
+        val isRtl = state.preference.readingDirection == ReadingDirection.RTL
+        val leftPage = if (isRtl) secondPage!! else firstPage
+        val rightPage2 = if (isRtl) firstPage else secondPage!!
+        val (lw, lh) = getImageDimensions(if (isRtl) secondBytes else firstBytes)
+        val (rw, rh) = getImageDimensions(if (isRtl) firstBytes else secondBytes)
+        val targetH = maxOf(lh, rh)
+        val virtualLeftW = (lw.toFloat() * targetH / lh).toInt()
+        return VirtualSpreadLayout(
+            totalWidth = virtualLeftW + (rw.toFloat() * targetH / rh).toInt(),
+            totalHeight = targetH,
+            leftWidth = virtualLeftW,
+            leftPage = leftPage, rightPage = rightPage2,
+            leftScale = lh.toFloat() / targetH,
+            rightScale = rh.toFloat() / targetH,
+        )
+    }
+
+    /**
+     * 가상 합성 좌표계에서 크롭.
+     * 필요한 페이지의 바이트만 로드하여 메모리 사용을 최소화.
+     */
+    private suspend fun cropFromVirtualSpread(
+        layout: VirtualSpreadLayout,
+        imgLeft: Int, imgTop: Int, cropW: Int, cropH: Int,
+    ): ByteArray {
+        // 단일 페이지 또는 홀수 마지막 페이지
+        if (layout.rightPage == null) {
+            val bytes = getImageBytes(layout.leftPage)
+                ?: error("Failed to load page ${layout.leftPage}")
+            return cropImageBytes(bytes, imgLeft, imgTop, cropW, cropH)
+        }
+
+        val imgRight = imgLeft + cropW
+
+        // Case 1: 크롭이 왼쪽 페이지에만 해당 — 왼쪽 바이트만 로드
+        if (imgRight <= layout.leftWidth) {
+            val bytes = getImageBytes(layout.leftPage)
+                ?: error("Failed to load page ${layout.leftPage}")
+            val origX = (imgLeft * layout.leftScale).toInt()
+            val origY = (imgTop * layout.leftScale).toInt()
+            val origW = (cropW * layout.leftScale).toInt().coerceAtLeast(1)
+            val origH = (cropH * layout.leftScale).toInt().coerceAtLeast(1)
+            return cropImageBytes(bytes, origX, origY, origW, origH)
+        }
+
+        // Case 2: 크롭이 오른쪽 페이지에만 해당 — 오른쪽 바이트만 로드
+        if (imgLeft >= layout.leftWidth) {
+            val bytes = getImageBytes(layout.rightPage)
+                ?: error("Failed to load page ${layout.rightPage}")
+            val offsetX = imgLeft - layout.leftWidth
+            val origX = (offsetX * layout.rightScale).toInt()
+            val origY = (imgTop * layout.rightScale).toInt()
+            val origW = (cropW * layout.rightScale).toInt().coerceAtLeast(1)
+            val origH = (cropH * layout.rightScale).toInt().coerceAtLeast(1)
+            return cropImageBytes(bytes, origX, origY, origW, origH)
+        }
+
+        // Case 3: 크롭이 양쪽 페이지에 걸침 — 각각 작은 조각만 크롭 후 합성
+        val leftCropW = layout.leftWidth - imgLeft
+        val rightCropW = cropW - leftCropW
+
+        val leftBytes = getImageBytes(layout.leftPage)
+            ?: error("Failed to load page ${layout.leftPage}")
+        val leftOrigX = (imgLeft * layout.leftScale).toInt()
+        val leftOrigY = (imgTop * layout.leftScale).toInt()
+        val leftOrigW = (leftCropW * layout.leftScale).toInt().coerceAtLeast(1)
+        val leftOrigH = (cropH * layout.leftScale).toInt().coerceAtLeast(1)
+        val leftCrop = cropImageBytes(leftBytes, leftOrigX, leftOrigY, leftOrigW, leftOrigH)
+
+        val rightBytes = getImageBytes(layout.rightPage)
+            ?: error("Failed to load page ${layout.rightPage}")
+        val rightOrigY = (imgTop * layout.rightScale).toInt()
+        val rightOrigW = (rightCropW * layout.rightScale).toInt().coerceAtLeast(1)
+        val rightOrigH = (cropH * layout.rightScale).toInt().coerceAtLeast(1)
+        val rightCrop = cropImageBytes(rightBytes, 0, rightOrigY, rightOrigW, rightOrigH)
+
+        return mergeImagesHorizontally(leftCrop, rightCrop)
     }
 
     private fun saveProgress() {
@@ -456,7 +554,8 @@ class ViewerViewModel(
         ocrJob = viewModelScope.launch {
             updateState { copy(pipelineStage = PipelineStage.DETECTING, isOcrProcessing = true) }
             try {
-                val imageBytes = getSpreadImageBytes() ?: run {
+                // 가상 합성 좌표계 크기 계산 (실제 합성 없이)
+                val virtualLayout = getVirtualSpreadLayout() ?: run {
                     updateState {
                         copy(
                             pipelineStage = PipelineStage.IDLE,
@@ -467,9 +566,8 @@ class ViewerViewModel(
                     }
                     return@launch
                 }
-
-                // 이미지 원본 크기 조회
-                val (imgW, imgH) = getImageDimensions(imageBytes)
+                val imgW = virtualLayout.totalWidth
+                val imgH = virtualLayout.totalHeight
 
                 // ImageScaleMode에 따른 좌표 변환: screen → image 좌표
                 val (fitScale, transformOffset) = calculateImageTransform(
@@ -494,8 +592,8 @@ class ViewerViewModel(
                 val cropW = (imgRight - imgLeft).coerceAtLeast(1)
                 val cropH = (imgBottom - imgTop).coerceAtLeast(1)
 
-                // 이미지 크롭
-                val croppedBytes = cropImageBytes(imageBytes, imgLeft, imgTop, cropW, cropH)
+                // 이미지 크롭 (양면 모드: 페이지별 분리 크롭, 단일 모드: 직접 크롭)
+                val croppedBytes = cropFromVirtualSpread(virtualLayout, imgLeft, imgTop, cropW, cropH)
 
                 updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
 
