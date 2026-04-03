@@ -152,18 +152,9 @@ private fun findBestFontSize(
     availableWidth: Int,
     availableHeight: Int,
 ): Float {
-    var lo = 6f
+    var lo = 1f
     var hi = 48f
     var bestSize = lo
-
-    // 최소 크기도 안 맞으면 최소 크기 반환
-    val minMeasured = textMeasurer.measure(
-        text = text,
-        style = TextStyle(fontSize = lo.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-        constraints = Constraints(maxWidth = availableWidth),
-        overflow = TextOverflow.Clip,
-    )
-    if (minMeasured.size.height > availableHeight) return lo
 
     repeat(10) {
         val mid = (lo + hi) / 2f
@@ -173,7 +164,7 @@ private fun findBestFontSize(
             constraints = Constraints(maxWidth = availableWidth),
             overflow = TextOverflow.Clip,
         )
-        if (measured.size.height <= availableHeight) {
+        if (measured.size.height <= availableHeight && measured.size.width <= availableWidth) {
             bestSize = mid
             lo = mid
         } else {
