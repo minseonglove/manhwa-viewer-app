@@ -165,13 +165,23 @@ fun ViewerScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    // pager → state 단방향 동기화: pagerState가 단일 진실의 원천
+    // pager → state 동기화: 사용자 스와이프 반영
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
             .collect { settledPage ->
                 val actualPage = if (isDoublePage) spreadToFirstPage(settledPage) else settledPage
                 viewModel.onIntent(ViewerIntent.SetPage(actualPage))
             }
+    }
+
+    // state → pager 동기화: LoadArchive 완료 후 올바른 페이지로 이동
+    LaunchedEffect(state.currentPage, state.totalPages) {
+        if (state.totalPages > 0) {
+            val targetPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage
+            if (pagerState.currentPage != targetPage) {
+                pagerState.scrollToPage(targetPage)
+            }
+        }
     }
 
     var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }

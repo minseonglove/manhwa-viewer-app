@@ -88,10 +88,12 @@ class FileBrowserViewModel(
 
     private fun openFile(archive: ArchiveFile) {
         viewModelScope.launch {
+            val sortByDate = currentState.sortState.field == SortField.DATE
+            val sortAscending = currentState.sortState.ascending
             val archiveForDb = if (archive.type == ArchiveType.IMAGE) {
                 val parentPath = archive.filePath.substringBeforeLast('/')
                 val entries = withContext(ioDispatcher) {
-                    getImageEntriesUseCase(parentPath)
+                    getImageEntriesUseCase(parentPath, sortByDate, sortAscending)
                 }
                 val pageIndex = entries.indexOf(archive.fileName).coerceAtLeast(0)
                 archive.copy(
@@ -104,8 +106,6 @@ class FileBrowserViewModel(
                 archive
             }
             val id = upsertArchiveUseCase(archiveForDb)
-            val sortByDate = currentState.sortState.field == SortField.DATE
-            val sortAscending = currentState.sortState.ascending
             sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, archiveForDb.lastReadIndex, sortByDate, sortAscending))
         }
     }
@@ -132,14 +132,20 @@ class FileBrowserViewModel(
 
     private fun openArchiveEntry(archive: ArchiveFile, pageIndex: Int) {
         viewModelScope.launch {
-            val archiveForDb = archive.copy(
-                fileName = archive.filePath.substringAfterLast('/'),
-                lastReadIndex = pageIndex,
-            )
-            val id = upsertArchiveUseCase(archiveForDb)
+            val archivePath = currentState.insideArchivePath ?: return@launch
             val sortByDate = currentState.sortState.field == SortField.DATE
             val sortAscending = currentState.sortState.ascending
-            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, pageIndex, sortByDate, sortAscending))
+            val entries = withContext(ioDispatcher) {
+                getImageEntriesUseCase(archivePath, sortByDate, sortAscending)
+            }
+            val actualIndex = entries.indexOf(archive.fileName).coerceAtLeast(0)
+
+            val archiveForDb = archive.copy(
+                fileName = archivePath.substringAfterLast('/'),
+                lastReadIndex = actualIndex,
+            )
+            val id = upsertArchiveUseCase(archiveForDb)
+            sendSideEffect(FileBrowserSideEffect.NavigateToViewer(id, actualIndex, sortByDate, sortAscending))
         }
     }
 
