@@ -131,9 +131,11 @@ class CtdTextDetector(
         val file = File(context.cacheDir, assetName)
         if (!file.exists()) {
             file.parentFile?.mkdirs()
+            val tmp = File(context.cacheDir, "$assetName.tmp")
             context.assets.open(assetName).use { input ->
-                file.outputStream().use { output -> input.copyTo(output) }
+                tmp.outputStream().use { output -> input.copyTo(output) }
             }
+            tmp.renameTo(file)
         }
         return file.absolutePath
     }
