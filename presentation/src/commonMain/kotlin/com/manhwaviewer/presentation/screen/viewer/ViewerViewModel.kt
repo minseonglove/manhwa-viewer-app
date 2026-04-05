@@ -23,10 +23,12 @@ import com.manhwaviewer.presentation.util.extractDominantColors
 import com.manhwaviewer.presentation.util.getImageDimensions
 import com.manhwaviewer.presentation.util.mergeImagesHorizontally
 import com.manhwaviewer.domain.entity.ReadingDirection
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
+
 
 private data class PageOcrResult(
     val pageIndex: Int,
@@ -486,6 +488,8 @@ class ViewerViewModel(
                         )
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // 캐시 로드 실패 시 무시 — 기능 비활성 상태 유지
             }
@@ -571,7 +575,7 @@ class ViewerViewModel(
                 imageWidth = imgW,
                 imageHeight = imgH,
                 blocks = blocks,
-                createdAt = Clock.System.now().toEpochMilliseconds(),
+                createdAt = Clock.System.now().toEpochMilliseconds()
             )
         )
 

@@ -102,6 +102,7 @@ import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
 import me.saket.telephoto.zoomable.ZoomableContentLocation
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
@@ -1180,6 +1181,12 @@ private fun ZoomableImage(
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
+    // onClick 람다가 telephoto 내부에서 캐싱되므로, 최신 값을 항상 참조하도록 rememberUpdatedState 사용
+    val currentCachedBlocks by rememberUpdatedState(cachedBlocks)
+    val currentCachedImageWidth by rememberUpdatedState(cachedImageWidth)
+    val currentCachedImageHeight by rememberUpdatedState(cachedImageHeight)
+    val currentOnCachedBlockTap by rememberUpdatedState(onCachedBlockTap)
+
     // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
     // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
     val useSubSampling = pageModel != null && pageModel.entryNames.size == 1
@@ -1229,29 +1236,24 @@ private fun ZoomableImage(
                     .onSizeChanged { containerSize = it }
                     .zoomable(
                         state = zoomableState,
-                        enabled = !isAreaSelectMode,
+                        gestures = if (!isAreaSelectMode) EnabledZoomGestures.ZoomAndPan else EnabledZoomGestures.None,
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
                                 var handled = false
-                                if (cachedBlocks.isNotEmpty() && cachedImageWidth > 0 && cachedImageHeight > 0) {
+                                if (currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
+                                    // SubSamplingImage 경로: contentTransformation이 ContentScale을 포함하므로
+                                    // 역변환만으로 이미지 픽셀 좌표를 얻을 수 있다 (calculateImageTransform 불필요)
                                     val tf = zoomableState.contentTransformation
                                     val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
                                     val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                    val contentX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                    val contentY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
-                                    val (fitScale, fitOff) = calculateImageTransform(
-                                        ImageScaleMode.AUTO_FIT,
-                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
-                                        cachedImageWidth.toFloat(), cachedImageHeight.toFloat(),
-                                    )
-                                    val imgX = (contentX - fitOff.x) / fitScale
-                                    val imgY = (contentY - fitOff.y) / fitScale
-                                    val hitIdx = cachedBlocks.indexOfFirst { b ->
+                                    val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                    val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val hitIdx = currentCachedBlocks.indexOfFirst { b ->
                                         imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
                                             imgY in b.y.toFloat()..(b.y + b.height).toFloat()
                                     }
                                     if (hitIdx >= 0) {
-                                        onCachedBlockTap(hitIdx)
+                                        currentOnCachedBlockTap(hitIdx)
                                         handled = true
                                     }
                                 }
@@ -1357,29 +1359,24 @@ private fun ZoomableImage(
                     .onSizeChanged { containerSize = it }
                     .zoomable(
                         state = zoomableState,
-                        enabled = !isAreaSelectMode,
+                        gestures = if (!isAreaSelectMode) EnabledZoomGestures.ZoomAndPan else EnabledZoomGestures.None,
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
                                 var handled = false
-                                if (cachedBlocks.isNotEmpty() && cachedImageWidth > 0 && cachedImageHeight > 0) {
+                                if (currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
+                                    // Coil 경로: setContentLocation으로 실제 이미지 크기를 전달하므로
+                                    // contentTransformation이 ContentScale을 포함한다 (calculateImageTransform 불필요)
                                     val tf = zoomableState.contentTransformation
                                     val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
                                     val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                    val contentX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                    val contentY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
-                                    val (fitScale, fitOff) = calculateImageTransform(
-                                        ImageScaleMode.AUTO_FIT,
-                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
-                                        cachedImageWidth.toFloat(), cachedImageHeight.toFloat(),
-                                    )
-                                    val imgX = (contentX - fitOff.x) / fitScale
-                                    val imgY = (contentY - fitOff.y) / fitScale
-                                    val hitIdx = cachedBlocks.indexOfFirst { b ->
+                                    val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                    val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val hitIdx = currentCachedBlocks.indexOfFirst { b ->
                                         imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
                                             imgY in b.y.toFloat()..(b.y + b.height).toFloat()
                                     }
                                     if (hitIdx >= 0) {
-                                        onCachedBlockTap(hitIdx)
+                                        currentOnCachedBlockTap(hitIdx)
                                         handled = true
                                     }
                                 }
