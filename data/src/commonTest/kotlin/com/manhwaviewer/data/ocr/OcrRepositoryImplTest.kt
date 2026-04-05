@@ -15,23 +15,24 @@ class OcrRepositoryImplTest {
     }
 
     @Test
-    fun closesEngineAfterRecognition() = runTest {
+    fun doesNotCloseEngine() = runTest {
         val engine = FakeMangaOcrEngine("テスト")
         val repo = OcrRepositoryImpl(engine)
         repo.recognizeText(byteArrayOf(1, 2, 3))
-        assertTrue(engine.closed)
+        assertTrue(!engine.closed, "OcrRepositoryImpl should not close the engine — lifecycle is managed externally")
     }
 
     @Test
-    fun closesEngineEvenOnError() = runTest {
+    fun propagatesEngineError() = runTest {
         val engine = FailingMangaOcrEngine()
         val repo = OcrRepositoryImpl(engine)
+        var thrown = false
         try {
             repo.recognizeText(byteArrayOf(1, 2, 3))
         } catch (_: RuntimeException) {
-            // expected
+            thrown = true
         }
-        assertTrue(engine.closed)
+        assertTrue(thrown)
     }
 }
 
