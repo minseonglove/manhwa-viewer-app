@@ -40,7 +40,9 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
         } else {
             archive.toEntity()
         }
-        return dao.upsert(entity)
+        val rowId = dao.upsert(entity)
+        // Room @Upsert returns -1 on update, so use existing id in that case
+        return if (rowId == -1L) existing!!.id else rowId
     }
 
     override suspend fun updateLastReadIndex(id: Long, pageIndex: Int) {
