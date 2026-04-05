@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
@@ -76,7 +74,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.backhandler.BackHandler
@@ -101,6 +98,7 @@ import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
 import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
+import me.saket.telephoto.zoomable.ZoomableContentLocation
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
@@ -1062,21 +1060,29 @@ private fun ZoomableImage(
     onTextBlockTap: (TextBlock) -> Unit,
 ) {
     val zoomableState = rememberZoomableState()
+    var baseZoomFactor by remember { mutableStateOf(1f) }
+
+    // 항상 Fit으로 고정 — 확대는 zoomTo(baseZoom)로 처리
+    LaunchedEffect(Unit) {
+        zoomableState.contentScale = ContentScale.Fit
+    }
 
     // Reset zoom when page scrolls off-screen (unless keepZoomState is enabled)
     if (!keepZoomState && pagerSettledPage != page) {
         LaunchedEffect(Unit) {
-            zoomableState.resetZoom(animationSpec = snap())
+            if (baseZoomFactor > 1f) {
+                zoomableState.zoomTo(baseZoomFactor, animationSpec = snap())
+            } else {
+                zoomableState.resetZoom(animationSpec = snap())
+            }
         }
     }
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // 번역 모드 활성화 여부: 오버레이가 필요하면 기존 Image+painter, 아니면 SubSamplingImage
-    val needsOverlay = isTranslationActive || ocrResults.isNotEmpty()
-    // SubSamplingImage는 단일 페이지 + 오버레이 불필요 시에만 사용
+    // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
     // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
-    val useSubSampling = !needsOverlay && pageModel != null && pageModel.entryNames.size == 1
+    val useSubSampling = pageModel != null && pageModel.entryNames.size == 1
 
     // subSamplingFailed 상태를 이 스코프에서 관리 (fallback 용)
     var subSamplingFailed by remember { mutableStateOf(false) }
@@ -1084,11 +1090,11 @@ private fun ZoomableImage(
     if (useSubSampling && !subSamplingFailed && pageModel != null) {
         // SubSamplingImage 경로: 보이는 영역만 타일 디코딩 (메모리 안전)
         val getImageBytesUseCase: GetImageBytesUseCase = koinInject()
-        var imageSource by remember { mutableStateOf<me.saket.telephoto.subsamplingimage.SubSamplingImageSource?>(null) }
+        var sourceResult by remember { mutableStateOf<ArchiveImageSourceResult?>(null) }
 
         LaunchedEffect(pageModel) {
             try {
-                imageSource = createArchiveImageSource(
+                sourceResult = createArchiveImageSource(
                     archivePath = pageModel.archivePath,
                     entryName = pageModel.entryNames[0],
                     getImageBytesUseCase = getImageBytesUseCase,
@@ -1099,42 +1105,101 @@ private fun ZoomableImage(
             }
         }
 
+        // baseZoom 계산 및 적용 (setContentLocation은 SubSamplingImage가 내부 관리)
+        val result = sourceResult
+        var subSamplingReady by remember { mutableStateOf(false) }
+        LaunchedEffect(result, imageScaleMode, containerSize) {
+            if (result == null || containerSize == IntSize.Zero) return@LaunchedEffect
+            val zoom = calculateBaseZoom(
+                imageScaleMode, result.imageSize.width, result.imageSize.height,
+                containerSize.width, containerSize.height,
+            )
+            baseZoomFactor = zoom
+            zoomableState.resetZoom(animationSpec = snap())
+            if (zoom > 1f) {
+                zoomableState.zoomTo(zoom, animationSpec = snap())
+            }
+            subSamplingReady = true
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .onSizeChanged { containerSize = it },
+                .onSizeChanged { containerSize = it }
+                .zoomable(
+                    state = zoomableState,
+                    enabled = !isAreaSelectMode,
+                    onClick = if (!isAreaSelectMode && !isTranslationActive) {
+                        { offset ->
+                            when {
+                                offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                offset.x > containerSize.width * 0.8f -> onTapRight()
+                                else -> onTapCenter()
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            val source = imageSource
-            if (source != null) {
+            if (result != null) {
                 val imageState = rememberSubSamplingImageState(
-                    imageSource = source,
+                    imageSource = result.source,
                     zoomableState = zoomableState,
                 )
 
                 SubSamplingImage(
                     state = imageState,
                     contentDescription = "Page ${page + 1}",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zoomable(
-                            state = zoomableState,
-                            enabled = true,
-                            onClick = { offset ->
-                                when {
-                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> onTapRight()
-                                    else -> onTapCenter()
-                                }
-                            },
-                        ),
+                    modifier = Modifier.fillMaxSize(),
+                    // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
+                    alpha = if (subSamplingReady || baseZoomFactor <= 1f) 1f else 0f,
                 )
+
+                // OCR 원본 이미지 크기 사용
+                val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else result.imageSize.width
+                val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else result.imageSize.height
+
+                // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                    BoundingBoxOverlay(
+                        textBlocks = ocrResults,
+                        imageWidth = overlayWidth,
+                        imageHeight = overlayHeight,
+                        imageScaleMode = ImageScaleMode.AUTO_FIT,
+                        onBlockTap = onTextBlockTap,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                // 번역 오버레이
+                if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                    TranslationOverlay(
+                        textBlocks = ocrResults,
+                        translationResults = translationResults,
+                        dominantColors = overlayColors,
+                        imageWidth = overlayWidth,
+                        imageHeight = overlayHeight,
+                        imageScaleMode = ImageScaleMode.AUTO_FIT,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                // 선택 영역 크롭 오버레이
+                if (isAreaSelectMode) {
+                    CropOverlay(
+                        cropRect = cropRect,
+                        onUpdateCropRect = onUpdateCropRect,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             } else {
                 CircularProgressIndicator(color = Color.White)
             }
         }
     } else {
-        // 기존 Image+painter 경로: 오버레이가 필요할 때 사용
+        // Coil Image+painter 경로: 양면 모드 (두 이미지 합성) 전용
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1157,40 +1222,23 @@ private fun ZoomableImage(
             contentAlignment = Alignment.Center,
         ) {
             if (pageModel != null) {
-                val contentScale = imageScaleMode.toContentScale()
-                val density = LocalDensity.current
+                // Coil 디코딩은 원래 scaleMode 해상도로, 렌더링은 Fit으로
+                val decodeScale = imageScaleMode.toContentScale()
+                val renderScale = ContentScale.Fit
+                var coilReady by remember { mutableStateOf(false) }
 
                 val painter = rememberAsyncImagePainter(
                     model = pageModel,
-                    contentScale = contentScale,
+                    contentScale = decodeScale,
                 )
-
-                val intrinsicSize = painter.intrinsicSize
-                val imageModifier = if (imageScaleMode == ImageScaleMode.AUTO_FIT || intrinsicSize == androidx.compose.ui.geometry.Size.Unspecified || containerSize == IntSize.Zero) {
-                    Modifier.fillMaxSize()
-                } else {
-                    val imgW = intrinsicSize.width
-                    val imgH = intrinsicSize.height
-                    val cW = containerSize.width.toFloat()
-                    val cH = containerSize.height.toFloat()
-                    val (displayW, displayH) = when (imageScaleMode) {
-                        ImageScaleMode.FIT_WIDTH -> cW to (cW * imgH / imgW)
-                        ImageScaleMode.FIT_HEIGHT -> (cH * imgW / imgH) to cH
-                        ImageScaleMode.ORIGINAL -> imgW to imgH
-                        else -> cW to cH
-                    }
-                    with(density) {
-                        Modifier
-                            .requiredWidth(maxOf(displayW, cW).toDp())
-                            .requiredHeight(maxOf(displayH, cH).toDp())
-                    }
-                }
 
                 Image(
                     painter = painter,
                     contentDescription = "Page ${page + 1}",
-                    modifier = imageModifier,
-                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = renderScale,
+                    // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
+                    alpha = if (coilReady || baseZoomFactor <= 1f) 1f else 0f,
                 )
 
                 val painterState = painter.state.collectAsState().value
@@ -1202,17 +1250,43 @@ private fun ZoomableImage(
                         val imgWidth = painterState.result.image.width
                         val imgHeight = painterState.result.image.height
 
+                        // zoomableState에 이미지의 실제 크기를 알려줌 → 패닝 경계 계산 가능
+                        LaunchedEffect(imgWidth, imgHeight) {
+                            zoomableState.setContentLocation(
+                                ZoomableContentLocation.scaledInsideAndCenterAligned(
+                                    Size(imgWidth.toFloat(), imgHeight.toFloat())
+                                )
+                            )
+                        }
+
+                        // baseZoom 계산 및 적용
+                        LaunchedEffect(imgWidth, imgHeight, imageScaleMode, containerSize) {
+                            if (containerSize == IntSize.Zero) return@LaunchedEffect
+                            val zoom = calculateBaseZoom(
+                                imageScaleMode, imgWidth, imgHeight,
+                                containerSize.width, containerSize.height,
+                            )
+                            baseZoomFactor = zoom
+                            // 먼저 센터 정렬 상태로 초기화 후 줌 적용 (이전 패닝 오프셋 제거)
+                            zoomableState.resetZoom(animationSpec = snap())
+                            if (zoom > 1f) {
+                                zoomableState.zoomTo(zoom, animationSpec = snap())
+                            }
+                            coilReady = true
+                        }
+
                         // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
                         val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
                         val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
 
                         // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                        // 오버레이는 Fit 좌표계 기준으로 그림 (줌은 zoomableState가 처리)
                         if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
                             BoundingBoxOverlay(
                                 textBlocks = ocrResults,
                                 imageWidth = overlayWidth,
                                 imageHeight = overlayHeight,
-                                imageScaleMode = imageScaleMode,
+                                imageScaleMode = ImageScaleMode.AUTO_FIT,
                                 onBlockTap = onTextBlockTap,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -1226,7 +1300,7 @@ private fun ZoomableImage(
                                 dominantColors = overlayColors,
                                 imageWidth = overlayWidth,
                                 imageHeight = overlayHeight,
-                                imageScaleMode = imageScaleMode,
+                                imageScaleMode = ImageScaleMode.AUTO_FIT,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -1476,6 +1550,29 @@ private enum class DragMode {
 }
 
 // ── 이미지 비율 모드 ─────────────────────────────────────────────
+
+/**
+ * ContentScale.Fit 대비 추가 확대 배율 계산.
+ * extraZoom < 1이면 1f로 클램프 (Fit보다 축소 방지).
+ */
+private fun calculateBaseZoom(
+    imageScaleMode: ImageScaleMode,
+    imgWidth: Int, imgHeight: Int,
+    containerWidth: Int, containerHeight: Int,
+): Float {
+    if (containerWidth <= 0 || containerHeight <= 0 || imgWidth <= 0 || imgHeight <= 0) return 1f
+    val fitScale = minOf(
+        containerWidth.toFloat() / imgWidth,
+        containerHeight.toFloat() / imgHeight,
+    )
+    val targetScale = when (imageScaleMode) {
+        ImageScaleMode.AUTO_FIT -> fitScale
+        ImageScaleMode.FIT_WIDTH -> containerWidth.toFloat() / imgWidth
+        ImageScaleMode.FIT_HEIGHT -> containerHeight.toFloat() / imgHeight
+        ImageScaleMode.ORIGINAL -> 1f
+    }
+    return (targetScale / fitScale).coerceAtLeast(1f)
+}
 
 private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
     ImageScaleMode.FIT_WIDTH -> ContentScale.FillWidth
