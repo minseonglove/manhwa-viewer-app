@@ -27,6 +27,10 @@ class FakeTranslationCacheDao : TranslationCacheDao {
         cache.add(entity)
     }
 
+    override suspend fun insertCacheBatch(entities: List<TranslationCacheEntity>) {
+        entities.forEach { insertCache(it) }
+    }
+
     override suspend fun clearAll() {
         cache.clear()
     }
