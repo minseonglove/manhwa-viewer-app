@@ -3,6 +3,7 @@ package com.manhwaviewer.presentation.screen.viewer
 import com.manhwaviewer.domain.entity.ArchiveFile
 import androidx.compose.ui.graphics.Color
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import androidx.compose.ui.geometry.Offset
 import com.manhwaviewer.domain.entity.ImageScaleMode
@@ -47,6 +48,11 @@ data class ViewerState(
     val overlayColors: List<Color> = emptyList(),
     val ocrImageWidth: Int = 0,
     val ocrImageHeight: Int = 0,
+    val cachedBlocks: List<TranslationBlock> = emptyList(),
+    val cachedImageWidth: Int = 0,
+    val cachedImageHeight: Int = 0,
+    val cachedOverlayColors: List<Color> = emptyList(),
+    val visibleCachedBlockIndices: Set<Int> = emptySet(),
 )
 
 sealed interface ViewerIntent {
@@ -75,6 +81,7 @@ sealed interface ViewerIntent {
     data class SetImageScaleMode(val mode: ImageScaleMode) : ViewerIntent
     data class SetViewMode(val mode: ViewMode) : ViewerIntent
     data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent
+    data class ToggleCachedBlockOverlay(val blockIndex: Int) : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {

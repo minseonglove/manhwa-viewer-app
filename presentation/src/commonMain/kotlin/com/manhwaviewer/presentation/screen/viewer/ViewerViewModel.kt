@@ -51,6 +51,7 @@ class ViewerViewModel(
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var ocrJob: Job? = null
+    private var cacheJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -68,6 +69,7 @@ class ViewerViewModel(
                 val newPage = intent.page.coerceIn(0, currentState.totalPages - 1)
                 if (newPage == currentState.currentPage) return
                 ocrJob?.cancel()
+                cacheJob?.cancel()
                 updateState {
                     copy(
                         currentPage = newPage,
@@ -80,15 +82,23 @@ class ViewerViewModel(
                         overlayColors = emptyList(),
                         ocrImageWidth = 0,
                         ocrImageHeight = 0,
+                        cachedBlocks = emptyList(),
+                        cachedImageWidth = 0,
+                        cachedImageHeight = 0,
+                        cachedOverlayColors = emptyList(),
+                        visibleCachedBlockIndices = emptySet(),
                     )
                 }
+                loadCachedTranslation(newPage)
             }
             is ViewerIntent.NextPage -> {
                 if (currentState.totalPages == 0) return
                 ocrJob?.cancel()
+                cacheJob?.cancel()
+                val newPage = (currentState.currentPage + 1).coerceIn(0, currentState.totalPages - 1)
                 updateState {
                     copy(
-                        currentPage = (currentPage + 1).coerceIn(0, totalPages - 1),
+                        currentPage = newPage,
                         ocrResults = emptyList(),
                         ocrBottomSheetText = null,
                         translationResults = emptyList(),
@@ -98,15 +108,23 @@ class ViewerViewModel(
                         overlayColors = emptyList(),
                         ocrImageWidth = 0,
                         ocrImageHeight = 0,
+                        cachedBlocks = emptyList(),
+                        cachedImageWidth = 0,
+                        cachedImageHeight = 0,
+                        cachedOverlayColors = emptyList(),
+                        visibleCachedBlockIndices = emptySet(),
                     )
                 }
+                loadCachedTranslation(newPage)
             }
             is ViewerIntent.PreviousPage -> {
                 if (currentState.totalPages == 0) return
                 ocrJob?.cancel()
+                cacheJob?.cancel()
+                val newPage = (currentState.currentPage - 1).coerceIn(0, currentState.totalPages - 1)
                 updateState {
                     copy(
-                        currentPage = (currentPage - 1).coerceIn(0, totalPages - 1),
+                        currentPage = newPage,
                         ocrResults = emptyList(),
                         ocrBottomSheetText = null,
                         translationResults = emptyList(),
@@ -116,37 +134,54 @@ class ViewerViewModel(
                         overlayColors = emptyList(),
                         ocrImageWidth = 0,
                         ocrImageHeight = 0,
+                        cachedBlocks = emptyList(),
+                        cachedImageWidth = 0,
+                        cachedImageHeight = 0,
+                        cachedOverlayColors = emptyList(),
+                        visibleCachedBlockIndices = emptySet(),
                     )
                 }
+                loadCachedTranslation(newPage)
             }
             is ViewerIntent.ToggleControls -> updateState {
                 copy(showControls = !showControls)
             }
             is ViewerIntent.SaveProgress -> saveProgress()
             is ViewerIntent.RunPageOcr -> runPageOcr()
-            is ViewerIntent.SetTranslationMode -> updateState {
+            is ViewerIntent.SetTranslationMode -> {
                 val clearOcr = intent.mode == TranslationMode.NONE || intent.mode == TranslationMode.AREA_SELECT
-                copy(
-                    translationMode = intent.mode,
-                    cropRect = when (intent.mode) {
-                        TranslationMode.AREA_SELECT -> CropRect(
-                            startX = -1f, startY = -1f,
-                            endX = -1f, endY = -1f,
-                        )
-                        TranslationMode.NONE -> null
-                        else -> cropRect
-                    },
-                    ocrBottomSheetText = if (clearOcr) null else ocrBottomSheetText,
-                    ocrResults = if (clearOcr) emptyList() else ocrResults,
-                    isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
-                    pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
-                    translationResults = if (clearOcr) emptyList() else translationResults,
-                    isTranslating = if (clearOcr) false else isTranslating,
-                    showTranslationOverlay = if (clearOcr) false else showTranslationOverlay,
-                    overlayColors = if (clearOcr) emptyList() else overlayColors,
-                    ocrImageWidth = if (clearOcr) 0 else ocrImageWidth,
-                    ocrImageHeight = if (clearOcr) 0 else ocrImageHeight,
-                )
+                val clearCache = intent.mode != TranslationMode.NONE
+                updateState {
+                    copy(
+                        translationMode = intent.mode,
+                        cropRect = when (intent.mode) {
+                            TranslationMode.AREA_SELECT -> CropRect(
+                                startX = -1f, startY = -1f,
+                                endX = -1f, endY = -1f,
+                            )
+                            TranslationMode.NONE -> null
+                            else -> cropRect
+                        },
+                        ocrBottomSheetText = if (clearOcr) null else ocrBottomSheetText,
+                        ocrResults = if (clearOcr) emptyList() else ocrResults,
+                        isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
+                        pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
+                        translationResults = if (clearOcr) emptyList() else translationResults,
+                        isTranslating = if (clearOcr) false else isTranslating,
+                        showTranslationOverlay = if (clearOcr) false else showTranslationOverlay,
+                        overlayColors = if (clearOcr) emptyList() else overlayColors,
+                        ocrImageWidth = if (clearOcr) 0 else ocrImageWidth,
+                        ocrImageHeight = if (clearOcr) 0 else ocrImageHeight,
+                        cachedBlocks = if (clearCache) emptyList() else cachedBlocks,
+                        cachedImageWidth = if (clearCache) 0 else cachedImageWidth,
+                        cachedImageHeight = if (clearCache) 0 else cachedImageHeight,
+                        cachedOverlayColors = if (clearCache) emptyList() else cachedOverlayColors,
+                        visibleCachedBlockIndices = if (clearCache) emptySet() else visibleCachedBlockIndices,
+                    )
+                }
+                if (intent.mode == TranslationMode.NONE) {
+                    loadCachedTranslation(currentState.currentPage)
+                }
             }
             is ViewerIntent.UpdateCropRect -> updateState {
                 copy(cropRect = intent.rect)
@@ -187,6 +222,15 @@ class ViewerViewModel(
                     )
                 }
             }
+            is ViewerIntent.ToggleCachedBlockOverlay -> {
+                val idx = intent.blockIndex
+                updateState {
+                    copy(
+                        visibleCachedBlockIndices = if (idx in visibleCachedBlockIndices)
+                            visibleCachedBlockIndices - idx else visibleCachedBlockIndices + idx
+                    )
+                }
+            }
         }
     }
 
@@ -198,16 +242,18 @@ class ViewerViewModel(
             }
             val entries = getImageEntriesUseCase(archive.filePath, sortByDate, sortAscending)
             val page = if (startPage >= 0) startPage else archive.lastReadIndex
+            val initialPage = page.coerceIn(0, (entries.size - 1).coerceAtLeast(0))
             updateState {
                 copy(
                     archive = archive,
                     filePath = archive.filePath,
                     imageEntries = entries,
-                    currentPage = page.coerceIn(0, (entries.size - 1).coerceAtLeast(0)),
+                    currentPage = initialPage,
                     totalPages = entries.size,
                     isLoading = false,
                 )
             }
+            loadCachedTranslation(initialPage)
         }
     }
 
@@ -342,6 +388,111 @@ class ViewerViewModel(
     }
 
     /**
+     * 캐시된 블록에서 색상을 복원한다. 색상이 저장되어 있지 않은 레거시 캐시의 경우
+     * 이미지 바이트를 로드하여 추출한다.
+     */
+    private suspend fun restoreOrExtractColors(
+        blocks: List<TranslationBlock>,
+        textBlocks: List<TextBlock>,
+        pageIndex: Int,
+    ): List<Color>? {
+        val hasColors = blocks.all { it.dominantColorArgb != null }
+        return if (hasColors) {
+            blocks.map { Color(it.dominantColorArgb!!) }
+        } else {
+            val imageBytes = getImageBytes(pageIndex) ?: return null
+            extractDominantColors(imageBytes, textBlocks)
+        }
+    }
+
+    /**
+     * 페이지의 번역 캐시를 로드하여 개별 말풍선 탭 오버레이용 상태에 저장한다.
+     * 양면 모드에서는 스프레드의 두 페이지를 합성 좌표계로 변환한다.
+     */
+    private fun loadCachedTranslation(page: Int) {
+        val archive = currentState.archive ?: return
+        cacheJob?.cancel()
+        cacheJob = viewModelScope.launch {
+            try {
+                val isDoublePage = currentState.preference.viewMode == ViewMode.DOUBLE_PAGE
+
+                if (isDoublePage) {
+                    val spread = pageToSpread(page)
+                    val (firstPage, secondPage) = spreadToPages(spread, currentState.totalPages)
+                    val isRtl = currentState.preference.readingDirection == ReadingDirection.RTL
+
+                    val firstCache = getPageTranslationCacheUseCase(archive.id, firstPage)
+                    val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archive.id, secondPage) else null
+
+                    if (firstCache == null && secondCache == null) return@launch
+                    if ((firstCache == null || firstCache.blocks.isEmpty()) &&
+                        (secondCache == null || secondCache.blocks.isEmpty())) return@launch
+
+                    // 캐시 → PageOcrResult 변환 후 합성
+                    val firstResult = firstCache?.takeIf { it.blocks.isNotEmpty() }?.let { cache ->
+                        val textBlocks = cache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
+                        val colors = restoreOrExtractColors(cache.blocks, textBlocks, firstPage)
+                            ?: return@let null
+                        PageOcrResult(
+                            firstPage, cache.imageWidth, cache.imageHeight, textBlocks,
+                            cache.blocks.map { TranslationResult(it.originalText, it.translatedText) }, colors,
+                        )
+                    }
+                    val secondResult = secondCache?.takeIf { it.blocks.isNotEmpty() }?.let { cache ->
+                        val textBlocks = cache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
+                        val colors = restoreOrExtractColors(cache.blocks, textBlocks, secondPage!!)
+                            ?: return@let null
+                        PageOcrResult(
+                            secondPage, cache.imageWidth, cache.imageHeight, textBlocks,
+                            cache.blocks.map { TranslationResult(it.originalText, it.translatedText) }, colors,
+                        )
+                    }
+
+                    if (firstResult == null && secondResult == null) return@launch
+
+                    val combined = when {
+                        firstResult != null && secondResult != null -> combinePageResults(firstResult, secondResult, isRtl)
+                        firstResult != null -> firstResult
+                        else -> secondResult!!
+                    }
+
+                    val cachedTranslationBlocks = combined.ocrResults.zip(combined.translationResults).map { (ocr, tr) ->
+                        TranslationBlock(ocr.x, ocr.y, ocr.width, ocr.height, tr.originalText, tr.translatedText)
+                    }
+
+                    updateState {
+                        copy(
+                            cachedBlocks = cachedTranslationBlocks,
+                            cachedImageWidth = combined.imageWidth,
+                            cachedImageHeight = combined.imageHeight,
+                            cachedOverlayColors = combined.overlayColors,
+                            visibleCachedBlockIndices = emptySet(),
+                        )
+                    }
+                } else {
+                    val cache = getPageTranslationCacheUseCase(archive.id, page) ?: return@launch
+                    if (cache.blocks.isEmpty()) return@launch
+
+                    val textBlocks = cache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
+                    val colors = restoreOrExtractColors(cache.blocks, textBlocks, page) ?: return@launch
+
+                    updateState {
+                        copy(
+                            cachedBlocks = cache.blocks,
+                            cachedImageWidth = cache.imageWidth,
+                            cachedImageHeight = cache.imageHeight,
+                            cachedOverlayColors = colors,
+                            visibleCachedBlockIndices = emptySet(),
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // 캐시 로드 실패 시 무시 — 기능 비활성 상태 유지
+            }
+        }
+    }
+
+    /**
      * 단일 페이지에 대해 OCR + 번역을 수행하고 캐시에 저장한다.
      * 캐시 히트 시 캐시에서 복원한다.
      */
@@ -349,7 +500,7 @@ class ViewerViewModel(
         val state = currentState
         val archive = state.archive ?: return null
 
-        // 캐시 먼저 확인 — 히트 시 이미지 로드는 색상 추출용으로만
+        // 캐시 먼저 확인
         val cached = getPageTranslationCacheUseCase(archive.id, pageIndex)
         if (cached != null) {
             val ocrResults = cached.blocks.map { block ->
@@ -358,8 +509,16 @@ class ViewerViewModel(
             val translationResults = cached.blocks.map { block ->
                 TranslationResult(block.originalText, block.translatedText)
             }
-            val imageBytes = getImageBytes(pageIndex) ?: return null
-            val colors = extractDominantColors(imageBytes, ocrResults)
+            // 캐시에 색상이 있으면 이미지 로드 없이 복원, 없으면 추출
+            val hasColors = cached.blocks.all { it.dominantColorArgb != null }
+            val colors = if (hasColors && cached.blocks.isNotEmpty()) {
+                cached.blocks.map { Color(it.dominantColorArgb!!) }
+            } else if (cached.blocks.isNotEmpty()) {
+                val imageBytes = getImageBytes(pageIndex) ?: return null
+                extractDominantColors(imageBytes, ocrResults)
+            } else {
+                emptyList()
+            }
             return PageOcrResult(
                 pageIndex = pageIndex,
                 imageWidth = cached.imageWidth,
@@ -388,8 +547,8 @@ class ViewerViewModel(
             emptyList()
         }
 
-        // 캐시 저장 (빈 결과 포함)
-        val blocks = ocrResults.zip(translationResults).map { (ocr, tr) ->
+        // 캐시 저장 (빈 결과 포함, 색상도 함께 저장)
+        val blocks = ocrResults.zip(translationResults).mapIndexed { i, (ocr, tr) ->
             TranslationBlock(
                 x = ocr.x,
                 y = ocr.y,
@@ -397,6 +556,12 @@ class ViewerViewModel(
                 height = ocr.height,
                 originalText = tr.originalText,
                 translatedText = tr.translatedText,
+                dominantColorArgb = colors.getOrNull(i)?.let { color ->
+                    ((color.alpha * 255).toInt() shl 24) or
+                        ((color.red * 255).toInt() shl 16) or
+                        ((color.green * 255).toInt() shl 8) or
+                        (color.blue * 255).toInt()
+                },
             )
         }
         savePageTranslationCacheUseCase(

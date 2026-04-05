@@ -88,6 +88,7 @@ import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
@@ -275,6 +276,12 @@ fun ViewerScreen(
                                     )
                                 )
                             },
+                            cachedBlocks = if (page == state.currentPage) state.cachedBlocks else emptyList(),
+                            cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
+                            cachedImageHeight = if (page == state.currentPage) state.cachedImageHeight else 0,
+                            cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
+                            visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -358,6 +365,12 @@ fun ViewerScreen(
                                     )
                                 )
                             },
+                            cachedBlocks = if (isCurrentSpread) state.cachedBlocks else emptyList(),
+                            cachedImageWidth = if (isCurrentSpread) state.cachedImageWidth else 0,
+                            cachedImageHeight = if (isCurrentSpread) state.cachedImageHeight else 0,
+                            cachedOverlayColors = if (isCurrentSpread) state.cachedOverlayColors else emptyList(),
+                            visibleCachedBlockIndices = if (isCurrentSpread) state.visibleCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -433,6 +446,12 @@ fun ViewerScreen(
                                     )
                                 )
                             },
+                            cachedBlocks = if (page == state.currentPage) state.cachedBlocks else emptyList(),
+                            cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
+                            cachedImageHeight = if (page == state.currentPage) state.cachedImageHeight else 0,
+                            cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
+                            visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -1105,6 +1124,12 @@ private fun ZoomableImage(
     onTapRight: () -> Unit,
     onUpdateCropRect: (CropRect) -> Unit,
     onTextBlockTap: (TextBlock) -> Unit,
+    cachedBlocks: List<TranslationBlock>,
+    cachedImageWidth: Int,
+    cachedImageHeight: Int,
+    cachedOverlayColors: List<androidx.compose.ui.graphics.Color>,
+    visibleCachedBlockIndices: Set<Int>,
+    onCachedBlockTap: (Int) -> Unit,
     onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
 ) {
     val zoomableState = rememberZoomableState(
@@ -1197,10 +1222,35 @@ private fun ZoomableImage(
                         enabled = !isAreaSelectMode,
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
-                                when {
-                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> onTapRight()
-                                    else -> onTapCenter()
+                                var handled = false
+                                if (cachedBlocks.isNotEmpty() && cachedImageWidth > 0 && cachedImageHeight > 0) {
+                                    val tf = zoomableState.contentTransformation
+                                    val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                                    val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                                    val contentX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                    val contentY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val (fitScale, fitOff) = calculateImageTransform(
+                                        ImageScaleMode.AUTO_FIT,
+                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                        cachedImageWidth.toFloat(), cachedImageHeight.toFloat(),
+                                    )
+                                    val imgX = (contentX - fitOff.x) / fitScale
+                                    val imgY = (contentY - fitOff.y) / fitScale
+                                    val hitIdx = cachedBlocks.indexOfFirst { b ->
+                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                    }
+                                    if (hitIdx >= 0) {
+                                        onCachedBlockTap(hitIdx)
+                                        handled = true
+                                    }
+                                }
+                                if (!handled) {
+                                    when {
+                                        offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                        offset.x > containerSize.width * 0.8f -> onTapRight()
+                                        else -> onTapCenter()
+                                    }
                                 }
                             }
                         } else {
@@ -1251,6 +1301,29 @@ private fun ZoomableImage(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
+
+                    // 캐시된 말풍선 개별 오버레이 (일반 모드)
+                    if (cachedBlocks.isNotEmpty() && visibleCachedBlockIndices.isNotEmpty()) {
+                        val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
+                            visibleCachedBlockIndices, cachedBlocks, cachedOverlayColors,
+                        ) {
+                            val sorted = visibleCachedBlockIndices.sorted()
+                            Triple(
+                                sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
+                                sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
+                                sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                            )
+                        }
+                        TranslationOverlay(
+                            textBlocks = visibleTextBlocks,
+                            translationResults = visibleTranslations,
+                            dominantColors = visibleColors,
+                            imageWidth = cachedImageWidth,
+                            imageHeight = cachedImageHeight,
+                            imageScaleMode = ImageScaleMode.AUTO_FIT,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 } else {
                     CircularProgressIndicator(color = Color.White)
                 }
@@ -1277,10 +1350,35 @@ private fun ZoomableImage(
                         enabled = !isAreaSelectMode,
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
-                                when {
-                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> onTapRight()
-                                    else -> onTapCenter()
+                                var handled = false
+                                if (cachedBlocks.isNotEmpty() && cachedImageWidth > 0 && cachedImageHeight > 0) {
+                                    val tf = zoomableState.contentTransformation
+                                    val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                                    val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                                    val contentX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                    val contentY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val (fitScale, fitOff) = calculateImageTransform(
+                                        ImageScaleMode.AUTO_FIT,
+                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                        cachedImageWidth.toFloat(), cachedImageHeight.toFloat(),
+                                    )
+                                    val imgX = (contentX - fitOff.x) / fitScale
+                                    val imgY = (contentY - fitOff.y) / fitScale
+                                    val hitIdx = cachedBlocks.indexOfFirst { b ->
+                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                    }
+                                    if (hitIdx >= 0) {
+                                        onCachedBlockTap(hitIdx)
+                                        handled = true
+                                    }
+                                }
+                                if (!handled) {
+                                    when {
+                                        offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                        offset.x > containerSize.width * 0.8f -> onTapRight()
+                                        else -> onTapCenter()
+                                    }
                                 }
                             }
                         } else {
@@ -1363,6 +1461,29 @@ private fun ZoomableImage(
                                     dominantColors = overlayColors,
                                     imageWidth = overlayWidth,
                                     imageHeight = overlayHeight,
+                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+
+                            // 캐시된 말풍선 개별 오버레이 (일반 모드)
+                            if (cachedBlocks.isNotEmpty() && visibleCachedBlockIndices.isNotEmpty()) {
+                                val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
+                                    visibleCachedBlockIndices, cachedBlocks, cachedOverlayColors,
+                                ) {
+                                    val sorted = visibleCachedBlockIndices.sorted()
+                                    Triple(
+                                        sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
+                                        sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
+                                        sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                    )
+                                }
+                                TranslationOverlay(
+                                    textBlocks = visibleTextBlocks,
+                                    translationResults = visibleTranslations,
+                                    dominantColors = visibleColors,
+                                    imageWidth = cachedImageWidth,
+                                    imageHeight = cachedImageHeight,
                                     imageScaleMode = ImageScaleMode.AUTO_FIT,
                                     modifier = Modifier.fillMaxSize(),
                                 )

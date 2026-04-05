@@ -20,6 +20,7 @@ private data class BlockDto(
     val h: Int,
     val o: String,
     val t: String,
+    val c: Int? = null,
 )
 
 class PageTranslationCacheRepositoryImpl(
@@ -53,7 +54,7 @@ class PageTranslationCacheRepositoryImpl(
             imageWidth = imageWidth,
             imageHeight = imageHeight,
             blocks = blocks.map {
-                TranslationBlock(it.x, it.y, it.w, it.h, it.o, it.t)
+                TranslationBlock(it.x, it.y, it.w, it.h, it.o, it.t, it.c)
             },
             createdAt = createdAt,
         )
@@ -61,7 +62,7 @@ class PageTranslationCacheRepositoryImpl(
 
     private fun PageTranslationCache.toEntity(): PageTranslationCacheEntity {
         val blockDtos = blocks.map {
-            BlockDto(it.x, it.y, it.width, it.height, it.originalText, it.translatedText)
+            BlockDto(it.x, it.y, it.width, it.height, it.originalText, it.translatedText, it.dominantColorArgb)
         }
         return PageTranslationCacheEntity(
             id = id,

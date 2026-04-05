@@ -7,6 +7,7 @@ data class TranslationBlock(
     val height: Int,
     val originalText: String,
     val translatedText: String,
+    val dominantColorArgb: Int? = null,
 )
 
 data class PageTranslationCache(
