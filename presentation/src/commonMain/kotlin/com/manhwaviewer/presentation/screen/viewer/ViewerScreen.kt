@@ -99,6 +99,7 @@ import manhwa_viewer.presentation.generated.resources.ic_arrow_back
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
 import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
 import me.saket.telephoto.zoomable.ZoomableContentLocation
+import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
 import org.jetbrains.compose.resources.painterResource
@@ -1059,7 +1060,9 @@ private fun ZoomableImage(
     onUpdateCropRect: (CropRect) -> Unit,
     onTextBlockTap: (TextBlock) -> Unit,
 ) {
-    val zoomableState = rememberZoomableState()
+    val zoomableState = rememberZoomableState(
+        zoomSpec = ZoomSpec(maxZoomFactor = 5f),
+    )
     var baseZoomFactor by remember { mutableStateOf(1f) }
 
     // 항상 Fit으로 고정 — 확대는 zoomTo(baseZoom)로 처리
@@ -1250,24 +1253,19 @@ private fun ZoomableImage(
                         val imgWidth = painterState.result.image.width
                         val imgHeight = painterState.result.image.height
 
-                        // zoomableState에 이미지의 실제 크기를 알려줌 → 패닝 경계 계산 가능
-                        LaunchedEffect(imgWidth, imgHeight) {
+                        // 콘텐츠 위치 설정 → 줌 계산/적용을 단일 Effect에서 순차 실행 (레이스 컨디션 방지)
+                        LaunchedEffect(imgWidth, imgHeight, imageScaleMode, containerSize) {
                             zoomableState.setContentLocation(
                                 ZoomableContentLocation.scaledInsideAndCenterAligned(
                                     Size(imgWidth.toFloat(), imgHeight.toFloat())
                                 )
                             )
-                        }
-
-                        // baseZoom 계산 및 적용
-                        LaunchedEffect(imgWidth, imgHeight, imageScaleMode, containerSize) {
                             if (containerSize == IntSize.Zero) return@LaunchedEffect
                             val zoom = calculateBaseZoom(
                                 imageScaleMode, imgWidth, imgHeight,
                                 containerSize.width, containerSize.height,
                             )
                             baseZoomFactor = zoom
-                            // 먼저 센터 정렬 상태로 초기화 후 줌 적용 (이전 패닝 오프셋 제거)
                             zoomableState.resetZoom(animationSpec = snap())
                             if (zoom > 1f) {
                                 zoomableState.zoomTo(zoom, animationSpec = snap())
