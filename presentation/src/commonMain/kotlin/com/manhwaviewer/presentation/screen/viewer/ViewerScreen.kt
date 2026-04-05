@@ -174,6 +174,13 @@ fun ViewerScreen(
     }
 
     var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
+    // 현재 줌 변환 정보 (CropOverlay → ConfirmCrop 좌표 변환용)
+    var zoomScaleX by remember { mutableStateOf(1f) }
+    var zoomScaleY by remember { mutableStateOf(1f) }
+    var zoomOffsetX by remember { mutableStateOf(0f) }
+    var zoomOffsetY by remember { mutableStateOf(0f) }
+    var zoomOriginX by remember { mutableStateOf(0.5f) }
+    var zoomOriginY by remember { mutableStateOf(0.5f) }
     var showViewModeDialog by remember { mutableStateOf(false) }
 
     if (showViewModeDialog) {
@@ -259,8 +266,19 @@ fun ViewerScreen(
                                     ViewerIntent.ConfirmCrop(
                                         containerWidth = viewerContainerSize.width,
                                         containerHeight = viewerContainerSize.height,
+                                        zoomScaleX = zoomScaleX,
+                                        zoomScaleY = zoomScaleY,
+                                        zoomOffsetX = zoomOffsetX,
+                                        zoomOffsetY = zoomOffsetY,
+                                        transformOriginX = zoomOriginX,
+                                        transformOriginY = zoomOriginY,
                                     )
                                 )
+                            },
+                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
+                                zoomScaleX = sx; zoomScaleY = sy
+                                zoomOffsetX = ox; zoomOffsetY = oy
+                                zoomOriginX = origX; zoomOriginY = origY
                             },
                         )
                     }
@@ -331,8 +349,19 @@ fun ViewerScreen(
                                     ViewerIntent.ConfirmCrop(
                                         containerWidth = viewerContainerSize.width,
                                         containerHeight = viewerContainerSize.height,
+                                        zoomScaleX = zoomScaleX,
+                                        zoomScaleY = zoomScaleY,
+                                        zoomOffsetX = zoomOffsetX,
+                                        zoomOffsetY = zoomOffsetY,
+                                        transformOriginX = zoomOriginX,
+                                        transformOriginY = zoomOriginY,
                                     )
                                 )
+                            },
+                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
+                                zoomScaleX = sx; zoomScaleY = sy
+                                zoomOffsetX = ox; zoomOffsetY = oy
+                                zoomOriginX = origX; zoomOriginY = origY
                             },
                         )
                     }
@@ -395,8 +424,19 @@ fun ViewerScreen(
                                     ViewerIntent.ConfirmCrop(
                                         containerWidth = viewerContainerSize.width,
                                         containerHeight = viewerContainerSize.height,
+                                        zoomScaleX = zoomScaleX,
+                                        zoomScaleY = zoomScaleY,
+                                        zoomOffsetX = zoomOffsetX,
+                                        zoomOffsetY = zoomOffsetY,
+                                        transformOriginX = zoomOriginX,
+                                        transformOriginY = zoomOriginY,
                                     )
                                 )
+                            },
+                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
+                                zoomScaleX = sx; zoomScaleY = sy
+                                zoomOffsetX = ox; zoomOffsetY = oy
+                                zoomOriginX = origX; zoomOriginY = origY
                             },
                         )
                     }
@@ -478,6 +518,12 @@ fun ViewerScreen(
                                     ViewerIntent.ConfirmCrop(
                                         containerWidth = viewerContainerSize.width,
                                         containerHeight = viewerContainerSize.height,
+                                        zoomScaleX = zoomScaleX,
+                                        zoomScaleY = zoomScaleY,
+                                        zoomOffsetX = zoomOffsetX,
+                                        zoomOffsetY = zoomOffsetY,
+                                        transformOriginX = zoomOriginX,
+                                        transformOriginY = zoomOriginY,
                                     )
                                 )
                             }
@@ -1059,6 +1105,7 @@ private fun ZoomableImage(
     onTapRight: () -> Unit,
     onUpdateCropRect: (CropRect) -> Unit,
     onTextBlockTap: (TextBlock) -> Unit,
+    onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
 ) {
     val zoomableState = rememberZoomableState(
         zoomSpec = ZoomSpec(maxZoomFactor = 5f),
@@ -1078,6 +1125,21 @@ private fun ZoomableImage(
             } else {
                 zoomableState.resetZoom(animationSpec = snap())
             }
+        }
+    }
+
+    // 줌 변환 정보를 상위 컴포저블로 리포트
+    val transform = zoomableState.contentTransformation
+    LaunchedEffect(transform) {
+        if (transform.isSpecified) {
+            onZoomTransformChanged(
+                transform.scale.scaleX,
+                transform.scale.scaleY,
+                transform.offset.x,
+                transform.offset.y,
+                transform.transformOrigin.pivotFractionX,
+                transform.transformOrigin.pivotFractionY,
+            )
         }
     }
 
@@ -1125,197 +1187,201 @@ private fun ZoomableImage(
             subSamplingReady = true
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { containerSize = it }
-                .zoomable(
-                    state = zoomableState,
-                    enabled = !isAreaSelectMode,
-                    onClick = if (!isAreaSelectMode && !isTranslationActive) {
-                        { offset ->
-                            when {
-                                offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                offset.x > containerSize.width * 0.8f -> onTapRight()
-                                else -> onTapCenter()
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { containerSize = it }
+                    .zoomable(
+                        state = zoomableState,
+                        enabled = !isAreaSelectMode,
+                        onClick = if (!isAreaSelectMode && !isTranslationActive) {
+                            { offset ->
+                                when {
+                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> onTapRight()
+                                    else -> onTapCenter()
+                                }
                             }
-                        }
-                    } else {
-                        null
-                    },
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (result != null) {
-                val imageState = rememberSubSamplingImageState(
-                    imageSource = result.source,
-                    zoomableState = zoomableState,
-                )
+                        } else {
+                            null
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (result != null) {
+                    val imageState = rememberSubSamplingImageState(
+                        imageSource = result.source,
+                        zoomableState = zoomableState,
+                    )
 
-                SubSamplingImage(
-                    state = imageState,
-                    contentDescription = "Page ${page + 1}",
+                    SubSamplingImage(
+                        state = imageState,
+                        contentDescription = "Page ${page + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
+                        alpha = if (subSamplingReady || baseZoomFactor <= 1f) 1f else 0f,
+                    )
+
+                    // OCR 원본 이미지 크기 사용
+                    val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else result.imageSize.width
+                    val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else result.imageSize.height
+
+                    // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                    if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                        BoundingBoxOverlay(
+                            textBlocks = ocrResults,
+                            imageWidth = overlayWidth,
+                            imageHeight = overlayHeight,
+                            imageScaleMode = ImageScaleMode.AUTO_FIT,
+                            onBlockTap = onTextBlockTap,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    // 번역 오버레이
+                    if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                        TranslationOverlay(
+                            textBlocks = ocrResults,
+                            translationResults = translationResults,
+                            dominantColors = overlayColors,
+                            imageWidth = overlayWidth,
+                            imageHeight = overlayHeight,
+                            imageScaleMode = ImageScaleMode.AUTO_FIT,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                } else {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            }
+
+            // 선택 영역 크롭 오버레이 (zoomable 외부 — 화면 좌표계)
+            if (isAreaSelectMode) {
+                CropOverlay(
+                    cropRect = cropRect,
+                    onUpdateCropRect = onUpdateCropRect,
                     modifier = Modifier.fillMaxSize(),
-                    // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
-                    alpha = if (subSamplingReady || baseZoomFactor <= 1f) 1f else 0f,
                 )
-
-                // OCR 원본 이미지 크기 사용
-                val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else result.imageSize.width
-                val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else result.imageSize.height
-
-                // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
-                    BoundingBoxOverlay(
-                        textBlocks = ocrResults,
-                        imageWidth = overlayWidth,
-                        imageHeight = overlayHeight,
-                        imageScaleMode = ImageScaleMode.AUTO_FIT,
-                        onBlockTap = onTextBlockTap,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-
-                // 번역 오버레이
-                if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
-                    TranslationOverlay(
-                        textBlocks = ocrResults,
-                        translationResults = translationResults,
-                        dominantColors = overlayColors,
-                        imageWidth = overlayWidth,
-                        imageHeight = overlayHeight,
-                        imageScaleMode = ImageScaleMode.AUTO_FIT,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-
-                // 선택 영역 크롭 오버레이
-                if (isAreaSelectMode) {
-                    CropOverlay(
-                        cropRect = cropRect,
-                        onUpdateCropRect = onUpdateCropRect,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            } else {
-                CircularProgressIndicator(color = Color.White)
             }
         }
     } else {
         // Coil Image+painter 경로: 양면 모드 (두 이미지 합성) 전용
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { containerSize = it }
-                .zoomable(
-                    state = zoomableState,
-                    enabled = !isAreaSelectMode,
-                    onClick = if (!isAreaSelectMode && !isTranslationActive) {
-                        { offset ->
-                            when {
-                                offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                offset.x > containerSize.width * 0.8f -> onTapRight()
-                                else -> onTapCenter()
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { containerSize = it }
+                    .zoomable(
+                        state = zoomableState,
+                        enabled = !isAreaSelectMode,
+                        onClick = if (!isAreaSelectMode && !isTranslationActive) {
+                            { offset ->
+                                when {
+                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> onTapRight()
+                                    else -> onTapCenter()
+                                }
                             }
+                        } else {
+                            null
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (pageModel != null) {
+                    // Coil 디코딩은 원래 scaleMode 해상도로, 렌더링은 Fit으로
+                    val decodeScale = imageScaleMode.toContentScale()
+                    val renderScale = ContentScale.Fit
+                    var coilReady by remember { mutableStateOf(false) }
+
+                    val painter = rememberAsyncImagePainter(
+                        model = pageModel,
+                        contentScale = decodeScale,
+                    )
+
+                    Image(
+                        painter = painter,
+                        contentDescription = "Page ${page + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = renderScale,
+                        // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
+                        alpha = if (coilReady || baseZoomFactor <= 1f) 1f else 0f,
+                    )
+
+                    val painterState = painter.state.collectAsState().value
+                    when (painterState) {
+                        is AsyncImagePainter.State.Loading -> {
+                            CircularProgressIndicator(color = Color.White)
                         }
-                    } else {
-                        null
-                    },
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (pageModel != null) {
-                // Coil 디코딩은 원래 scaleMode 해상도로, 렌더링은 Fit으로
-                val decodeScale = imageScaleMode.toContentScale()
-                val renderScale = ContentScale.Fit
-                var coilReady by remember { mutableStateOf(false) }
+                        is AsyncImagePainter.State.Success -> {
+                            val imgWidth = painterState.result.image.width
+                            val imgHeight = painterState.result.image.height
 
-                val painter = rememberAsyncImagePainter(
-                    model = pageModel,
-                    contentScale = decodeScale,
-                )
-
-                Image(
-                    painter = painter,
-                    contentDescription = "Page ${page + 1}",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = renderScale,
-                    // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
-                    alpha = if (coilReady || baseZoomFactor <= 1f) 1f else 0f,
-                )
-
-                val painterState = painter.state.collectAsState().value
-                when (painterState) {
-                    is AsyncImagePainter.State.Loading -> {
-                        CircularProgressIndicator(color = Color.White)
-                    }
-                    is AsyncImagePainter.State.Success -> {
-                        val imgWidth = painterState.result.image.width
-                        val imgHeight = painterState.result.image.height
-
-                        // 콘텐츠 위치 설정 → 줌 계산/적용을 단일 Effect에서 순차 실행 (레이스 컨디션 방지)
-                        LaunchedEffect(imgWidth, imgHeight, imageScaleMode, containerSize) {
-                            zoomableState.setContentLocation(
-                                ZoomableContentLocation.scaledInsideAndCenterAligned(
-                                    Size(imgWidth.toFloat(), imgHeight.toFloat())
+                            // 콘텐츠 위치 설정 → 줌 계산/적용을 단일 Effect에서 순차 실행 (레이스 컨디션 방지)
+                            LaunchedEffect(imgWidth, imgHeight, imageScaleMode, containerSize) {
+                                zoomableState.setContentLocation(
+                                    ZoomableContentLocation.scaledInsideAndCenterAligned(
+                                        Size(imgWidth.toFloat(), imgHeight.toFloat())
+                                    )
                                 )
-                            )
-                            if (containerSize == IntSize.Zero) return@LaunchedEffect
-                            val zoom = calculateBaseZoom(
-                                imageScaleMode, imgWidth, imgHeight,
-                                containerSize.width, containerSize.height,
-                            )
-                            baseZoomFactor = zoom
-                            zoomableState.resetZoom(animationSpec = snap())
-                            if (zoom > 1f) {
-                                zoomableState.zoomTo(zoom, animationSpec = snap())
+                                if (containerSize == IntSize.Zero) return@LaunchedEffect
+                                val zoom = calculateBaseZoom(
+                                    imageScaleMode, imgWidth, imgHeight,
+                                    containerSize.width, containerSize.height,
+                                )
+                                baseZoomFactor = zoom
+                                zoomableState.resetZoom(animationSpec = snap())
+                                if (zoom > 1f) {
+                                    zoomableState.zoomTo(zoom, animationSpec = snap())
+                                }
+                                coilReady = true
                             }
-                            coilReady = true
-                        }
 
-                        // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
-                        val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
-                        val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
+                            // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
+                            val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
+                            val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
 
-                        // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                        // 오버레이는 Fit 좌표계 기준으로 그림 (줌은 zoomableState가 처리)
-                        if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
-                            BoundingBoxOverlay(
-                                textBlocks = ocrResults,
-                                imageWidth = overlayWidth,
-                                imageHeight = overlayHeight,
-                                imageScaleMode = ImageScaleMode.AUTO_FIT,
-                                onBlockTap = onTextBlockTap,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+                            // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
+                            // 오버레이는 Fit 좌표계 기준으로 그림 (줌은 zoomableState가 처리)
+                            if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                                BoundingBoxOverlay(
+                                    textBlocks = ocrResults,
+                                    imageWidth = overlayWidth,
+                                    imageHeight = overlayHeight,
+                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                    onBlockTap = onTextBlockTap,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
 
-                        // 번역 오버레이
-                        if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
-                            TranslationOverlay(
-                                textBlocks = ocrResults,
-                                translationResults = translationResults,
-                                dominantColors = overlayColors,
-                                imageWidth = overlayWidth,
-                                imageHeight = overlayHeight,
-                                imageScaleMode = ImageScaleMode.AUTO_FIT,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                            // 번역 오버레이
+                            if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                                TranslationOverlay(
+                                    textBlocks = ocrResults,
+                                    translationResults = translationResults,
+                                    dominantColors = overlayColors,
+                                    imageWidth = overlayWidth,
+                                    imageHeight = overlayHeight,
+                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                         }
-
-                        // 선택 영역 크롭 오버레이
-                        if (isAreaSelectMode) {
-                            CropOverlay(
-                                cropRect = cropRect,
-                                onUpdateCropRect = onUpdateCropRect,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+                        else -> {}
                     }
-                    else -> {}
+                } else {
+                    CircularProgressIndicator(color = Color.White)
                 }
-            } else {
-                CircularProgressIndicator(color = Color.White)
+            }
+
+            // 선택 영역 크롭 오버레이 (zoomable 외부 — 화면 좌표계)
+            if (isAreaSelectMode) {
+                CropOverlay(
+                    cropRect = cropRect,
+                    onUpdateCropRect = onUpdateCropRect,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }

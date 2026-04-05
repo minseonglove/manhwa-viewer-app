@@ -151,7 +151,12 @@ class ViewerViewModel(
             is ViewerIntent.UpdateCropRect -> updateState {
                 copy(cropRect = intent.rect)
             }
-            is ViewerIntent.ConfirmCrop -> confirmCrop(intent.containerWidth, intent.containerHeight)
+            is ViewerIntent.ConfirmCrop -> confirmCrop(
+                intent.containerWidth, intent.containerHeight,
+                intent.zoomScaleX, intent.zoomScaleY,
+                intent.zoomOffsetX, intent.zoomOffsetY,
+                intent.transformOriginX, intent.transformOriginY,
+            )
             is ViewerIntent.ExpandOcrResult -> updateState {
                 copy(isOcrSheetExpanded = true)
             }
@@ -548,7 +553,16 @@ class ViewerViewModel(
         }
     }
 
-    private fun confirmCrop(containerWidth: Int, containerHeight: Int) {
+    private fun confirmCrop(
+        containerWidth: Int,
+        containerHeight: Int,
+        zoomScaleX: Float,
+        zoomScaleY: Float,
+        zoomOffsetX: Float,
+        zoomOffsetY: Float,
+        transformOriginX: Float,
+        transformOriginY: Float,
+    ) {
         val crop = currentState.cropRect ?: return
         ocrJob?.cancel()
         ocrJob = viewModelScope.launch {
@@ -577,18 +591,30 @@ class ViewerViewModel(
                     imgW.toFloat(),
                     imgH.toFloat(),
                 )
-                val offsetX = transformOffset.x
-                val offsetY = transformOffset.y
+                val fitOffsetX = transformOffset.x
+                val fitOffsetY = transformOffset.y
 
                 val cropMinX = minOf(crop.startX, crop.endX)
                 val cropMinY = minOf(crop.startY, crop.endY)
                 val cropMaxX = maxOf(crop.startX, crop.endX)
                 val cropMaxY = maxOf(crop.startY, crop.endY)
 
-                val imgLeft = ((cropMinX - offsetX) / fitScale).toInt().coerceIn(0, imgW)
-                val imgTop = ((cropMinY - offsetY) / fitScale).toInt().coerceIn(0, imgH)
-                val imgRight = ((cropMaxX - offsetX) / fitScale).toInt().coerceIn(0, imgW)
-                val imgBottom = ((cropMaxY - offsetY) / fitScale).toInt().coerceIn(0, imgH)
+                // Step 1: screen → content 좌표 (줌 역변환)
+                val originPxX = transformOriginX * containerWidth
+                val originPxY = transformOriginY * containerHeight
+                fun screenToContentX(sx: Float) = (sx - zoomOffsetX - originPxX) / zoomScaleX + originPxX
+                fun screenToContentY(sy: Float) = (sy - zoomOffsetY - originPxY) / zoomScaleY + originPxY
+
+                val contentMinX = screenToContentX(cropMinX)
+                val contentMinY = screenToContentY(cropMinY)
+                val contentMaxX = screenToContentX(cropMaxX)
+                val contentMaxY = screenToContentY(cropMaxY)
+
+                // Step 2: content → image 좌표 (fit 변환 적용)
+                val imgLeft = ((contentMinX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
+                val imgTop = ((contentMinY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
+                val imgRight = ((contentMaxX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
+                val imgBottom = ((contentMaxY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
                 val cropW = (imgRight - imgLeft).coerceAtLeast(1)
                 val cropH = (imgBottom - imgTop).coerceAtLeast(1)
 

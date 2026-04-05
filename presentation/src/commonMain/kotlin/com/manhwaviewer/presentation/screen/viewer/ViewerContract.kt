@@ -59,7 +59,16 @@ sealed interface ViewerIntent {
     data object RunPageOcr : ViewerIntent
     data class SetTranslationMode(val mode: TranslationMode) : ViewerIntent
     data class UpdateCropRect(val rect: CropRect) : ViewerIntent
-    data class ConfirmCrop(val containerWidth: Int, val containerHeight: Int) : ViewerIntent
+    data class ConfirmCrop(
+        val containerWidth: Int,
+        val containerHeight: Int,
+        val zoomScaleX: Float = 1f,
+        val zoomScaleY: Float = 1f,
+        val zoomOffsetX: Float = 0f,
+        val zoomOffsetY: Float = 0f,
+        val transformOriginX: Float = 0.5f,
+        val transformOriginY: Float = 0.5f,
+    ) : ViewerIntent
     data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent
     data object ToggleTranslationOverlay : ViewerIntent
