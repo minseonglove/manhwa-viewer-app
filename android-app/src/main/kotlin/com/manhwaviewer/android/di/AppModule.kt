@@ -41,7 +41,9 @@ import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
+import com.manhwaviewer.domain.usecase.GetPageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
+import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
@@ -114,6 +116,8 @@ val appModule = module {
     factory { TranslateTextUseCase(get()) }
     factory { SavePageTranslationCacheUseCase(get()) }
     factory { GetPageTranslationCacheUseCase(get()) }
+    factory { GetPageOcrCacheUseCase(get()) }
+    factory { SavePageOcrCacheUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
@@ -121,6 +125,6 @@ val appModule = module {
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }

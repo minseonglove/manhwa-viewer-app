@@ -5,14 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.GetPageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
+import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
 import com.manhwaviewer.domain.entity.TextBlock
+import com.manhwaviewer.domain.entity.OcrBlock
+import com.manhwaviewer.domain.entity.PageOcrCache
 import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.PageTranslationCache
@@ -51,10 +55,13 @@ class ViewerViewModel(
     private val updateViewerPreferenceUseCase: UpdateViewerPreferenceUseCase,
     private val savePageTranslationCacheUseCase: SavePageTranslationCacheUseCase,
     private val getPageTranslationCacheUseCase: GetPageTranslationCacheUseCase,
+    private val getPageOcrCacheUseCase: GetPageOcrCacheUseCase,
+    private val savePageOcrCacheUseCase: SavePageOcrCacheUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var ocrJob: Job? = null
     private var cacheJob: Job? = null
+    private var autoOcrJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -65,6 +72,7 @@ class ViewerViewModel(
                 if (pref.viewMode != oldMode && currentState.totalPages > 0) {
                     ocrJob?.cancel()
                     cacheJob?.cancel()
+                    autoOcrJob?.cancel()
                     updateState {
                         copy(
                             ocrResults = emptyList(),
@@ -81,9 +89,15 @@ class ViewerViewModel(
                             cachedImageHeight = 0,
                             cachedOverlayColors = emptyList(),
                             visibleCachedBlockIndices = emptySet(),
+                            autoOcrStatus = AutoOcrStatus.IDLE,
+                            autoOcrBlocks = emptyList(),
+                            autoOcrImageWidth = 0,
+                            autoOcrImageHeight = 0,
+                            selectedOcrBlockIndices = emptySet(),
                         )
                     }
                     loadCachedTranslation(currentState.currentPage)
+                    if (currentState.autoOcrEnabled) runAutoOcr(currentState.currentPage)
                 }
             }
         }
@@ -98,6 +112,7 @@ class ViewerViewModel(
                 if (newPage == currentState.currentPage) return
                 ocrJob?.cancel()
                 cacheJob?.cancel()
+                autoOcrJob?.cancel()
                 updateState {
                     copy(
                         currentPage = newPage,
@@ -115,14 +130,21 @@ class ViewerViewModel(
                         cachedImageHeight = 0,
                         cachedOverlayColors = emptyList(),
                         visibleCachedBlockIndices = emptySet(),
+                        autoOcrStatus = AutoOcrStatus.IDLE,
+                        autoOcrBlocks = emptyList(),
+                        autoOcrImageWidth = 0,
+                        autoOcrImageHeight = 0,
+                        selectedOcrBlockIndices = emptySet(),
                     )
                 }
                 loadCachedTranslation(newPage)
+                if (currentState.autoOcrEnabled) runAutoOcr(newPage)
             }
             is ViewerIntent.NextPage -> {
                 if (currentState.totalPages == 0) return
                 ocrJob?.cancel()
                 cacheJob?.cancel()
+                autoOcrJob?.cancel()
                 val newPage = (currentState.currentPage + 1).coerceIn(0, currentState.totalPages - 1)
                 updateState {
                     copy(
@@ -141,14 +163,21 @@ class ViewerViewModel(
                         cachedImageHeight = 0,
                         cachedOverlayColors = emptyList(),
                         visibleCachedBlockIndices = emptySet(),
+                        autoOcrStatus = AutoOcrStatus.IDLE,
+                        autoOcrBlocks = emptyList(),
+                        autoOcrImageWidth = 0,
+                        autoOcrImageHeight = 0,
+                        selectedOcrBlockIndices = emptySet(),
                     )
                 }
                 loadCachedTranslation(newPage)
+                if (currentState.autoOcrEnabled) runAutoOcr(newPage)
             }
             is ViewerIntent.PreviousPage -> {
                 if (currentState.totalPages == 0) return
                 ocrJob?.cancel()
                 cacheJob?.cancel()
+                autoOcrJob?.cancel()
                 val newPage = (currentState.currentPage - 1).coerceIn(0, currentState.totalPages - 1)
                 updateState {
                     copy(
@@ -167,9 +196,15 @@ class ViewerViewModel(
                         cachedImageHeight = 0,
                         cachedOverlayColors = emptyList(),
                         visibleCachedBlockIndices = emptySet(),
+                        autoOcrStatus = AutoOcrStatus.IDLE,
+                        autoOcrBlocks = emptyList(),
+                        autoOcrImageWidth = 0,
+                        autoOcrImageHeight = 0,
+                        selectedOcrBlockIndices = emptySet(),
                     )
                 }
                 loadCachedTranslation(newPage)
+                if (currentState.autoOcrEnabled) runAutoOcr(newPage)
             }
             is ViewerIntent.ToggleControls -> updateState {
                 copy(showControls = !showControls)
@@ -257,6 +292,34 @@ class ViewerViewModel(
                     copy(
                         visibleCachedBlockIndices = if (idx in visibleCachedBlockIndices)
                             visibleCachedBlockIndices - idx else visibleCachedBlockIndices + idx
+                    )
+                }
+            }
+            is ViewerIntent.ToggleAutoOcr -> {
+                val newEnabled = !currentState.autoOcrEnabled
+                if (newEnabled) {
+                    updateState { copy(autoOcrEnabled = true) }
+                    runAutoOcr(currentState.currentPage)
+                } else {
+                    autoOcrJob?.cancel()
+                    updateState {
+                        copy(
+                            autoOcrEnabled = false,
+                            autoOcrStatus = AutoOcrStatus.IDLE,
+                            autoOcrBlocks = emptyList(),
+                            autoOcrImageWidth = 0,
+                            autoOcrImageHeight = 0,
+                            selectedOcrBlockIndices = emptySet(),
+                        )
+                    }
+                }
+            }
+            is ViewerIntent.ToggleOcrBlockSelection -> {
+                val idx = intent.blockIndex
+                updateState {
+                    copy(
+                        selectedOcrBlockIndices = if (idx in selectedOcrBlockIndices)
+                            selectedOcrBlockIndices - idx else selectedOcrBlockIndices + idx
                     )
                 }
             }
@@ -523,15 +586,235 @@ class ViewerViewModel(
         }
     }
 
+    // ── 자동 OCR ──────────────────────────────────────────────────
+
+    /**
+     * 단일 페이지에 대해 OCR만 실행하고 캐시에 저장한다.
+     * OCR 캐시 또는 번역 캐시가 있으면 즉시 반환한다.
+     */
+    private suspend fun processPageOcrOnly(pageIndex: Int): PageOcrCache? {
+        val archive = currentState.archive ?: return null
+
+        // OCR 캐시 확인
+        val ocrCache = getPageOcrCacheUseCase(archive.id, pageIndex)
+        if (ocrCache != null) return ocrCache
+
+        // 번역 캐시에 OCR 결과가 있는 경우도 확인
+        val translationCache = getPageTranslationCacheUseCase(archive.id, pageIndex)
+        if (translationCache != null) {
+            return PageOcrCache(
+                id = translationCache.id,
+                archiveId = translationCache.archiveId,
+                page = translationCache.page,
+                imageWidth = translationCache.imageWidth,
+                imageHeight = translationCache.imageHeight,
+                blocks = translationCache.blocks.map {
+                    OcrBlock(it.x, it.y, it.width, it.height, it.originalText, it.dominantColorArgb)
+                },
+                createdAt = translationCache.createdAt,
+            )
+        }
+
+        // 캐시 미스 — OCR 실행
+        val imageBytes = getImageBytes(pageIndex) ?: return null
+        val (imgW, imgH) = getImageDimensions(imageBytes)
+        val ocrResults = recognizePageTextUseCase(imageBytes)
+
+        val ocrBlocks = ocrResults.map { block ->
+            OcrBlock(block.x, block.y, block.width, block.height, block.text)
+        }
+
+        // OCR 캐시 저장
+        val savedId = savePageOcrCacheUseCase(
+            PageOcrCache(
+                archiveId = archive.id,
+                page = pageIndex,
+                imageWidth = imgW,
+                imageHeight = imgH,
+                blocks = ocrBlocks,
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+            )
+        )
+
+        return PageOcrCache(
+            id = savedId,
+            archiveId = archive.id,
+            page = pageIndex,
+            imageWidth = imgW,
+            imageHeight = imgH,
+            blocks = ocrBlocks,
+            createdAt = Clock.System.now().toEpochMilliseconds(),
+        )
+    }
+
+    private fun runAutoOcr(page: Int) {
+        autoOcrJob?.cancel()
+        autoOcrJob = viewModelScope.launch {
+            try {
+                val state = currentState
+                val archive = state.archive ?: return@launch
+                val isDoublePage = state.preference.viewMode == ViewMode.DOUBLE_PAGE
+
+                if (isDoublePage) {
+                    runAutoOcrDoublePage(archive.id, page, state)
+                } else {
+                    runAutoOcrSinglePage(archive.id, page)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                updateState { copy(autoOcrStatus = AutoOcrStatus.IDLE) }
+            }
+        }
+    }
+
+    private suspend fun runAutoOcrSinglePage(archiveId: Long, page: Int) {
+        // 캐시 확인
+        val cached = getPageOcrCacheUseCase(archiveId, page) ?: getTranslationCacheAsOcr(archiveId, page)
+        if (cached != null) {
+            updateState {
+                copy(
+                    autoOcrStatus = AutoOcrStatus.DONE,
+                    autoOcrBlocks = cached.blocks,
+                    autoOcrImageWidth = cached.imageWidth,
+                    autoOcrImageHeight = cached.imageHeight,
+                )
+            }
+            return
+        }
+
+        // 캐시 미스 — OCR 실행
+        updateState { copy(autoOcrStatus = AutoOcrStatus.PROCESSING) }
+        val result = processPageOcrOnly(page) ?: run {
+            updateState { copy(autoOcrStatus = AutoOcrStatus.IDLE) }
+            return
+        }
+        updateState {
+            copy(
+                autoOcrStatus = AutoOcrStatus.DONE,
+                autoOcrBlocks = result.blocks,
+                autoOcrImageWidth = result.imageWidth,
+                autoOcrImageHeight = result.imageHeight,
+            )
+        }
+    }
+
+    private suspend fun runAutoOcrDoublePage(archiveId: Long, page: Int, state: ViewerState) {
+        val spread = pageToSpread(page)
+        val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
+        val isRtl = state.preference.readingDirection == ReadingDirection.RTL
+
+        // 각 페이지 캐시 확인
+        val firstCached = getPageOcrCacheUseCase(archiveId, firstPage) ?: getTranslationCacheAsOcr(archiveId, firstPage)
+        val secondCached = if (secondPage != null) getPageOcrCacheUseCase(archiveId, secondPage) ?: getTranslationCacheAsOcr(archiveId, secondPage) else null
+
+        val needsOcr = (firstCached == null) || (secondPage != null && secondCached == null)
+        if (needsOcr) {
+            updateState { copy(autoOcrStatus = AutoOcrStatus.PROCESSING) }
+        }
+
+        // 캐시 미스인 페이지만 OCR 실행
+        val firstResult = firstCached ?: processPageOcrOnly(firstPage)
+        val secondResult = if (secondPage != null) secondCached ?: processPageOcrOnly(secondPage) else null
+
+        if (firstResult == null && secondResult == null) {
+            updateState { copy(autoOcrStatus = AutoOcrStatus.IDLE) }
+            return
+        }
+
+        // 양면 좌표계로 변환 (combinePageResults와 동일한 로직)
+        val combined = combineOcrBlocks(firstResult, secondResult, isRtl)
+
+        updateState {
+            copy(
+                autoOcrStatus = AutoOcrStatus.DONE,
+                autoOcrBlocks = combined.blocks,
+                autoOcrImageWidth = combined.imageWidth,
+                autoOcrImageHeight = combined.imageHeight,
+            )
+        }
+    }
+
+    /** 양면 모드에서 두 페이지의 OcrBlock을 합성 좌표계로 변환한다. */
+    private fun combineOcrBlocks(
+        firstResult: PageOcrCache?,
+        secondResult: PageOcrCache?,
+        isRtl: Boolean,
+    ): PageOcrCache {
+        if (firstResult == null && secondResult != null) return secondResult
+        if (secondResult == null && firstResult != null) return firstResult
+        val first = firstResult!!
+        val second = secondResult!!
+
+        val leftResult = if (isRtl) second else first
+        val rightResult = if (isRtl) first else second
+
+        val targetH = maxOf(leftResult.imageHeight, rightResult.imageHeight)
+        val leftScale = targetH.toFloat() / leftResult.imageHeight
+        val rightScale = targetH.toFloat() / rightResult.imageHeight
+        val scaledLeftW = (leftResult.imageWidth * leftScale).toInt()
+        val scaledRightW = (rightResult.imageWidth * rightScale).toInt()
+
+        val scaledLeftBlocks = leftResult.blocks.map { b ->
+            OcrBlock(
+                x = (b.x * leftScale).toInt(),
+                y = (b.y * leftScale).toInt(),
+                width = (b.width * leftScale).toInt(),
+                height = (b.height * leftScale).toInt(),
+                text = b.text,
+                dominantColorArgb = b.dominantColorArgb,
+            )
+        }
+
+        val scaledRightBlocks = rightResult.blocks.map { b ->
+            OcrBlock(
+                x = (b.x * rightScale).toInt() + scaledLeftW,
+                y = (b.y * rightScale).toInt(),
+                width = (b.width * rightScale).toInt(),
+                height = (b.height * rightScale).toInt(),
+                text = b.text,
+                dominantColorArgb = b.dominantColorArgb,
+            )
+        }
+
+        return PageOcrCache(
+            id = 0,
+            archiveId = first.archiveId,
+            page = first.page,
+            imageWidth = scaledLeftW + scaledRightW,
+            imageHeight = targetH,
+            blocks = scaledLeftBlocks + scaledRightBlocks,
+            createdAt = first.createdAt,
+        )
+    }
+
+    /** 번역 캐시에서 OCR 데이터만 추출. 캐시 미스 시 null. */
+    private suspend fun getTranslationCacheAsOcr(archiveId: Long, page: Int): PageOcrCache? {
+        val cache = getPageTranslationCacheUseCase(archiveId, page) ?: return null
+        return PageOcrCache(
+            id = cache.id,
+            archiveId = cache.archiveId,
+            page = cache.page,
+            imageWidth = cache.imageWidth,
+            imageHeight = cache.imageHeight,
+            blocks = cache.blocks.map {
+                OcrBlock(it.x, it.y, it.width, it.height, it.originalText, it.dominantColorArgb)
+            },
+            createdAt = cache.createdAt,
+        )
+    }
+
+    // ── OCR + 번역 파이프라인 ────────────────────────────────────
+
     /**
      * 단일 페이지에 대해 OCR + 번역을 수행하고 캐시에 저장한다.
-     * 캐시 히트 시 캐시에서 복원한다.
+     * 자동 OCR이 켜져 있으면 OCR 캐시를 재활용하여 번역만 실행한다.
      */
     private suspend fun processPageOcr(pageIndex: Int): PageOcrResult? {
         val state = currentState
         val archive = state.archive ?: return null
 
-        // 캐시 먼저 확인
+        // 1. 번역 캐시 먼저 확인 (OCR + 번역 결과가 모두 있음)
         val cached = getPageTranslationCacheUseCase(archive.id, pageIndex)
         if (cached != null) {
             val ocrResults = cached.blocks.map { block ->
@@ -540,7 +823,6 @@ class ViewerViewModel(
             val translationResults = cached.blocks.map { block ->
                 TranslationResult(block.originalText, block.translatedText)
             }
-            // 캐시에 색상이 있으면 이미지 로드 없이 복원, 없으면 추출
             val hasColors = cached.blocks.all { it.dominantColorArgb != null }
             val colors = if (hasColors && cached.blocks.isNotEmpty()) {
                 cached.blocks.map { Color(it.dominantColorArgb!!) }
@@ -560,13 +842,61 @@ class ViewerViewModel(
             )
         }
 
-        // 캐시 미스 — 이미지 로드 후 OCR 실행
+        // 2. 자동 OCR 진행 중이면 완료 대기
+        if (state.autoOcrEnabled && autoOcrJob?.isActive == true) {
+            autoOcrJob?.join()
+        }
+
+        // 3. OCR 전용 캐시 확인 (자동 OCR 또는 이전 실행으로 저장된 것)
+        val ocrCache = getPageOcrCacheUseCase(archive.id, pageIndex)
+        if (ocrCache != null && ocrCache.blocks.isNotEmpty()) {
+            return ocrCacheToFullResult(archive.id, pageIndex, ocrCache)
+        }
+
+        // 4. 캐시 미스 — OCR + 번역 전체 실행
+        return runFullOcrAndTranslate(archive.id, pageIndex)
+    }
+
+    /** OCR 캐시가 있을 때 번역만 추가로 실행하여 PageOcrResult를 생성한다. */
+    private suspend fun ocrCacheToFullResult(
+        archiveId: Long, pageIndex: Int, ocrCache: PageOcrCache,
+    ): PageOcrResult? {
+        val ocrResults = ocrCache.blocks.map { block ->
+            TextBlock(block.x, block.y, block.width, block.height, block.text)
+        }
+        val imgW = ocrCache.imageWidth
+        val imgH = ocrCache.imageHeight
+
+        val translationResults = if (ocrResults.isNotEmpty()) {
+            translateTextUseCase(ocrResults.map { it.text })
+        } else {
+            emptyList()
+        }
+
+        val imageBytes = getImageBytes(pageIndex) ?: return null
+        val colors = if (ocrResults.isNotEmpty()) {
+            extractDominantColors(imageBytes, ocrResults)
+        } else {
+            emptyList()
+        }
+
+        // 전체 번역 캐시 저장
+        saveFinalCache(archiveId, pageIndex, imgW, imgH, ocrResults, translationResults, colors)
+
+        return PageOcrResult(
+            pageIndex = pageIndex, imageWidth = imgW, imageHeight = imgH,
+            ocrResults = ocrResults, translationResults = translationResults,
+            overlayColors = colors,
+        )
+    }
+
+    /** OCR 캐시도 없을 때 처음부터 OCR + 번역을 실행한다. */
+    private suspend fun runFullOcrAndTranslate(archiveId: Long, pageIndex: Int): PageOcrResult? {
         val imageBytes = getImageBytes(pageIndex) ?: return null
         val (imgW, imgH) = getImageDimensions(imageBytes)
 
         val ocrResults = recognizePageTextUseCase(imageBytes)
 
-        // 빈 OCR 결과도 캐시 저장 — 텍스트 없는 페이지의 불필요한 재실행 방지
         val translationResults = if (ocrResults.isNotEmpty()) {
             translateTextUseCase(ocrResults.map { it.text })
         } else {
@@ -578,13 +908,26 @@ class ViewerViewModel(
             emptyList()
         }
 
-        // 캐시 저장 (빈 결과 포함, 색상도 함께 저장)
+        saveFinalCache(archiveId, pageIndex, imgW, imgH, ocrResults, translationResults, colors)
+
+        return PageOcrResult(
+            pageIndex = pageIndex, imageWidth = imgW, imageHeight = imgH,
+            ocrResults = ocrResults, translationResults = translationResults,
+            overlayColors = colors,
+        )
+    }
+
+    /** OCR + 번역 결과를 PageTranslationCache로 저장한다. */
+    private suspend fun saveFinalCache(
+        archiveId: Long, pageIndex: Int,
+        imgW: Int, imgH: Int,
+        ocrResults: List<TextBlock>,
+        translationResults: List<TranslationResult>,
+        colors: List<Color>,
+    ) {
         val blocks = ocrResults.zip(translationResults).mapIndexed { i, (ocr, tr) ->
             TranslationBlock(
-                x = ocr.x,
-                y = ocr.y,
-                width = ocr.width,
-                height = ocr.height,
+                x = ocr.x, y = ocr.y, width = ocr.width, height = ocr.height,
                 originalText = tr.originalText,
                 translatedText = tr.translatedText,
                 dominantColorArgb = colors.getOrNull(i)?.let { color ->
@@ -597,22 +940,10 @@ class ViewerViewModel(
         }
         savePageTranslationCacheUseCase(
             PageTranslationCache(
-                archiveId = archive.id,
-                page = pageIndex,
-                imageWidth = imgW,
-                imageHeight = imgH,
-                blocks = blocks,
-                createdAt = Clock.System.now().toEpochMilliseconds()
+                archiveId = archiveId, page = pageIndex,
+                imageWidth = imgW, imageHeight = imgH,
+                blocks = blocks, createdAt = Clock.System.now().toEpochMilliseconds(),
             )
-        )
-
-        return PageOcrResult(
-            pageIndex = pageIndex,
-            imageWidth = imgW,
-            imageHeight = imgH,
-            ocrResults = ocrResults,
-            translationResults = translationResults,
-            overlayColors = colors,
         )
     }
 

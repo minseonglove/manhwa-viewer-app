@@ -2,6 +2,7 @@ package com.manhwaviewer.presentation.screen.viewer
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import androidx.compose.ui.graphics.Color
+import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
@@ -17,6 +18,10 @@ enum class TranslationMode {
 
 enum class PipelineStage {
     IDLE, DETECTING, CROPPING, RECOGNIZING, TRANSLATING, DONE
+}
+
+enum class AutoOcrStatus {
+    IDLE, PROCESSING, DONE
 }
 
 data class CropRect(
@@ -53,6 +58,12 @@ data class ViewerState(
     val cachedImageHeight: Int = 0,
     val cachedOverlayColors: List<Color> = emptyList(),
     val visibleCachedBlockIndices: Set<Int> = emptySet(),
+    val autoOcrEnabled: Boolean = false,
+    val autoOcrStatus: AutoOcrStatus = AutoOcrStatus.IDLE,
+    val autoOcrBlocks: List<OcrBlock> = emptyList(),
+    val autoOcrImageWidth: Int = 0,
+    val autoOcrImageHeight: Int = 0,
+    val selectedOcrBlockIndices: Set<Int> = emptySet(),
 )
 
 sealed interface ViewerIntent {
@@ -83,6 +94,8 @@ sealed interface ViewerIntent {
     data class SetViewMode(val mode: ViewMode) : ViewerIntent
     data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent
     data class ToggleCachedBlockOverlay(val blockIndex: Int) : ViewerIntent
+    data object ToggleAutoOcr : ViewerIntent
+    data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {

@@ -49,6 +49,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -85,6 +87,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.presentation.screen.common.displayName
+import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
@@ -296,6 +299,12 @@ fun ViewerScreen(
                             cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
                             visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
                             onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
+                            autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
+                            autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
+                            autoOcrStatus = if (page == state.currentPage) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
+                            onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -390,6 +399,12 @@ fun ViewerScreen(
                             cachedOverlayColors = if (isCurrentSpread) state.cachedOverlayColors else emptyList(),
                             visibleCachedBlockIndices = if (isCurrentSpread) state.visibleCachedBlockIndices else emptySet(),
                             onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            autoOcrBlocks = if (isCurrentSpread) state.autoOcrBlocks else emptyList(),
+                            autoOcrImageWidth = if (isCurrentSpread) state.autoOcrImageWidth else 0,
+                            autoOcrImageHeight = if (isCurrentSpread) state.autoOcrImageHeight else 0,
+                            autoOcrStatus = if (isCurrentSpread) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            selectedOcrBlockIndices = if (isCurrentSpread) state.selectedOcrBlockIndices else emptySet(),
+                            onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -476,6 +491,12 @@ fun ViewerScreen(
                             cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
                             visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
                             onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
+                            autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
+                            autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
+                            autoOcrStatus = if (page == state.currentPage) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
+                            onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -763,6 +784,56 @@ fun ViewerScreen(
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
                     )
+                }
+
+                // 자동 OCR 토글
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "자동 OCR",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = state.autoOcrEnabled,
+                        onCheckedChange = { viewModel.onIntent(ViewerIntent.ToggleAutoOcr) },
+                        modifier = Modifier.height(20.dp),
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = BoundingBoxColor,
+                            uncheckedThumbColor = Color.White.copy(alpha = 0.6f),
+                            uncheckedTrackColor = Color.White.copy(alpha = 0.2f),
+                        ),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    when (state.autoOcrStatus) {
+                        AutoOcrStatus.PROCESSING -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = OcrButtonColor,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "진행 중...",
+                                color = OcrButtonColor,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        AutoOcrStatus.DONE -> {
+                            Text(
+                                text = "OCR 완료!",
+                                color = BoundingBoxColor,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        AutoOcrStatus.IDLE -> {}
+                    }
                 }
 
                 // 1행: 페이지 표시 + RTL/LTR 배지
@@ -1160,6 +1231,12 @@ private fun ZoomableImage(
     cachedOverlayColors: List<androidx.compose.ui.graphics.Color>,
     visibleCachedBlockIndices: Set<Int>,
     onCachedBlockTap: (Int) -> Unit,
+    autoOcrBlocks: List<OcrBlock>,
+    autoOcrImageWidth: Int,
+    autoOcrImageHeight: Int,
+    autoOcrStatus: AutoOcrStatus,
+    selectedOcrBlockIndices: Set<Int>,
+    onOcrBlockTap: (Int) -> Unit,
     onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
 ) {
     val zoomableState = rememberZoomableState(
@@ -1205,6 +1282,11 @@ private fun ZoomableImage(
     val currentCachedImageWidth by rememberUpdatedState(cachedImageWidth)
     val currentCachedImageHeight by rememberUpdatedState(cachedImageHeight)
     val currentOnCachedBlockTap by rememberUpdatedState(onCachedBlockTap)
+    val currentAutoOcrBlocks by rememberUpdatedState(autoOcrBlocks)
+    val currentAutoOcrImageWidth by rememberUpdatedState(autoOcrImageWidth)
+    val currentAutoOcrImageHeight by rememberUpdatedState(autoOcrImageHeight)
+    val currentAutoOcrStatus by rememberUpdatedState(autoOcrStatus)
+    val currentOnOcrBlockTap by rememberUpdatedState(onOcrBlockTap)
 
     // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
     // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
@@ -1259,14 +1341,26 @@ private fun ZoomableImage(
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
                                 var handled = false
-                                if (currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
-                                    // SubSamplingImage 경로: contentTransformation이 ContentScale을 포함하므로
-                                    // 역변환만으로 이미지 픽셀 좌표를 얻을 수 있다 (calculateImageTransform 불필요)
-                                    val tf = zoomableState.contentTransformation
-                                    val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
-                                    val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                    val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                    val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                val tf = zoomableState.contentTransformation
+                                val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                                val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                                val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
+                                if (!handled && currentAutoOcrStatus == AutoOcrStatus.DONE &&
+                                    currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
+                                    val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
+                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                    }
+                                    if (hitIdx >= 0) {
+                                        currentOnOcrBlockTap(hitIdx)
+                                        handled = true
+                                    }
+                                }
+
+                                // 캐시된 블록 탭 (자동 OCR OFF일 때)
+                                if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
                                     val hitIdx = currentCachedBlocks.indexOfFirst { b ->
                                         imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
                                             imgY in b.y.toFloat()..(b.y + b.height).toFloat()
@@ -1379,6 +1473,24 @@ private fun ZoomableImage(
                             modifier = overlayZoomModifier(cachedImageWidth, cachedImageHeight),
                         )
                     }
+
+                    // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
+                    if (autoOcrStatus == AutoOcrStatus.DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                        val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
+                            selectedOcrBlockIndices.sorted().mapNotNull { i ->
+                                autoOcrBlocks.getOrNull(i)?.let {
+                                    TextBlock(it.x, it.y, it.width, it.height, it.text)
+                                }
+                            }
+                        }
+                        BoundingBoxDisplayOverlay(
+                            textBlocks = selectedTextBlocks,
+                            imageWidth = autoOcrImageWidth,
+                            imageHeight = autoOcrImageHeight,
+                            imageScaleMode = ImageScaleMode.AUTO_FIT,
+                            modifier = overlayZoomModifier(autoOcrImageWidth, autoOcrImageHeight),
+                        )
+                    }
                 } else {
                     CircularProgressIndicator(color = Color.White)
                 }
@@ -1406,16 +1518,33 @@ private fun ZoomableImage(
                         onClick = if (!isAreaSelectMode && !isTranslationActive) {
                             { offset ->
                                 var handled = false
-                                if (currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
-                                    // Coil 경로: scaledInsideAndCenterAligned 사용 시 contentTransformation은
-                                    // userZoom/pan만 포함 (fit 스케일 미포함). 2단계 역변환 필요:
-                                    // 1) contentTransformation 역변환 → 로컬(줌 전) 좌표
-                                    // 2) calculateImageTransform 역변환 → 이미지 픽셀 좌표
-                                    val tf = zoomableState.contentTransformation
-                                    val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
-                                    val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                    val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                    val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                val tf = zoomableState.contentTransformation
+                                val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                                val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                                val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
+                                if (!handled && currentAutoOcrStatus == AutoOcrStatus.DONE &&
+                                    currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
+                                    val (fitScale, fitOffset) = calculateImageTransform(
+                                        ImageScaleMode.AUTO_FIT,
+                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                        currentAutoOcrImageWidth.toFloat(), currentAutoOcrImageHeight.toFloat(),
+                                    )
+                                    val hitX = (localX - fitOffset.x) / fitScale
+                                    val hitY = (localY - fitOffset.y) / fitScale
+                                    val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
+                                        hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                            hitY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                    }
+                                    if (hitIdx >= 0) {
+                                        currentOnOcrBlockTap(hitIdx)
+                                        handled = true
+                                    }
+                                }
+
+                                // 캐시된 블록 탭 (자동 OCR OFF일 때)
+                                if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
                                     val (fitScale, fitOffset) = calculateImageTransform(
                                         ImageScaleMode.AUTO_FIT,
                                         containerSize.width.toFloat(), containerSize.height.toFloat(),
@@ -1547,6 +1676,24 @@ private fun ZoomableImage(
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
+
+                            // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
+                            if (autoOcrStatus == AutoOcrStatus.DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                                val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
+                                    selectedOcrBlockIndices.sorted().mapNotNull { i ->
+                                        autoOcrBlocks.getOrNull(i)?.let {
+                                            TextBlock(it.x, it.y, it.width, it.height, it.text)
+                                        }
+                                    }
+                                }
+                                BoundingBoxDisplayOverlay(
+                                    textBlocks = selectedTextBlocks,
+                                    imageWidth = autoOcrImageWidth,
+                                    imageHeight = autoOcrImageHeight,
+                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                         }
                         else -> {}
                     }
@@ -1599,6 +1746,44 @@ private fun BoundingBoxOverlay(
                 }
             },
     ) {
+        if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
+        val (scale, transformOffset) = calculateImageTransform(
+            imageScaleMode, size.width, size.height,
+            imageWidth.toFloat(), imageHeight.toFloat(),
+        )
+
+        textBlocks.forEach { block ->
+            drawRect(
+                color = BoundingBoxColor,
+                topLeft = Offset(
+                    x = block.x * scale + transformOffset.x,
+                    y = block.y * scale + transformOffset.y,
+                ),
+                size = Size(
+                    width = block.width * scale,
+                    height = block.height * scale,
+                ),
+                style = Stroke(
+                    width = 2f,
+                    pathEffect = dashEffect,
+                ),
+            )
+        }
+    }
+}
+
+/** 바운딩 박스를 그리기만 하고 터치를 소비하지 않는 오버레이. */
+@Composable
+private fun BoundingBoxDisplayOverlay(
+    textBlocks: List<TextBlock>,
+    imageWidth: Int,
+    imageHeight: Int,
+    imageScaleMode: ImageScaleMode,
+    modifier: Modifier = Modifier,
+) {
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f), 0f)
+
+    Canvas(modifier = modifier) {
         if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
         val (scale, transformOffset) = calculateImageTransform(
             imageScaleMode, size.width, size.height,
