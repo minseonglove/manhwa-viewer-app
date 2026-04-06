@@ -833,19 +833,29 @@ class ViewerViewModel(
 
                 // 크롭된 이미지로 OCR 실행
                 val results = recognizePageTextUseCase(croppedBytes)
-                val (cropImgW, cropImgH) = getImageDimensions(croppedBytes)
 
-                val combinedText = results.joinToString("\n") { it.text }
+                // OCR 좌표를 크롭 영역 기준 → 전체 페이지 기준으로 변환
+                val pageResults = results.map { block ->
+                    TextBlock(
+                        x = block.x + imgLeft,
+                        y = block.y + imgTop,
+                        width = block.width,
+                        height = block.height,
+                        text = block.text,
+                    )
+                }
+
+                val combinedText = pageResults.joinToString("\n") { it.text }
 
                 updateState {
                     copy(
                         pipelineStage = PipelineStage.TRANSLATING,
                         isOcrProcessing = false,
-                        ocrResults = results,
+                        ocrResults = pageResults,
                         ocrBottomSheetText = combinedText.ifEmpty { null },
                         isOcrSheetExpanded = combinedText.isNotEmpty(),
-                        ocrImageWidth = cropImgW,
-                        ocrImageHeight = cropImgH,
+                        ocrImageWidth = imgW,
+                        ocrImageHeight = imgH,
                     )
                 }
 
@@ -859,7 +869,7 @@ class ViewerViewModel(
                                 translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
-                                showTranslationOverlay = translationResults.isNotEmpty(),
+                                showTranslationOverlay = false,
                                 overlayColors = colors,
                             )
                         }
