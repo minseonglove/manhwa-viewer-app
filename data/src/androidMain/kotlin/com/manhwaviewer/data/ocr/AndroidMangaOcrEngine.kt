@@ -5,13 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import ai.onnxruntime.OnnxJavaType
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.FloatBuffer
 import java.nio.LongBuffer
 
 class AndroidMangaOcrEngine(
@@ -67,35 +67,37 @@ class AndroidMangaOcrEngine(
         return file.absolutePath
     }
 
-    private fun preprocessImage(bitmap: Bitmap): FloatBuffer {
+    private fun preprocessImage(bitmap: Bitmap): ByteBuffer {
         val size = MangaOcrConfig.IMAGE_SIZE
         val pixels = IntArray(size * size)
         bitmap.getPixels(pixels, 0, size, 0, 0, size, size)
 
-        val buffer = ByteBuffer.allocateDirect(3 * size * size * 4)
+        val area = size * size
+        val buffer = ByteBuffer.allocateDirect(3 * area * 2)
             .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
         for (i in pixels.indices) {
             val pixel = pixels[i]
-            buffer.put(i, ((pixel shr 16 and 0xFF) / 127.5f) - 1.0f)
-            buffer.put(size * size + i, ((pixel shr 8 and 0xFF) / 127.5f) - 1.0f)
-            buffer.put(2 * size * size + i, ((pixel and 0xFF) / 127.5f) - 1.0f)
+            buffer.putShort(i * 2, floatToHalf(((pixel shr 16 and 0xFF) / 127.5f) - 1.0f))
+            buffer.putShort((area + i) * 2, floatToHalf(((pixel shr 8 and 0xFF) / 127.5f) - 1.0f))
+            buffer.putShort((2 * area + i) * 2, floatToHalf(((pixel and 0xFF) / 127.5f) - 1.0f))
         }
         return buffer
     }
 
-    private fun runEncoder(pixelValues: FloatBuffer): FloatArray {
+    private fun runEncoder(pixelValues: ByteBuffer): FloatArray {
         val env = ortEnv!!
         val shape = longArrayOf(
             1, 3, MangaOcrConfig.IMAGE_SIZE.toLong(), MangaOcrConfig.IMAGE_SIZE.toLong()
         )
-        val tensor = OnnxTensor.createTensor(env, pixelValues, shape)
+        val tensor = OnnxTensor.createTensor(env, pixelValues, shape, OnnxJavaType.FLOAT16)
 
         val results = encoderSession!!.run(mapOf("pixel_values" to tensor))
         val outputTensor = results.get(0) as OnnxTensor
-        val buffer = outputTensor.floatBuffer
-        val output = FloatArray(buffer.remaining())
-        buffer.get(output)
+        val shortBuffer = outputTensor.shortBuffer
+        val output = FloatArray(shortBuffer.remaining())
+        for (i in output.indices) {
+            output[i] = halfToFloat(shortBuffer.get(i))
+        }
 
         results.close()
         tensor.close()
@@ -109,8 +111,8 @@ class AndroidMangaOcrEngine(
             MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(),
             MangaOcrConfig.ENCODER_HIDDEN_SIZE.toLong(),
         )
-        val encoderDirectBuf = createDirectFloatBuffer(encoderOutput)
-        val encoderTensor = OnnxTensor.createTensor(env, encoderDirectBuf, encoderShape)
+        val encoderHalfBuf = createHalfBuffer(encoderOutput)
+        val encoderTensor = OnnxTensor.createTensor(env, encoderHalfBuf, encoderShape, OnnxJavaType.FLOAT16)
 
         val inputIds = LongArray(MangaOcrConfig.MAX_LENGTH + 1)
         inputIds[0] = MangaOcrConfig.DECODER_START_TOKEN_ID.toLong()
@@ -131,14 +133,13 @@ class AndroidMangaOcrEngine(
                 )
 
                 val logitsTensor = results.get(0) as OnnxTensor
-                val logitsBuffer = logitsTensor.floatBuffer
+                val logitsShort = logitsTensor.shortBuffer
                 val lastPosOffset = (seqLen - 1) * MangaOcrConfig.VOCAB_SIZE
-                logitsBuffer.position(lastPosOffset)
 
                 var maxIdx = 0
-                var maxVal = logitsBuffer.get()
+                var maxVal = halfToFloat(logitsShort.get(lastPosOffset))
                 for (i in 1 until MangaOcrConfig.VOCAB_SIZE) {
-                    val v = logitsBuffer.get()
+                    val v = halfToFloat(logitsShort.get(lastPosOffset + i))
                     if (v > maxVal) {
                         maxVal = v
                         maxIdx = i
@@ -175,12 +176,12 @@ class AndroidMangaOcrEngine(
         return padded
     }
 
-    private fun createDirectFloatBuffer(data: FloatArray): FloatBuffer {
-        val buffer = ByteBuffer.allocateDirect(data.size * 4)
+    private fun createHalfBuffer(data: FloatArray): ByteBuffer {
+        val buffer = ByteBuffer.allocateDirect(data.size * 2)
             .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
-        buffer.put(data)
-        buffer.rewind()
+        for (i in data.indices) {
+            buffer.putShort(i * 2, floatToHalf(data[i]))
+        }
         return buffer
     }
 

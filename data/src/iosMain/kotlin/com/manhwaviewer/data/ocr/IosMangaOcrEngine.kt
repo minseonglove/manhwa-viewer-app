@@ -48,9 +48,9 @@ class IosMangaOcrEngine : MangaOcrEngine {
             val options = optionsPtr.value!!
 
             val bundle = NSBundle.mainBundle
-            val encoderPath = bundle.pathForResource("mangaocr/encoder_model", "onnx")
+            val encoderPath = bundle.pathForResource("mangaocr/encoder_model_fp16", "onnx")
                 ?: error("Encoder model not found in bundle")
-            val decoderPath = bundle.pathForResource("mangaocr/decoder_model", "onnx")
+            val decoderPath = bundle.pathForResource("mangaocr/decoder_model_fp16", "onnx")
                 ?: error("Decoder model not found in bundle")
 
             val encSessionPtr = alloc<CPointerVar<OrtSession>>()
@@ -75,7 +75,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
         tokenizer = MangaOcrTokenizer(vocabContent.toString().lines())
     }
 
-    private fun decodeAndPreprocessImage(imageBytes: ByteArray): FloatArray {
+    private fun decodeAndPreprocessImage(imageBytes: ByteArray): ShortArray {
         val nsData = imageBytes.usePinned { pinned ->
             NSData.create(bytes = pinned.addressOf(0), length = imageBytes.size.toULong())
         }
@@ -107,7 +107,6 @@ class IosMangaOcrEngine : MangaOcrEngine {
                 CGImageAlphaInfo.kCGImageAlphaPremultipliedLast.value or
                     kCGBitmapByteOrder32Big,
             ) ?: error("Failed to create bitmap context")
-            // 흰색 배경으로 채운 뒤, 비율 유지 리사이즈 이미지를 중앙에 배치
             CGContextSetRGBFillColor(context, 1.0, 1.0, 1.0, 1.0)
             CGContextFillRect(context, CGRectMake(0.0, 0.0, size.toDouble(), size.toDouble()))
             CGContextDrawImage(
@@ -119,22 +118,23 @@ class IosMangaOcrEngine : MangaOcrEngine {
             CGColorSpaceRelease(colorSpace)
         }
 
-        val result = FloatArray(3 * size * size)
-        for (i in 0 until size * size) {
+        val area = size * size
+        val result = ShortArray(3 * area)
+        for (i in 0 until area) {
             val r = rawData[i * 4].toInt() and 0xFF
             val g = rawData[i * 4 + 1].toInt() and 0xFF
             val b = rawData[i * 4 + 2].toInt() and 0xFF
-            result[i] = r / 127.5f - 1.0f
-            result[size * size + i] = g / 127.5f - 1.0f
-            result[2 * size * size + i] = b / 127.5f - 1.0f
+            result[i] = floatToHalf(r / 127.5f - 1.0f)
+            result[area + i] = floatToHalf(g / 127.5f - 1.0f)
+            result[2 * area + i] = floatToHalf(b / 127.5f - 1.0f)
         }
         return result
     }
 
-    private fun runEncoder(pixelValues: FloatArray): FloatArray = memScoped {
+    private fun runEncoder(pixelValues: ShortArray): ShortArray = memScoped {
         val size = MangaOcrConfig.IMAGE_SIZE
         val shape = allocArrayOf(1L, 3L, size.toLong(), size.toLong())
-        val inputTensor = createFloatTensor(pixelValues, shape, 4)
+        val inputTensor = createHalfTensor(pixelValues, shape, 4)
 
         val inputName = allocArrayOf("pixel_values".cstr.ptr)
         val outputName = allocArrayOf("last_hidden_state".cstr.ptr)
@@ -149,19 +149,19 @@ class IosMangaOcrEngine : MangaOcrEngine {
             )
         )
 
-        val output = extractFloatData(outputTensorPtr.value!!)
+        val output = extractHalfData(outputTensorPtr.value!!)
         api!!.pointed.ReleaseValue!!(inputTensor.value)
         api!!.pointed.ReleaseValue!!(outputTensorPtr.value)
         output
     }
 
-    private fun greedyDecode(encoderOutput: FloatArray): List<Int> = memScoped {
+    private fun greedyDecode(encoderOutput: ShortArray): List<Int> = memScoped {
         val encoderShape = allocArrayOf(
             1L,
             MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(),
             MangaOcrConfig.ENCODER_HIDDEN_SIZE.toLong(),
         )
-        val encoderTensor = createFloatTensor(encoderOutput, encoderShape, 3)
+        val encoderTensor = createHalfTensor(encoderOutput, encoderShape, 3)
 
         val inputIds = LongArray(MangaOcrConfig.MAX_LENGTH + 1)
         inputIds[0] = MangaOcrConfig.DECODER_START_TOKEN_ID.toLong()
@@ -207,13 +207,13 @@ class IosMangaOcrEngine : MangaOcrEngine {
 
         val dataPtr = alloc<COpaquePointerVar>()
         checkStatus(api!!.pointed.GetTensorMutableData!!(outputTensorPtr.value, dataPtr.ptr))
-        val floatPtr = dataPtr.value!!.reinterpret<FloatVar>()
+        val shortPtr = dataPtr.value!!.reinterpret<ShortVar>()
         val offset = (seqLen - 1) * MangaOcrConfig.VOCAB_SIZE
 
         var maxIdx = 0
-        var maxVal = floatPtr[offset]
+        var maxVal = halfToFloat(shortPtr[offset])
         for (i in 1 until MangaOcrConfig.VOCAB_SIZE) {
-            val v = floatPtr[offset + i]
+            val v = halfToFloat(shortPtr[offset + i])
             if (v > maxVal) {
                 maxVal = v
                 maxIdx = i
@@ -225,8 +225,8 @@ class IosMangaOcrEngine : MangaOcrEngine {
         maxIdx
     }
 
-    private fun MemScope.createFloatTensor(
-        data: FloatArray,
+    private fun MemScope.createHalfTensor(
+        data: ShortArray,
         shape: CArrayPointer<LongVar>,
         shapeDims: Int,
     ): CPointerVar<OrtValue> {
@@ -242,10 +242,10 @@ class IosMangaOcrEngine : MangaOcrEngine {
                 api!!.pointed.CreateTensorWithDataAsOrtValue!!(
                     memInfoPtr.value,
                     pinned.addressOf(0),
-                    (data.size * 4).toULong(),
+                    (data.size * 2).toULong(),
                     shape,
                     shapeDims.toULong(),
-                    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
+                    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16,
                     tensorPtr.ptr,
                 )
             )
@@ -284,7 +284,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
         return tensorPtr
     }
 
-    private fun extractFloatData(tensor: CPointer<OrtValue>): FloatArray = memScoped {
+    private fun extractHalfData(tensor: CPointer<OrtValue>): ShortArray = memScoped {
         val dataPtr = alloc<COpaquePointerVar>()
         checkStatus(api!!.pointed.GetTensorMutableData!!(tensor, dataPtr.ptr))
 
@@ -297,8 +297,8 @@ class IosMangaOcrEngine : MangaOcrEngine {
 
         api!!.pointed.ReleaseTensorTypeAndShapeInfo!!(infoPtr.value)
 
-        val floatPtr = dataPtr.value!!.reinterpret<FloatVar>()
-        FloatArray(count) { floatPtr[it] }
+        val shortPtr = dataPtr.value!!.reinterpret<ShortVar>()
+        ShortArray(count) { shortPtr[it] }
     }
 
     private fun checkStatus(status: CPointer<OrtStatus>?) {

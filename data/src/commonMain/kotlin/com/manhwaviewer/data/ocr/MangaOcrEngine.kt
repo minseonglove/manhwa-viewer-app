@@ -15,8 +15,8 @@ object MangaOcrConfig {
     const val EOS_TOKEN_ID = 3
     val SPECIAL_TOKEN_IDS = setOf(0, 1, 2, 3, 4)
 
-    const val ENCODER_MODEL = "mangaocr/encoder_model.onnx"
-    const val DECODER_MODEL = "mangaocr/decoder_model.onnx"
+    const val ENCODER_MODEL = "mangaocr/encoder_model_fp16.onnx"
+    const val DECODER_MODEL = "mangaocr/decoder_model_fp16.onnx"
     const val VOCAB_FILE = "mangaocr/vocab.txt"
     const val CTD_MODEL = "mangaocr/comic-text-detector_fp16.onnx"
     const val CTD_INPUT_SIZE = 1024
