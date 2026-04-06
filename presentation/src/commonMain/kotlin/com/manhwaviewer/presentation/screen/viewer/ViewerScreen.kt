@@ -1390,16 +1390,25 @@ private fun ZoomableImage(
                             { offset ->
                                 var handled = false
                                 if (currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
-                                    // Coil 경로: setContentLocation으로 실제 이미지 크기를 전달하므로
-                                    // contentTransformation이 ContentScale을 포함한다 (calculateImageTransform 불필요)
+                                    // Coil 경로: scaledInsideAndCenterAligned 사용 시 contentTransformation은
+                                    // userZoom/pan만 포함 (fit 스케일 미포함). 2단계 역변환 필요:
+                                    // 1) contentTransformation 역변환 → 로컬(줌 전) 좌표
+                                    // 2) calculateImageTransform 역변환 → 이미지 픽셀 좌표
                                     val tf = zoomableState.contentTransformation
                                     val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
                                     val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                    val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                    val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                                    val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                                    val (fitScale, fitOffset) = calculateImageTransform(
+                                        ImageScaleMode.AUTO_FIT,
+                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                        currentCachedImageWidth.toFloat(), currentCachedImageHeight.toFloat(),
+                                    )
+                                    val hitX = (localX - fitOffset.x) / fitScale
+                                    val hitY = (localY - fitOffset.y) / fitScale
                                     val hitIdx = currentCachedBlocks.indexOfFirst { b ->
-                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
-                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                        hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                            hitY in b.y.toFloat()..(b.y + b.height).toFloat()
                                     }
                                     if (hitIdx >= 0) {
                                         currentOnCachedBlockTap(hitIdx)

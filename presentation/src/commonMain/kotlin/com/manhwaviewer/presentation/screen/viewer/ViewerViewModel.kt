@@ -58,7 +58,32 @@ class ViewerViewModel(
     init {
         viewModelScope.launch {
             getViewerPreferenceUseCase().collect { pref ->
+                val oldMode = currentState.preference.viewMode
                 updateState { copy(preference = pref) }
+                // viewMode가 변경되면 좌표계가 달라지므로 오버레이 상태 초기화 + 캐시 리로드
+                if (pref.viewMode != oldMode && currentState.totalPages > 0) {
+                    ocrJob?.cancel()
+                    cacheJob?.cancel()
+                    updateState {
+                        copy(
+                            ocrResults = emptyList(),
+                            ocrBottomSheetText = null,
+                            translationResults = emptyList(),
+                            pipelineStage = PipelineStage.IDLE,
+                            isOcrSheetExpanded = false,
+                            showTranslationOverlay = false,
+                            overlayColors = emptyList(),
+                            ocrImageWidth = 0,
+                            ocrImageHeight = 0,
+                            cachedBlocks = emptyList(),
+                            cachedImageWidth = 0,
+                            cachedImageHeight = 0,
+                            cachedOverlayColors = emptyList(),
+                            visibleCachedBlockIndices = emptySet(),
+                        )
+                    }
+                    loadCachedTranslation(currentState.currentPage)
+                }
             }
         }
     }
