@@ -74,6 +74,7 @@ sealed interface ViewerIntent {
         val zoomOffsetY: Float = 0f,
         val transformOriginX: Float = 0.5f,
         val transformOriginY: Float = 0.5f,
+        val useSubSampling: Boolean = false,
     ) : ViewerIntent
     data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent

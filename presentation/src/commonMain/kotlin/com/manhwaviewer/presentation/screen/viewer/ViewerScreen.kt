@@ -286,6 +286,7 @@ fun ViewerScreen(
                                         zoomOffsetY = zoomOffsetY,
                                         transformOriginX = zoomOriginX,
                                         transformOriginY = zoomOriginY,
+                                        useSubSampling = true,
                                     )
                                 )
                             },
@@ -342,13 +343,17 @@ fun ViewerScreen(
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
-                                    pagerState.scrollToPage((spreadIndex - 1).coerceAtLeast(0))
+                                    val target = if (isRtl) (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
+                                                 else (spreadIndex - 1).coerceAtLeast(0)
+                                    pagerState.scrollToPage(target)
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
                                 coroutineScope.launch {
-                                    pagerState.scrollToPage((spreadIndex + 1).coerceAtMost(pagerPageCount - 1))
+                                    val target = if (isRtl) (spreadIndex - 1).coerceAtLeast(0)
+                                                 else (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
+                                    pagerState.scrollToPage(target)
                                 }
                             },
                             onUpdateCropRect = { rect ->
@@ -375,6 +380,7 @@ fun ViewerScreen(
                                         zoomOffsetY = zoomOffsetY,
                                         transformOriginX = zoomOriginX,
                                         transformOriginY = zoomOriginY,
+                                        useSubSampling = pageModel?.entryNames?.size == 1,
                                     )
                                 )
                             },
@@ -394,11 +400,11 @@ fun ViewerScreen(
                 }
 
                 ViewMode.SINGLE_PAGE -> {
-                    // 기존 HorizontalPager 코드 그대로 유지
+                    val isSinglePageRtl = state.preference.readingDirection == ReadingDirection.RTL
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        reverseLayout = state.preference.readingDirection == ReadingDirection.RTL,
+                        reverseLayout = isSinglePageRtl,
                         beyondViewportPageCount = 1,
                         userScrollEnabled = state.translationMode == TranslationMode.NONE,
                     ) { page ->
@@ -423,13 +429,17 @@ fun ViewerScreen(
                             isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
                                 coroutineScope.launch {
-                                    pagerState.scrollToPage((page - 1).coerceAtLeast(0))
+                                    val target = if (isSinglePageRtl) (page + 1).coerceAtMost(pagerPageCount - 1)
+                                                 else (page - 1).coerceAtLeast(0)
+                                    pagerState.scrollToPage(target)
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
                                 coroutineScope.launch {
-                                    pagerState.scrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                                    val target = if (isSinglePageRtl) (page - 1).coerceAtLeast(0)
+                                                 else (page + 1).coerceAtMost(pagerPageCount - 1)
+                                    pagerState.scrollToPage(target)
                                 }
                             },
                             onUpdateCropRect = { rect ->
@@ -456,6 +466,7 @@ fun ViewerScreen(
                                         zoomOffsetY = zoomOffsetY,
                                         transformOriginX = zoomOriginX,
                                         transformOriginY = zoomOriginY,
+                                        useSubSampling = true,
                                     )
                                 )
                             },
@@ -546,6 +557,11 @@ fun ViewerScreen(
                                 // 다시 선택: OCR 초기화 + 크롭 박스 재생성
                                 viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT))
                             } else {
+                                val isSubSampling = viewMode != ViewMode.DOUBLE_PAGE || run {
+                                    val spread = pageToSpread(state.currentPage)
+                                    val (_, secondPage) = spreadToPages(spread, state.totalPages)
+                                    secondPage == null
+                                }
                                 viewModel.onIntent(
                                     ViewerIntent.ConfirmCrop(
                                         containerWidth = viewerContainerSize.width,
@@ -556,6 +572,7 @@ fun ViewerScreen(
                                         zoomOffsetY = zoomOffsetY,
                                         transformOriginX = zoomOriginX,
                                         transformOriginY = zoomOriginY,
+                                        useSubSampling = isSubSampling,
                                     )
                                 )
                             }

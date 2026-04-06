@@ -22,6 +22,7 @@ import com.manhwaviewer.presentation.util.cropImageBytes
 import com.manhwaviewer.presentation.util.extractDominantColors
 import com.manhwaviewer.presentation.util.getImageDimensions
 import com.manhwaviewer.presentation.util.mergeImagesHorizontally
+import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -218,6 +219,7 @@ class ViewerViewModel(
                 intent.zoomScaleX, intent.zoomScaleY,
                 intent.zoomOffsetX, intent.zoomOffsetY,
                 intent.transformOriginX, intent.transformOriginY,
+                intent.useSubSampling,
             )
             is ViewerIntent.ExpandOcrResult -> updateState {
                 copy(isOcrSheetExpanded = true)
@@ -756,6 +758,7 @@ class ViewerViewModel(
         zoomOffsetY: Float,
         transformOriginX: Float,
         transformOriginY: Float,
+        useSubSampling: Boolean,
     ) {
         val crop = currentState.cropRect ?: return
         ocrJob?.cancel()
@@ -777,17 +780,6 @@ class ViewerViewModel(
                 val imgW = virtualLayout.totalWidth
                 val imgH = virtualLayout.totalHeight
 
-                // ImageScaleMode에 따른 좌표 변환: screen → image 좌표
-                val (fitScale, transformOffset) = calculateImageTransform(
-                    currentState.preference.imageScaleMode,
-                    containerWidth.toFloat(),
-                    containerHeight.toFloat(),
-                    imgW.toFloat(),
-                    imgH.toFloat(),
-                )
-                val fitOffsetX = transformOffset.x
-                val fitOffsetY = transformOffset.y
-
                 val cropMinX = minOf(crop.startX, crop.endX)
                 val cropMinY = minOf(crop.startY, crop.endY)
                 val cropMaxX = maxOf(crop.startX, crop.endX)
@@ -804,11 +796,33 @@ class ViewerViewModel(
                 val contentMaxX = screenToContentX(cropMaxX)
                 val contentMaxY = screenToContentY(cropMaxY)
 
-                // Step 2: content → image 좌표 (fit 변환 적용)
-                val imgLeft = ((contentMinX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
-                val imgTop = ((contentMinY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
-                val imgRight = ((contentMaxX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
-                val imgBottom = ((contentMaxY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
+                // Step 2: content → image 좌표
+                // SubSampling: contentTransformation이 fit 스케일을 포함하므로 Step 1만으로 이미지 좌표 획득
+                // Coil: contentTransformation은 baseZoom+userZoom만 포함, AUTO_FIT 역변환 필요
+                val imgLeft: Int
+                val imgTop: Int
+                val imgRight: Int
+                val imgBottom: Int
+                if (useSubSampling) {
+                    imgLeft = contentMinX.toInt().coerceIn(0, imgW)
+                    imgTop = contentMinY.toInt().coerceIn(0, imgH)
+                    imgRight = contentMaxX.toInt().coerceIn(0, imgW)
+                    imgBottom = contentMaxY.toInt().coerceIn(0, imgH)
+                } else {
+                    val (fitScale, transformOffset) = calculateImageTransform(
+                        ImageScaleMode.AUTO_FIT,
+                        containerWidth.toFloat(),
+                        containerHeight.toFloat(),
+                        imgW.toFloat(),
+                        imgH.toFloat(),
+                    )
+                    val fitOffsetX = transformOffset.x
+                    val fitOffsetY = transformOffset.y
+                    imgLeft = ((contentMinX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
+                    imgTop = ((contentMinY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
+                    imgRight = ((contentMaxX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
+                    imgBottom = ((contentMaxY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
+                }
                 val cropW = (imgRight - imgLeft).coerceAtLeast(1)
                 val cropH = (imgBottom - imgTop).coerceAtLeast(1)
 
