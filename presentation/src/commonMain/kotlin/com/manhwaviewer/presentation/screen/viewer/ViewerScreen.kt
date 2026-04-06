@@ -104,6 +104,8 @@ import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.zoomable
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -1289,6 +1291,30 @@ private fun ZoomableImage(
                     val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else result.imageSize.width
                     val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else result.imageSize.height
 
+                    // SubSamplingImage가 autoApplyTransformations=false로 설정하므로
+                    // 오버레이에 줌/팬 변환을 수동으로 적용해야 함
+                    fun overlayZoomModifier(imgW: Int, imgH: Int) = Modifier.fillMaxSize().graphicsLayer {
+                        val transform = zoomableState.contentTransformation
+                        if (transform.isSpecified && containerSize != IntSize.Zero && imgW > 0 && imgH > 0) {
+                            val fitScale = minOf(
+                                containerSize.width.toFloat() / imgW,
+                                containerSize.height.toFloat() / imgH,
+                            )
+                            if (fitScale > 0f) {
+                                val zoomX = transform.scale.scaleX / fitScale
+                                val zoomY = transform.scale.scaleY / fitScale
+                                val fitOffsetX = (containerSize.width - imgW * fitScale) / 2f
+                                val fitOffsetY = (containerSize.height - imgH * fitScale) / 2f
+
+                                scaleX = zoomX
+                                scaleY = zoomY
+                                translationX = transform.offset.x - fitOffsetX * zoomX
+                                translationY = transform.offset.y - fitOffsetY * zoomY
+                                transformOrigin = TransformOrigin(0f, 0f)
+                            }
+                        }
+                    }
+
                     // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
                     if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
                         BoundingBoxOverlay(
@@ -1297,7 +1323,7 @@ private fun ZoomableImage(
                             imageHeight = overlayHeight,
                             imageScaleMode = ImageScaleMode.AUTO_FIT,
                             onBlockTap = onTextBlockTap,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = overlayZoomModifier(overlayWidth, overlayHeight),
                         )
                     }
 
@@ -1310,7 +1336,7 @@ private fun ZoomableImage(
                             imageWidth = overlayWidth,
                             imageHeight = overlayHeight,
                             imageScaleMode = ImageScaleMode.AUTO_FIT,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = overlayZoomModifier(overlayWidth, overlayHeight),
                         )
                     }
 
@@ -1333,7 +1359,7 @@ private fun ZoomableImage(
                             imageWidth = cachedImageWidth,
                             imageHeight = cachedImageHeight,
                             imageScaleMode = ImageScaleMode.AUTO_FIT,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = overlayZoomModifier(cachedImageWidth, cachedImageHeight),
                         )
                     }
                 } else {
