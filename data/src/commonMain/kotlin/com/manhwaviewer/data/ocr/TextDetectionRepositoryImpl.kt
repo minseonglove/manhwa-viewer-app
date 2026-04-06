@@ -4,7 +4,10 @@ import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.repository.TextDetectionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
@@ -16,7 +19,10 @@ class TextDetectionRepositoryImpl(
 
     companion object {
         private const val HORIZONTAL_RATIO = 2.0f
+        private const val MAX_CONCURRENT_OCR = 3
     }
+
+    private val ocrSemaphore = Semaphore(MAX_CONCURRENT_OCR)
 
     override suspend fun detectAndRecognize(imageBytes: ByteArray): List<TextBlock> =
         withContext(Dispatchers.Default) {
@@ -33,27 +39,31 @@ class TextDetectionRepositoryImpl(
             }
             println("PageOCR | Split: ${horizontal.size} horizontal, ${vertical.size} vertical")
 
-            // 3. 가로/세로 병렬 인식 (서로 다른 엔진이므로 동시 실행 안전)
+            // 3. 영역별 병렬 인식 (Semaphore로 동시 추론 수 제한)
             coroutineScope {
-                val horizontalDeferred = async {
-                    horizontal.mapIndexed { i, region ->
-                        val ocrStart = now()
-                        val text = horizontalOcr.recognizeText(region.croppedImageBytes)
-                        println("PageOCR |   H[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
-                        TextBlock(region.x, region.y, region.width, region.height, text)
+                val horizontalResults = horizontal.mapIndexed { i, region ->
+                    async {
+                        ocrSemaphore.withPermit {
+                            val ocrStart = now()
+                            val text = horizontalOcr.recognizeText(region.croppedImageBytes)
+                            println("PageOCR |   H[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
+                            TextBlock(region.x, region.y, region.width, region.height, text)
+                        }
                     }
                 }
 
-                val verticalDeferred = async {
-                    vertical.mapIndexed { i, region ->
-                        val ocrStart = now()
-                        val text = verticalOcr.recognizeText(region.croppedImageBytes)
-                        println("PageOCR |   V[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
-                        TextBlock(region.x, region.y, region.width, region.height, text)
+                val verticalResults = vertical.mapIndexed { i, region ->
+                    async {
+                        ocrSemaphore.withPermit {
+                            val ocrStart = now()
+                            val text = verticalOcr.recognizeText(region.croppedImageBytes)
+                            println("PageOCR |   V[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
+                            TextBlock(region.x, region.y, region.width, region.height, text)
+                        }
                     }
                 }
 
-                val result = (horizontalDeferred.await() + verticalDeferred.await())
+                val result = (horizontalResults.awaitAll() + verticalResults.awaitAll())
                     .filter { it.text.containsCjkOrKana() }
                     .sortedWith(compareBy({ it.y }, { it.x }))
                 println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
