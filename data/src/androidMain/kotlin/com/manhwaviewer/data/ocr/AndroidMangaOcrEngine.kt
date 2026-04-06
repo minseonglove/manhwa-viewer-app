@@ -84,7 +84,7 @@ class AndroidMangaOcrEngine(
         return buffer
     }
 
-    private fun runEncoder(pixelValues: ByteBuffer): FloatArray {
+    private fun runEncoder(pixelValues: ByteBuffer): ByteBuffer {
         val env = ortEnv!!
         val shape = longArrayOf(
             1, 3, MangaOcrConfig.IMAGE_SIZE.toLong(), MangaOcrConfig.IMAGE_SIZE.toLong()
@@ -94,9 +94,10 @@ class AndroidMangaOcrEngine(
         val results = encoderSession!!.run(mapOf("pixel_values" to tensor))
         val outputTensor = results.get(0) as OnnxTensor
         val shortBuffer = outputTensor.shortBuffer
-        val output = FloatArray(shortBuffer.remaining())
-        for (i in output.indices) {
-            output[i] = halfToFloat(shortBuffer.get(i))
+        val output = ByteBuffer.allocateDirect(shortBuffer.remaining() * 2)
+            .order(ByteOrder.nativeOrder())
+        for (i in 0 until shortBuffer.remaining()) {
+            output.putShort(i * 2, shortBuffer.get(i))
         }
 
         results.close()
@@ -104,15 +105,14 @@ class AndroidMangaOcrEngine(
         return output
     }
 
-    private fun greedyDecode(encoderOutput: FloatArray): List<Int> {
+    private fun greedyDecode(encoderOutput: ByteBuffer): List<Int> {
         val env = ortEnv!!
         val encoderShape = longArrayOf(
             1,
             MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(),
             MangaOcrConfig.ENCODER_HIDDEN_SIZE.toLong(),
         )
-        val encoderHalfBuf = createHalfBuffer(encoderOutput)
-        val encoderTensor = OnnxTensor.createTensor(env, encoderHalfBuf, encoderShape, OnnxJavaType.FLOAT16)
+        val encoderTensor = OnnxTensor.createTensor(env, encoderOutput, encoderShape, OnnxJavaType.FLOAT16)
 
         val inputIds = LongArray(MangaOcrConfig.MAX_LENGTH + 1)
         inputIds[0] = MangaOcrConfig.DECODER_START_TOKEN_ID.toLong()
@@ -174,15 +174,6 @@ class AndroidMangaOcrEngine(
         if (scaled !== bitmap) scaled.recycle()
 
         return padded
-    }
-
-    private fun createHalfBuffer(data: FloatArray): ByteBuffer {
-        val buffer = ByteBuffer.allocateDirect(data.size * 2)
-            .order(ByteOrder.nativeOrder())
-        for (i in data.indices) {
-            buffer.putShort(i * 2, floatToHalf(data[i]))
-        }
-        return buffer
     }
 
     override fun close() {
