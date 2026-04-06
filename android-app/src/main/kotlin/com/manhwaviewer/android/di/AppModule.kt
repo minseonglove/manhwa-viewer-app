@@ -65,7 +65,7 @@ val appModule = module {
     single { getRoomDatabase(getDatabaseBuilder(androidContext())) }
     single { get<com.manhwaviewer.data.db.AppDatabase>().archiveFileDao() }
     single { get<com.manhwaviewer.data.db.AppDatabase>().translationCacheDao() }
-    single { get<com.manhwaviewer.data.db.AppDatabase>().pageTranslationCacheDao() }
+    single { get<com.manhwaviewer.data.db.AppDatabase>().pageOcrCacheDao() }
 
     // DataStore
     single { createPlatformDataStore(androidContext()) }

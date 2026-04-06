@@ -1,7 +1,10 @@
 package com.manhwaviewer.data.repository
 
-import com.manhwaviewer.data.db.PageTranslationCacheDao
-import com.manhwaviewer.data.db.PageTranslationCacheEntity
+import com.manhwaviewer.data.db.PageOcrCacheDao
+import com.manhwaviewer.data.db.PageOcrCacheEntity
+import com.manhwaviewer.data.db.PageOcrTranslationEntity
+import com.manhwaviewer.domain.entity.OcrBlock
+import com.manhwaviewer.domain.entity.PageOcrCache
 import com.manhwaviewer.domain.entity.PageTranslationCache
 import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.repository.PageTranslationCacheRepository
@@ -13,18 +16,17 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-private data class BlockDto(
+private data class OcrBlockDto(
     val x: Int,
     val y: Int,
     val w: Int,
     val h: Int,
-    val o: String,
     val t: String,
     val c: Int? = null,
 )
 
 class PageTranslationCacheRepositoryImpl(
-    private val dao: PageTranslationCacheDao,
+    private val dao: PageOcrCacheDao,
 ) : PageTranslationCacheRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -33,45 +35,99 @@ class PageTranslationCacheRepositoryImpl(
         archiveId: Long,
         page: Int,
     ): PageTranslationCache? = withContext(Dispatchers.IO) {
-        val entity = dao.findCache(archiveId, page) ?: return@withContext null
-        entity.toDomain()
+        val ocrEntity = dao.findOcrCache(archiveId, page) ?: return@withContext null
+        val translationEntity = dao.findTranslation(ocrEntity.id)
+        val ocrBlocks: List<OcrBlockDto> = json.decodeFromString(ocrEntity.blocksJson)
+
+        if (translationEntity == null) return@withContext null
+
+        val translations: List<String> = json.decodeFromString(translationEntity.translationsJson)
+
+        PageTranslationCache(
+            id = ocrEntity.id,
+            archiveId = ocrEntity.archiveId,
+            page = ocrEntity.page,
+            imageWidth = ocrEntity.imageWidth,
+            imageHeight = ocrEntity.imageHeight,
+            blocks = ocrBlocks.mapIndexed { i, block ->
+                TranslationBlock(
+                    x = block.x,
+                    y = block.y,
+                    width = block.w,
+                    height = block.h,
+                    originalText = block.t,
+                    translatedText = translations.getOrElse(i) { "" },
+                    dominantColorArgb = block.c,
+                )
+            },
+            createdAt = ocrEntity.createdAt,
+        )
     }
 
     override suspend fun saveCache(cache: PageTranslationCache) = withContext(Dispatchers.IO) {
-        dao.insertCache(cache.toEntity())
+        val ocrBlockDtos = cache.blocks.map {
+            OcrBlockDto(it.x, it.y, it.width, it.height, it.originalText, it.dominantColorArgb)
+        }
+        val ocrCacheId = dao.insertOcrCache(
+            PageOcrCacheEntity(
+                id = cache.id,
+                archiveId = cache.archiveId,
+                page = cache.page,
+                imageWidth = cache.imageWidth,
+                imageHeight = cache.imageHeight,
+                blocksJson = json.encodeToString(ocrBlockDtos),
+                createdAt = cache.createdAt,
+            )
+        )
+        val translations = cache.blocks.map { it.translatedText }
+        dao.insertTranslation(
+            PageOcrTranslationEntity(
+                ocrCacheId = ocrCacheId,
+                translationsJson = json.encodeToString(translations),
+                sourceLanguage = "ja",
+                targetLanguage = "ko",
+                createdAt = cache.createdAt,
+            )
+        )
     }
 
     override suspend fun deleteByArchive(archiveId: Long) = withContext(Dispatchers.IO) {
         dao.deleteByArchive(archiveId)
     }
 
-    private fun PageTranslationCacheEntity.toDomain(): PageTranslationCache {
-        val blocks: List<BlockDto> = json.decodeFromString(blocksJson)
-        return PageTranslationCache(
-            id = id,
-            archiveId = archiveId,
-            page = page,
-            imageWidth = imageWidth,
-            imageHeight = imageHeight,
+    override suspend fun getOcrCache(
+        archiveId: Long,
+        page: Int,
+    ): PageOcrCache? = withContext(Dispatchers.IO) {
+        val entity = dao.findOcrCache(archiveId, page) ?: return@withContext null
+        val blocks: List<OcrBlockDto> = json.decodeFromString(entity.blocksJson)
+        PageOcrCache(
+            id = entity.id,
+            archiveId = entity.archiveId,
+            page = entity.page,
+            imageWidth = entity.imageWidth,
+            imageHeight = entity.imageHeight,
             blocks = blocks.map {
-                TranslationBlock(it.x, it.y, it.w, it.h, it.o, it.t, it.c)
+                OcrBlock(it.x, it.y, it.w, it.h, it.t, it.c)
             },
-            createdAt = createdAt,
+            createdAt = entity.createdAt,
         )
     }
 
-    private fun PageTranslationCache.toEntity(): PageTranslationCacheEntity {
-        val blockDtos = blocks.map {
-            BlockDto(it.x, it.y, it.width, it.height, it.originalText, it.translatedText, it.dominantColorArgb)
+    override suspend fun saveOcrCache(cache: PageOcrCache): Long = withContext(Dispatchers.IO) {
+        val blockDtos = cache.blocks.map {
+            OcrBlockDto(it.x, it.y, it.width, it.height, it.text, it.dominantColorArgb)
         }
-        return PageTranslationCacheEntity(
-            id = id,
-            archiveId = archiveId,
-            page = page,
-            imageWidth = imageWidth,
-            imageHeight = imageHeight,
-            blocksJson = json.encodeToString(blockDtos),
-            createdAt = createdAt,
+        dao.insertOcrCache(
+            PageOcrCacheEntity(
+                id = cache.id,
+                archiveId = cache.archiveId,
+                page = cache.page,
+                imageWidth = cache.imageWidth,
+                imageHeight = cache.imageHeight,
+                blocksJson = json.encodeToString(blockDtos),
+                createdAt = cache.createdAt,
+            )
         )
     }
 }

@@ -9,15 +9,20 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
 @Database(
-    entities = [ArchiveFileEntity::class, TranslationCacheEntity::class, PageTranslationCacheEntity::class],
-    version = 6,
+    entities = [
+        ArchiveFileEntity::class,
+        TranslationCacheEntity::class,
+        PageOcrCacheEntity::class,
+        PageOcrTranslationEntity::class,
+    ],
+    version = 7,
     exportSchema = true,
 )
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun archiveFileDao(): ArchiveFileDao
     abstract fun translationCacheDao(): TranslationCacheDao
-    abstract fun pageTranslationCacheDao(): PageTranslationCacheDao
+    abstract fun pageOcrCacheDao(): PageOcrCacheDao
 }
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -90,6 +95,45 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         connection.execSQL(
             "CREATE UNIQUE INDEX IF NOT EXISTS index_page_translation_cache_archiveId_page " +
                 "ON page_translation_cache(archiveId, page)"
+        )
+    }
+}
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        // 기존 page_translation_cache 드롭 (blocksJson 형식 변경으로 데이터 이전 불가)
+        connection.execSQL("DROP TABLE IF EXISTS page_translation_cache")
+
+        // OCR 결과 캐시 테이블
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS page_ocr_cache (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "archiveId INTEGER NOT NULL, " +
+                "page INTEGER NOT NULL, " +
+                "imageWidth INTEGER NOT NULL, " +
+                "imageHeight INTEGER NOT NULL, " +
+                "blocksJson TEXT NOT NULL, " +
+                "createdAt INTEGER NOT NULL)"
+        )
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_page_ocr_cache_archiveId_page " +
+                "ON page_ocr_cache(archiveId, page)"
+        )
+
+        // OCR 결과에 대응하는 번역 테이블
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS page_ocr_translation (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "ocrCacheId INTEGER NOT NULL, " +
+                "translationsJson TEXT NOT NULL, " +
+                "sourceLanguage TEXT NOT NULL, " +
+                "targetLanguage TEXT NOT NULL, " +
+                "createdAt INTEGER NOT NULL, " +
+                "FOREIGN KEY (ocrCacheId) REFERENCES page_ocr_cache(id) ON DELETE CASCADE)"
+        )
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_page_ocr_translation_ocrCacheId " +
+                "ON page_ocr_translation(ocrCacheId)"
         )
     }
 }

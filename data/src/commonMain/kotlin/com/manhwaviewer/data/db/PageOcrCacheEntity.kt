@@ -5,12 +5,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "page_translation_cache",
+    tableName = "page_ocr_cache",
     indices = [
         Index(value = ["archiveId", "page"], unique = true),
     ],
 )
-data class PageTranslationCacheEntity(
+data class PageOcrCacheEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val archiveId: Long,
     val page: Int,
