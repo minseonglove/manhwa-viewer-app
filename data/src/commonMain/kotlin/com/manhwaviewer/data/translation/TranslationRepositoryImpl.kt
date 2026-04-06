@@ -77,7 +77,8 @@ class TranslationRepositoryImpl(
             callTranslationApi(joinedText, sourceLanguage, targetLanguage)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            println("[TranslationRepo] Translation API failed: ${e.message}")
             // 번역 실패 시 원문 폴백
             for (idx in uncachedIndices) {
                 results[idx] = TranslationResult(texts[idx], texts[idx])
