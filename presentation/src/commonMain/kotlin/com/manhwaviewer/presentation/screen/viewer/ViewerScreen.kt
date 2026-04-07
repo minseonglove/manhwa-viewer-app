@@ -1,12 +1,7 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -16,7 +11,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,13 +18,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -42,21 +34,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -65,12 +45,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -82,8 +62,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.backhandler.BackHandler
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,52 +84,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import manhwa_viewer.presentation.generated.resources.Res
-import manhwa_viewer.presentation.generated.resources.auto_process_none
-import manhwa_viewer.presentation.generated.resources.auto_process_ocr
-import manhwa_viewer.presentation.generated.resources.auto_process_translate
-import manhwa_viewer.presentation.generated.resources.back
-import manhwa_viewer.presentation.generated.resources.close
-import manhwa_viewer.presentation.generated.resources.dialog_auto_process_title
-import manhwa_viewer.presentation.generated.resources.dialog_reading_direction
-import manhwa_viewer.presentation.generated.resources.dialog_view_mode
-import manhwa_viewer.presentation.generated.resources.dialog_view_settings_title
-import manhwa_viewer.presentation.generated.resources.ic_arrow_back
-import manhwa_viewer.presentation.generated.resources.ic_book
-import manhwa_viewer.presentation.generated.resources.ic_translate
-import manhwa_viewer.presentation.generated.resources.pipeline_cropping
-import manhwa_viewer.presentation.generated.resources.pipeline_detecting
-import manhwa_viewer.presentation.generated.resources.pipeline_recognizing
-import manhwa_viewer.presentation.generated.resources.pipeline_translating
-import manhwa_viewer.presentation.generated.resources.reading_direction_ltr
-import manhwa_viewer.presentation.generated.resources.reading_direction_rtl
-import manhwa_viewer.presentation.generated.resources.scale_auto_fit
-import manhwa_viewer.presentation.generated.resources.scale_fit_height
-import manhwa_viewer.presentation.generated.resources.scale_fit_width
-import manhwa_viewer.presentation.generated.resources.scale_original
-import manhwa_viewer.presentation.generated.resources.status_ocr_done
-import manhwa_viewer.presentation.generated.resources.status_ocr_failed
-import manhwa_viewer.presentation.generated.resources.status_ocr_processing
-import manhwa_viewer.presentation.generated.resources.status_translate_done
-import manhwa_viewer.presentation.generated.resources.status_translate_failed
-import manhwa_viewer.presentation.generated.resources.status_translate_processing
-import manhwa_viewer.presentation.generated.resources.view_mode_double
-import manhwa_viewer.presentation.generated.resources.view_mode_single
-import manhwa_viewer.presentation.generated.resources.view_mode_webtoon
-import manhwa_viewer.presentation.generated.resources.view_mode_webtoon_full
-import manhwa_viewer.presentation.generated.resources.viewer_area_select
-import manhwa_viewer.presentation.generated.resources.viewer_area_translate
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
-import manhwa_viewer.presentation.generated.resources.viewer_page_translate
-import manhwa_viewer.presentation.generated.resources.viewer_page_translate_title
-import manhwa_viewer.presentation.generated.resources.viewer_reselect
-import manhwa_viewer.presentation.generated.resources.viewer_select_done
-import manhwa_viewer.presentation.generated.resources.viewer_show_translation
-import manhwa_viewer.presentation.generated.resources.viewer_toggle_overlay
-import manhwa_viewer.presentation.generated.resources.viewer_settings
-import manhwa_viewer.presentation.generated.resources.viewer_translate
-import manhwa_viewer.presentation.generated.resources.viewer_translate_selected
-import manhwa_viewer.presentation.generated.resources.viewer_translating
-import manhwa_viewer.presentation.generated.resources.viewer_translation_pending
 import org.jetbrains.compose.resources.stringResource
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
 import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
@@ -162,22 +95,10 @@ import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.zoomable
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-private val OcrButtonColor = Color(0xFF4A90D9)
-private val OverlayBackground = Color(0xB3000000) // rgba(0,0,0,0.7)
-private val TranslateBarBackground = Color(0x80000000) // rgba(0,0,0,0.5)
-private val AreaSelectBg = Color(0x33F59E0B) // rgba(245,158,11,0.2)
-private val AreaSelectBorder = Color(0xFFF59E0B)
-private val AreaSelectText = Color(0xFFF59E0B)
-private val PageTranslateBg = Color(0x2610B981) // rgba(16,185,129,0.15)
-private val PageTranslateBorder = Color(0x4D10B981) // rgba(16,185,129,0.3)
-private val PageTranslateText = Color(0xFF10B981)
 private val BoundingBoxColor = Color(0xFF10B981)
-private val PipelineGreen = Color(0xFF10B981)
-private val PipelineOrange = Color(0xFFF59E0B)
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -191,14 +112,6 @@ fun ViewerScreen(
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    var showTranslationOptions by remember { mutableStateOf(false) }
-
-    BackHandler(enabled = state.translationMode != TranslationMode.NONE || showTranslationOptions) {
-        if (state.translationMode != TranslationMode.NONE) {
-            viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
-        }
-        showTranslationOptions = false
-    }
 
     LaunchedEffect(archiveId) {
         viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
@@ -222,8 +135,6 @@ fun ViewerScreen(
         )
     }
 
-    val coroutineScope = rememberCoroutineScope()
-
     // pager → state 동기화: 사용자 스와이프 반영
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
@@ -243,33 +154,7 @@ fun ViewerScreen(
         }
     }
 
-    var viewerContainerSize by remember { mutableStateOf(IntSize.Zero) }
-    // 현재 줌 변환 정보 (CropOverlay → ConfirmCrop 좌표 변환용)
-    var zoomScaleX by remember { mutableStateOf(1f) }
-    var zoomScaleY by remember { mutableStateOf(1f) }
-    var zoomOffsetX by remember { mutableStateOf(0f) }
-    var zoomOffsetY by remember { mutableStateOf(0f) }
-    var zoomOriginX by remember { mutableStateOf(0.5f) }
-    var zoomOriginY by remember { mutableStateOf(0.5f) }
-    var showViewModeDialog by remember { mutableStateOf(false) }
-    var showAutoProcessDialog by remember { mutableStateOf(false) }
-
-    if (showViewModeDialog) {
-        ViewModeSettingsDialog(
-            preference = state.preference,
-            onSetViewMode = { viewModel.onIntent(ViewerIntent.SetViewMode(it)) },
-            onSetReadingDirection = { viewModel.onIntent(ViewerIntent.SetReadingDirection(it)) },
-            onDismiss = { showViewModeDialog = false },
-        )
-    }
-
-    if (showAutoProcessDialog) {
-        AutoProcessModeDialog(
-            currentMode = state.autoProcessMode,
-            onModeSelected = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
-            onDismiss = { showAutoProcessDialog = false },
-        )
-    }
+    val scope = rememberCoroutineScope()
 
     val viewerBackground = when (state.preference.backgroundColor) {
         BackgroundColor.BLACK -> Color.Black
@@ -280,8 +165,7 @@ fun ViewerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(viewerBackground)
-            .onSizeChanged { viewerContainerSize = it },
+            .background(viewerBackground),
     ) {
         if (state.isLoading) {
             CircularProgressIndicator(
@@ -295,7 +179,7 @@ fun ViewerScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1,
-                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
+                        userScrollEnabled = true,
                     ) { page ->
                         val entryName = state.imageEntries.getOrNull(page)
                         val pageModel = entryName?.let {
@@ -306,54 +190,17 @@ fun ViewerScreen(
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
                             imageScaleMode = state.preference.imageScaleMode,
-                            isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
-                            cropRect = if (page == state.currentPage) state.cropRect else null,
-                            ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
-                            translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
-                            globalOverlayEnabled = state.globalOverlayEnabled,
-                            overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
-                            ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
-                            ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
-                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     pagerState.scrollToPage((page - 1).coerceAtLeast(0))
                                 }
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     pagerState.scrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
                                 }
-                            },
-                            onUpdateCropRect = { rect ->
-                                viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
-                            },
-                            onTextBlockTap = { block ->
-                                viewModel.onIntent(
-                                    ViewerIntent.UpdateCropRect(
-                                        CropRect(
-                                            startX = block.x.toFloat(),
-                                            startY = block.y.toFloat(),
-                                            endX = (block.x + block.width).toFloat(),
-                                            endY = (block.y + block.height).toFloat(),
-                                        )
-                                    )
-                                )
-                                viewModel.onIntent(
-                                    ViewerIntent.ConfirmCrop(
-                                        containerWidth = viewerContainerSize.width,
-                                        containerHeight = viewerContainerSize.height,
-                                        zoomScaleX = zoomScaleX,
-                                        zoomScaleY = zoomScaleY,
-                                        zoomOffsetX = zoomOffsetX,
-                                        zoomOffsetY = zoomOffsetY,
-                                        transformOriginX = zoomOriginX,
-                                        transformOriginY = zoomOriginY,
-                                        useSubSampling = true,
-                                    )
-                                )
                             },
                             cachedBlocks = if (page == state.currentPage) state.cachedBlocks else emptyList(),
                             cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
@@ -371,11 +218,7 @@ fun ViewerScreen(
                             autoTranslationImageWidth = if (page == state.currentPage) state.autoTranslationImageWidth else 0,
                             autoTranslationImageHeight = if (page == state.currentPage) state.autoTranslationImageHeight else 0,
                             autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
-                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
-                                zoomScaleX = sx; zoomScaleY = sy
-                                zoomOffsetX = ox; zoomOffsetY = oy
-                                zoomOriginX = origX; zoomOriginY = origY
-                            },
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                         )
                     }
                 }
@@ -387,7 +230,7 @@ fun ViewerScreen(
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = isRtl,
                         beyondViewportPageCount = 1,
-                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
+                        userScrollEnabled = true,
                     ) { spreadIndex ->
                         val (firstPage, secondPage) = spreadToPages(spreadIndex, state.totalPages)
                         val firstEntry = state.imageEntries.getOrNull(firstPage)
@@ -406,18 +249,9 @@ fun ViewerScreen(
                             page = spreadIndex,
                             keepZoomState = state.preference.keepZoomState,
                             imageScaleMode = state.preference.imageScaleMode,
-                            isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
-                            cropRect = if (isCurrentSpread) state.cropRect else null,
-                            ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
-                            translationResults = if (isCurrentSpread) state.translationResults else emptyList(),
-                            globalOverlayEnabled = state.globalOverlayEnabled,
-                            overlayColors = if (isCurrentSpread) state.overlayColors else emptyList(),
-                            ocrImageWidth = if (isCurrentSpread) state.ocrImageWidth else 0,
-                            ocrImageHeight = if (isCurrentSpread) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
-                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     val target = if (isRtl) (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
                                                  else (spreadIndex - 1).coerceAtLeast(0)
                                     pagerState.scrollToPage(target)
@@ -425,39 +259,11 @@ fun ViewerScreen(
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     val target = if (isRtl) (spreadIndex - 1).coerceAtLeast(0)
                                                  else (spreadIndex + 1).coerceAtMost(pagerPageCount - 1)
                                     pagerState.scrollToPage(target)
                                 }
-                            },
-                            onUpdateCropRect = { rect ->
-                                viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
-                            },
-                            onTextBlockTap = { block ->
-                                viewModel.onIntent(
-                                    ViewerIntent.UpdateCropRect(
-                                        CropRect(
-                                            startX = block.x.toFloat(),
-                                            startY = block.y.toFloat(),
-                                            endX = (block.x + block.width).toFloat(),
-                                            endY = (block.y + block.height).toFloat(),
-                                        )
-                                    )
-                                )
-                                viewModel.onIntent(
-                                    ViewerIntent.ConfirmCrop(
-                                        containerWidth = viewerContainerSize.width,
-                                        containerHeight = viewerContainerSize.height,
-                                        zoomScaleX = zoomScaleX,
-                                        zoomScaleY = zoomScaleY,
-                                        zoomOffsetX = zoomOffsetX,
-                                        zoomOffsetY = zoomOffsetY,
-                                        transformOriginX = zoomOriginX,
-                                        transformOriginY = zoomOriginY,
-                                        useSubSampling = pageModel?.entryNames?.size == 1,
-                                    )
-                                )
                             },
                             cachedBlocks = if (isCurrentSpread) state.cachedBlocks else emptyList(),
                             cachedImageWidth = if (isCurrentSpread) state.cachedImageWidth else 0,
@@ -475,11 +281,7 @@ fun ViewerScreen(
                             autoTranslationImageWidth = if (isCurrentSpread) state.autoTranslationImageWidth else 0,
                             autoTranslationImageHeight = if (isCurrentSpread) state.autoTranslationImageHeight else 0,
                             autoTranslationOverlayColors = if (isCurrentSpread) state.autoTranslationOverlayColors else emptyList(),
-                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
-                                zoomScaleX = sx; zoomScaleY = sy
-                                zoomOffsetX = ox; zoomOffsetY = oy
-                                zoomOriginX = origX; zoomOriginY = origY
-                            },
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                         )
                     }
                 }
@@ -491,7 +293,7 @@ fun ViewerScreen(
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = isSinglePageRtl,
                         beyondViewportPageCount = 1,
-                        userScrollEnabled = state.translationMode == TranslationMode.NONE,
+                        userScrollEnabled = true,
                     ) { page ->
                         val entryName = state.imageEntries.getOrNull(page)
                         val pageModel = entryName?.let {
@@ -502,18 +304,9 @@ fun ViewerScreen(
                             page = page,
                             keepZoomState = state.preference.keepZoomState,
                             imageScaleMode = state.preference.imageScaleMode,
-                            isAreaSelectMode = state.translationMode == TranslationMode.AREA_SELECT,
-                            cropRect = if (page == state.currentPage) state.cropRect else null,
-                            ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
-                            translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
-                            globalOverlayEnabled = state.globalOverlayEnabled,
-                            overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
-                            ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
-                            ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
                             pagerSettledPage = pagerState.settledPage,
-                            isTranslationActive = state.translationMode != TranslationMode.NONE,
                             onTapLeft = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     val target = if (isSinglePageRtl) (page + 1).coerceAtMost(pagerPageCount - 1)
                                                  else (page - 1).coerceAtLeast(0)
                                     pagerState.scrollToPage(target)
@@ -521,39 +314,11 @@ fun ViewerScreen(
                             },
                             onTapCenter = { viewModel.onIntent(ViewerIntent.ToggleControls) },
                             onTapRight = {
-                                coroutineScope.launch {
+                                scope.launch {
                                     val target = if (isSinglePageRtl) (page - 1).coerceAtLeast(0)
                                                  else (page + 1).coerceAtMost(pagerPageCount - 1)
                                     pagerState.scrollToPage(target)
                                 }
-                            },
-                            onUpdateCropRect = { rect ->
-                                viewModel.onIntent(ViewerIntent.UpdateCropRect(rect))
-                            },
-                            onTextBlockTap = { block ->
-                                viewModel.onIntent(
-                                    ViewerIntent.UpdateCropRect(
-                                        CropRect(
-                                            startX = block.x.toFloat(),
-                                            startY = block.y.toFloat(),
-                                            endX = (block.x + block.width).toFloat(),
-                                            endY = (block.y + block.height).toFloat(),
-                                        )
-                                    )
-                                )
-                                viewModel.onIntent(
-                                    ViewerIntent.ConfirmCrop(
-                                        containerWidth = viewerContainerSize.width,
-                                        containerHeight = viewerContainerSize.height,
-                                        zoomScaleX = zoomScaleX,
-                                        zoomScaleY = zoomScaleY,
-                                        zoomOffsetX = zoomOffsetX,
-                                        zoomOffsetY = zoomOffsetY,
-                                        transformOriginX = zoomOriginX,
-                                        transformOriginY = zoomOriginY,
-                                        useSubSampling = true,
-                                    )
-                                )
                             },
                             cachedBlocks = if (page == state.currentPage) state.cachedBlocks else emptyList(),
                             cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
@@ -571,11 +336,7 @@ fun ViewerScreen(
                             autoTranslationImageWidth = if (page == state.currentPage) state.autoTranslationImageWidth else 0,
                             autoTranslationImageHeight = if (page == state.currentPage) state.autoTranslationImageHeight else 0,
                             autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
-                            onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
-                                zoomScaleX = sx; zoomScaleY = sy
-                                zoomOffsetX = ox; zoomOffsetY = oy
-                                zoomOriginX = origX; zoomOriginY = origY
-                            },
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                         )
                     }
                 }
@@ -588,475 +349,56 @@ fun ViewerScreen(
             )
         }
 
-        // OCR 처리 중 중앙 인디케이터
-        if (state.isOcrProcessing) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(48.dp),
-                color = OcrButtonColor,
-                strokeWidth = 3.dp,
-            )
-        }
-
-        // 크롭 모드 전용 툴바
+        // 상단 툴바
         AnimatedVisibility(
-            visible = state.translationMode == TranslationMode.AREA_SELECT,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            visible = state.showControls,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = {
-                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
-                    showTranslationOptions = false
-                }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = stringResource(Res.string.back),
-                        tint = Color.White,
-                    )
-                }
-
-                Text(
-                    text = stringResource(Res.string.viewer_area_select),
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                )
-
-                val hasOcrResults = state.ocrBottomSheetText != null
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = if (hasOcrResults) Color.White.copy(alpha = 0.2f) else AreaSelectBorder,
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                        .then(
-                            if (hasOcrResults) {
-                                Modifier.border(1.dp, AreaSelectBorder, RoundedCornerShape(8.dp))
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .clickable {
-                            if (hasOcrResults) {
-                                // 다시 선택: OCR 초기화 + 크롭 박스 재생성
-                                viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT))
-                            } else {
-                                val isSubSampling = viewMode != ViewMode.DOUBLE_PAGE || run {
-                                    val spread = pageToSpread(state.currentPage)
-                                    val (_, secondPage) = spreadToPages(spread, state.totalPages)
-                                    secondPage == null
-                                }
-                                viewModel.onIntent(
-                                    ViewerIntent.ConfirmCrop(
-                                        containerWidth = viewerContainerSize.width,
-                                        containerHeight = viewerContainerSize.height,
-                                        zoomScaleX = zoomScaleX,
-                                        zoomScaleY = zoomScaleY,
-                                        zoomOffsetX = zoomOffsetX,
-                                        zoomOffsetY = zoomOffsetY,
-                                        transformOriginX = zoomOriginX,
-                                        transformOriginY = zoomOriginY,
-                                        useSubSampling = isSubSampling,
-                                    )
-                                )
-                            }
-                        }
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (hasOcrResults) stringResource(Res.string.viewer_reselect) else stringResource(Res.string.viewer_select_done),
-                        color = if (hasOcrResults) AreaSelectBorder else Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-        }
-
-        // 페이지 번역 모드 툴바
-        AnimatedVisibility(
-            visible = state.translationMode == TranslationMode.PAGE_TRANSLATE,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = {
-                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.NONE))
-                    showTranslationOptions = false
-                }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = stringResource(Res.string.back),
-                        tint = Color.White,
-                    )
-                }
-
-                Text(
-                    text = stringResource(Res.string.viewer_page_translate_title),
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                )
-
-                IconButton(
-                    onClick = { viewModel.onIntent(ViewerIntent.ToggleGlobalOverlay) },
-                    enabled = state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty(),
-                ) {
-                    Icon(
-                        imageVector = if (state.globalOverlayEnabled) Icons.Default.Visibility
-                        else Icons.Default.VisibilityOff,
-                        contentDescription = stringResource(Res.string.viewer_toggle_overlay),
-                        tint = if (state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty()) Color.White
-                        else Color.White.copy(alpha = 0.3f),
-                    )
-                }
-            }
-        }
-
-        // 기본 상단 헤더 (번역 모드가 아닐 때만)
-        AnimatedVisibility(
-            visible = state.showControls && state.translationMode == TranslationMode.NONE,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(OverlayBackground)
-                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 뒤로가기 아이콘
-                IconButton(onClick = {
+            ViewerTopToolbar(
+                title = state.archive?.displayName() ?: "",
+                showSelectTranslateButton = state.selectedOcrBlockIndices.isNotEmpty(),
+                isOverlayEnabled = state.globalOverlayEnabled,
+                isOverlayButtonEnabled = state.isOverlayButtonEnabled,
+                onBack = {
                     viewModel.onIntent(ViewerIntent.SaveProgress)
                     onBack()
-                }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = stringResource(Res.string.back),
-                        tint = Color.White,
-                    )
-                }
-
-                // 파일명
-                Text(
-                    text = state.archive?.displayName() ?: "",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-
-                // 선택 번역 버튼 (바운딩 박스 선택 시에만 표시)
-                AnimatedVisibility(visible = state.selectedOcrBlockIndices.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = OcrButtonColor,
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = {
-                                    viewModel.onIntent(ViewerIntent.TranslateSelectedBlocks)
-                                })
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.viewer_translate_selected),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
-
-                // 오버레이 아이콘
-                IconButton(
-                    onClick = { viewModel.onIntent(ViewerIntent.ToggleGlobalOverlay) },
-                    enabled = state.isOverlayButtonEnabled,
-                ) {
-                    Icon(
-                        imageVector = if (state.globalOverlayEnabled) Icons.Default.Visibility
-                        else Icons.Default.VisibilityOff,
-                        contentDescription = stringResource(Res.string.viewer_toggle_overlay),
-                        tint = if (state.isOverlayButtonEnabled) Color.White
-                        else Color.White.copy(alpha = 0.3f),
-                    )
-                }
-
-                // [미사용] 번역 버튼 — 상단 툴바에서 제거됨. 기능은 TranslationOptionBar에 보존.
-                // Box(
-                //     modifier = Modifier
-                //         .background(color = OcrButtonColor, shape = RoundedCornerShape(8.dp))
-                //         .padding(horizontal = 12.dp, vertical = 4.dp)
-                //         .pointerInput(Unit) {
-                //             detectTapGestures(onTap = { showTranslationOptions = !showTranslationOptions })
-                //         },
-                //     contentAlignment = Alignment.Center,
-                // ) {
-                //     Text(text = stringResource(Res.string.viewer_translate), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                // }
-                // Spacer(modifier = Modifier.width(4.dp))
-
-                // [미사용] 설정 아이콘 — 상단 툴바에서 제거됨. onSettings 콜백은 보존.
-                // IconButton(onClick = onSettings) {
-                //     Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(Res.string.viewer_settings), tint = Color.White)
-                // }
-            }
-        }
-
-        // 번역 옵션 바 (선택영역번역 / 페이지번역)
-        AnimatedVisibility(
-            visible = showTranslationOptions && state.translationMode == TranslationMode.NONE,
-            enter = slideInVertically { -it } + fadeIn(),
-            exit = slideOutVertically { -it } + fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter),
-        ) {
-            TranslationOptionBar(
-                currentMode = state.translationMode,
-                onAreaSelect = {
-                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.AREA_SELECT))
-                    showTranslationOptions = false
                 },
-                onPageTranslate = {
-                    viewModel.onIntent(ViewerIntent.SetTranslationMode(TranslationMode.PAGE_TRANSLATE))
-                    viewModel.onIntent(ViewerIntent.RunPageOcr)
-                    showTranslationOptions = false
-                },
-                modifier = Modifier
-                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(top = 52.dp),
+                onTranslateSelected = { viewModel.onIntent(ViewerIntent.TranslateSelectedBlocks) },
+                onToggleOverlay = { viewModel.onIntent(ViewerIntent.ToggleGlobalOverlay) },
             )
         }
 
-        // 하단 컨트롤에서 사용할 string resource 변수
-        val viewModeLabel = when (viewMode) {
-            ViewMode.DOUBLE_PAGE -> stringResource(Res.string.view_mode_double)
-            ViewMode.WEBTOON -> stringResource(Res.string.view_mode_webtoon)
-            ViewMode.SINGLE_PAGE -> stringResource(Res.string.view_mode_single)
-        }
-        val autoProcessModeLabel = when (state.autoProcessMode) {
-            AutoProcessMode.NONE -> stringResource(Res.string.auto_process_none)
-            AutoProcessMode.AUTO_OCR -> stringResource(Res.string.auto_process_ocr)
-            AutoProcessMode.AUTO_TRANSLATE -> stringResource(Res.string.auto_process_translate)
-        }
-
-        // 하단 컨트롤 (번역 모드에서는 숨김)
+        // 하단 패널
         AnimatedVisibility(
-            visible = state.showControls && state.translationMode == TranslationMode.NONE,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            visible = state.showControls,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(OverlayBackground)
-                    .pointerInput(Unit) { detectTapGestures { /* 터치 소비 */ } }
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                // Row 1: [RTL/양면 버튼] [OCR/번역 버튼] [상태 표시]
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // RTL/양면 버튼
-                    Box(
-                        modifier = Modifier
-                            .clickable { showViewModeDialog = true }
-                            .background(
-                                color = Color.White.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.05f),
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_book),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = buildString {
-                                    append(if (state.preference.readingDirection == ReadingDirection.RTL) "RTL" else "LTR")
-                                    append(" / ")
-                                    append(viewModeLabel)
-                                },
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-
-                    // OCR/번역 버튼
-                    Box(
-                        modifier = Modifier
-                            .clickable { showAutoProcessDialog = true }
-                            .background(
-                                color = Color.White.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.05f),
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_translate),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = autoProcessModeLabel,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-
-                    // 상태 표시
-                    AutoProcessStatusIndicator(
-                        mode = state.autoProcessMode,
-                        status = state.autoProcessStatus,
-                        hasCachedTranslation = state.cachedBlocks.isNotEmpty(),
-                        hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
-                        onRetry = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
-                    )
-                }
-
-                // Row 2: 이미지 비율 선택 (pill group)
-                ImageScaleModeSelector(
-                    currentMode = state.preference.imageScaleMode,
-                    onModeSelected = { mode ->
-                        viewModel.onIntent(ViewerIntent.SetImageScaleMode(mode))
-                    },
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-
-                // Row 3: [현재 페이지] ── slider ── [총 페이지]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val currentPageLabel = if (isDoublePage && state.totalPages > 1) {
-                        val spread = pageToSpread(state.currentPage)
-                        val (left, right) = spreadToPages(spread, state.totalPages)
-                        if (right != null) "${left + 1}-${right + 1}" else "${left + 1}"
-                    } else {
-                        "${state.currentPage + 1}"
-                    }
-                    Text(
-                        text = currentPageLabel,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.widthIn(min = 32.dp),
-                        textAlign = TextAlign.Center,
-                    )
-                    if (state.totalPages > 1) {
-                        Slider(
-                            value = if (isDoublePage) pageToSpread(state.currentPage).toFloat() else state.currentPage.toFloat(),
-                            onValueChange = {
-                                coroutineScope.launch {
-                                    pagerState.scrollToPage(it.toInt())
-                                }
-                            },
-                            valueRange = 0f..(pagerPageCount - 1).toFloat().coerceAtLeast(0f),
-                            steps = (pagerPageCount - 2).coerceAtLeast(0),
-                            colors = SliderDefaults.colors(
-                                thumbColor = OcrButtonColor,
-                                activeTrackColor = OcrButtonColor,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                            ),
-                            modifier = Modifier.weight(1f),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                    Text(
-                        text = "${state.totalPages}",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.widthIn(min = 32.dp),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-        }
-
-        // OCR 결과 바텀시트 (expanded)
-        AnimatedVisibility(
-            visible = state.translationMode != TranslationMode.NONE && state.ocrBottomSheetText != null && state.isOcrSheetExpanded,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            OcrBottomSheet(
-                ocrText = state.ocrBottomSheetText ?: "",
-                translationResults = state.translationResults,
-                isTranslating = state.isTranslating,
-                onDismiss = { viewModel.onIntent(ViewerIntent.DismissOcrResult) },
-            )
-        }
-
-        // OCR 결과 핸들 (collapsed - tap to expand)
-        AnimatedVisibility(
-            visible = state.translationMode != TranslationMode.NONE && state.ocrBottomSheetText != null && !state.isOcrSheetExpanded,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            OcrCollapsedHandle(
-                onExpand = { viewModel.onIntent(ViewerIntent.ExpandOcrResult) },
+            ViewerBottomPanel(
+                currentPage = state.currentPage,
+                totalPages = state.totalPages,
+                isDoublePage = isDoublePage,
+                pagerPageCount = pagerPageCount,
+                currentPagerPage = pagerState.currentPage,
+                readingDirection = state.preference.readingDirection,
+                viewMode = viewMode,
+                imageScaleMode = state.preference.imageScaleMode,
+                autoProcessMode = state.autoProcessMode,
+                autoProcessStatus = state.autoProcessStatus,
+                pipelineStage = state.pipelineStage,
+                hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty(),
+                hasCachedOcr = state.cachedBlocks.isNotEmpty(),
+                onPageChange = { page ->
+                    scope.launch { pagerState.scrollToPage(page) }
+                },
+                onSetReadingDirection = { viewModel.onIntent(ViewerIntent.SetReadingDirection(it)) },
+                onSetViewMode = { viewModel.onIntent(ViewerIntent.SetViewMode(it)) },
+                onSetImageScaleMode = { viewModel.onIntent(ViewerIntent.SetImageScaleMode(it)) },
+                onSetAutoProcessMode = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
+                onRetryAutoProcess = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
             )
         }
 
@@ -1089,252 +431,6 @@ fun ViewerScreen(
     }
 }
 
-// ── 번역 옵션 바 ──────────────────────────────────────────────
-
-@Composable
-private fun TranslationOptionBar(
-    currentMode: TranslationMode,
-    onAreaSelect: () -> Unit,
-    onPageTranslate: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(TranslateBarBackground)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // 선택 영역 번역
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .background(
-                    color = if (currentMode == TranslationMode.AREA_SELECT) AreaSelectBg else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp),
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (currentMode == TranslationMode.AREA_SELECT) AreaSelectBorder else AreaSelectBorder.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp),
-                )
-                .clickable { onAreaSelect() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(Res.string.viewer_area_translate),
-                color = AreaSelectText,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-
-        // 페이지 번역
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .background(
-                    color = if (currentMode == TranslationMode.PAGE_TRANSLATE) PageTranslateBg else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp),
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (currentMode == TranslationMode.PAGE_TRANSLATE) PageTranslateBorder else PageTranslateBorder.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp),
-                )
-                .clickable { onPageTranslate() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(Res.string.viewer_page_translate),
-                color = PageTranslateText,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-    }
-}
-
-// ── 파이프라인 인디케이터 ─────────────────────────────────────
-
-@Composable
-private fun PipelineIndicator(
-    stage: PipelineStage,
-    modifier: Modifier = Modifier,
-) {
-    val stages = listOf(
-        stringResource(Res.string.pipeline_detecting) to PipelineStage.DETECTING,
-        stringResource(Res.string.pipeline_cropping) to PipelineStage.CROPPING,
-        stringResource(Res.string.pipeline_recognizing) to PipelineStage.RECOGNIZING,
-        stringResource(Res.string.pipeline_translating) to PipelineStage.TRANSLATING,
-    )
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        stages.forEachIndexed { index, (label, pipeStage) ->
-            val ordinal = pipeStage.ordinal
-            val currentOrdinal = stage.ordinal
-
-            val (symbol, color) = when {
-                stage == PipelineStage.DONE || currentOrdinal > ordinal -> "\u2713" to PipelineGreen
-                currentOrdinal == ordinal -> "\u25CE" to PipelineOrange
-                else -> "\u25CB" to Color.White.copy(alpha = 0.3f)
-            }
-
-            Text(
-                text = "$label $symbol",
-                color = color,
-                fontSize = 11.sp,
-                fontWeight = if (currentOrdinal == ordinal) FontWeight.Bold else FontWeight.Normal,
-            )
-
-            if (index < stages.lastIndex) {
-                val lineColor = if (stage == PipelineStage.DONE || currentOrdinal > ordinal + 1) {
-                    PipelineGreen
-                } else {
-                    Color.White.copy(alpha = 0.15f)
-                }
-                Text(
-                    text = " \u2192 ",
-                    color = lineColor,
-                    fontSize = 11.sp,
-                )
-            }
-        }
-    }
-}
-
-// ── OCR 결과 바텀시트 ─────────────────────────────────────────
-
-@Composable
-private fun OcrBottomSheet(
-    ocrText: String,
-    translationResults: List<TranslationResult>,
-    isTranslating: Boolean,
-    onDismiss: () -> Unit,
-) {
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 300.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            )
-            .pointerInput(Unit) { detectTapGestures { /* 터치 소비: 하위 zoomable로 이벤트 전파 방지 */ } }
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        // 드래그 핸들 (닫기 영역)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(32.dp)
-                    .height(3.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(2.dp),
-                    ),
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 스크롤 가능한 번역 결과 영역
-        Column(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(scrollState),
-        ) {
-            if (translationResults.isNotEmpty()) {
-                // 라인별 원문/번역 쌍 표시
-                translationResults.forEachIndexed { index, result ->
-                    // 원문
-                    Text(
-                        text = result.originalText,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp,
-                    )
-                    // 번역
-                    Text(
-                        text = "\u2192 ${result.translatedText}",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    if (index < translationResults.lastIndex) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            } else {
-                // 번역 결과 없을 때 원문만 표시
-                Text(
-                    text = ocrText,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isTranslating) stringResource(Res.string.viewer_translating) else stringResource(Res.string.viewer_translation_pending),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-
-    }
-}
-
-// ── OCR 결과 축소 핸들 ───────────────────────────────────────────
-
-@Composable
-private fun OcrCollapsedHandle(
-    onExpand: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onExpand() }
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            )
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Drag handle
-            Box(
-                modifier = Modifier
-                    .width(32.dp)
-                    .height(4.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(2.dp),
-                    ),
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = stringResource(Res.string.viewer_show_translation),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-        }
-    }
-}
 
 // ── ZoomableImage (telephoto + keepZoomState + 크롭 오버레이 + BB 하이라이트) ──
 
@@ -1344,21 +440,10 @@ private fun ZoomableImage(
     page: Int,
     keepZoomState: Boolean,
     imageScaleMode: ImageScaleMode,
-    isAreaSelectMode: Boolean,
-    cropRect: CropRect?,
-    ocrResults: List<TextBlock>,
-    translationResults: List<TranslationResult>,
-    globalOverlayEnabled: Boolean,
-    overlayColors: List<androidx.compose.ui.graphics.Color>,
-    ocrImageWidth: Int,
-    ocrImageHeight: Int,
     pagerSettledPage: Int,
-    isTranslationActive: Boolean,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
-    onUpdateCropRect: (CropRect) -> Unit,
-    onTextBlockTap: (TextBlock) -> Unit,
     cachedBlocks: List<TranslationBlock>,
     cachedImageWidth: Int,
     cachedImageHeight: Int,
@@ -1375,7 +460,7 @@ private fun ZoomableImage(
     autoTranslationImageWidth: Int,
     autoTranslationImageHeight: Int,
     autoTranslationOverlayColors: List<androidx.compose.ui.graphics.Color>,
-    onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
+    globalOverlayEnabled: Boolean,
 ) {
     val zoomableState = rememberZoomableState(
         zoomSpec = ZoomSpec(maxZoomFactor = 5f),
@@ -1398,20 +483,6 @@ private fun ZoomableImage(
         }
     }
 
-    // 줌 변환 정보를 상위 컴포저블로 리포트
-    val transform = zoomableState.contentTransformation
-    LaunchedEffect(transform) {
-        if (transform.isSpecified) {
-            onZoomTransformChanged(
-                transform.scale.scaleX,
-                transform.scale.scaleY,
-                transform.offset.x,
-                transform.offset.y,
-                transform.transformOrigin.pivotFractionX,
-                transform.transformOrigin.pivotFractionY,
-            )
-        }
-    }
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -1475,49 +546,45 @@ private fun ZoomableImage(
                     .onSizeChanged { containerSize = it }
                     .zoomable(
                         state = zoomableState,
-                        gestures = if (!isAreaSelectMode) EnabledZoomGestures.ZoomAndPan else EnabledZoomGestures.None,
-                        onClick = if (!isAreaSelectMode && !isTranslationActive) {
-                            { offset ->
-                                var handled = false
-                                val tf = zoomableState.contentTransformation
-                                val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
-                                val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
-                                // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
-                                    currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
-                                    val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
-                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
-                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
-                                    }
-                                    if (hitIdx >= 0) {
-                                        currentOnOcrBlockTap(hitIdx)
-                                        handled = true
-                                    }
+                        gestures = EnabledZoomGestures.ZoomAndPan,
+                        onClick = { offset ->
+                            var handled = false
+                            val tf = zoomableState.contentTransformation
+                            val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                            val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                            val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                            val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                            // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
+                            if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
+                                currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
+                                val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
+                                    imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                        imgY in b.y.toFloat()..(b.y + b.height).toFloat()
                                 }
-
-                                // 캐시된 블록 탭 (자동 OCR OFF일 때)
-                                if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
-                                    val hitIdx = currentCachedBlocks.indexOfFirst { b ->
-                                        imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
-                                            imgY in b.y.toFloat()..(b.y + b.height).toFloat()
-                                    }
-                                    if (hitIdx >= 0) {
-                                        currentOnCachedBlockTap(hitIdx)
-                                        handled = true
-                                    }
-                                }
-                                if (!handled) {
-                                    when {
-                                        offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                        offset.x > containerSize.width * 0.8f -> onTapRight()
-                                        else -> onTapCenter()
-                                    }
+                                if (hitIdx >= 0) {
+                                    currentOnOcrBlockTap(hitIdx)
+                                    handled = true
                                 }
                             }
-                        } else {
-                            null
+
+                            // 캐시된 블록 탭 (자동 OCR OFF일 때)
+                            if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
+                                val hitIdx = currentCachedBlocks.indexOfFirst { b ->
+                                    imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                        imgY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                }
+                                if (hitIdx >= 0) {
+                                    currentOnCachedBlockTap(hitIdx)
+                                    handled = true
+                                }
+                            }
+                            if (!handled) {
+                                when {
+                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> onTapRight()
+                                    else -> onTapCenter()
+                                }
+                            }
                         },
                     ),
                 contentAlignment = Alignment.Center,
@@ -1535,10 +602,6 @@ private fun ZoomableImage(
                         // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
                         alpha = if (subSamplingReady || baseZoomFactor <= 1f) 1f else 0f,
                     )
-
-                    // OCR 원본 이미지 크기 사용
-                    val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else result.imageSize.width
-                    val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else result.imageSize.height
 
                     // SubSamplingImage가 autoApplyTransformations=false로 설정하므로
                     // 오버레이에 줌/팬 변환을 수동으로 적용해야 함
@@ -1564,30 +627,6 @@ private fun ZoomableImage(
                         }
                     }
 
-                    // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                    if (ocrResults.isNotEmpty() && !globalOverlayEnabled) {
-                        BoundingBoxOverlay(
-                            textBlocks = ocrResults,
-                            imageWidth = overlayWidth,
-                            imageHeight = overlayHeight,
-                            imageScaleMode = ImageScaleMode.AUTO_FIT,
-                            onBlockTap = onTextBlockTap,
-                            modifier = overlayZoomModifier(overlayWidth, overlayHeight),
-                        )
-                    }
-
-                    // 번역 오버레이
-                    if (globalOverlayEnabled && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
-                        TranslationOverlay(
-                            textBlocks = ocrResults,
-                            translationResults = translationResults,
-                            dominantColors = overlayColors,
-                            imageWidth = overlayWidth,
-                            imageHeight = overlayHeight,
-                            imageScaleMode = ImageScaleMode.AUTO_FIT,
-                            modifier = overlayZoomModifier(overlayWidth, overlayHeight),
-                        )
-                    }
 
                     // 캐시된 말풍선 오버레이
                     if (cachedBlocks.isNotEmpty()) {
@@ -1663,15 +702,6 @@ private fun ZoomableImage(
                     CircularProgressIndicator(color = Color.White)
                 }
             }
-
-            // 선택 영역 크롭 오버레이 (zoomable 외부 — 화면 좌표계)
-            if (isAreaSelectMode) {
-                CropOverlay(
-                    cropRect = cropRect,
-                    onUpdateCropRect = onUpdateCropRect,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
         }
     } else {
         // Coil Image+painter 경로: 양면 모드 (두 이미지 합성) 전용
@@ -1682,63 +712,59 @@ private fun ZoomableImage(
                     .onSizeChanged { containerSize = it }
                     .zoomable(
                         state = zoomableState,
-                        gestures = if (!isAreaSelectMode) EnabledZoomGestures.ZoomAndPan else EnabledZoomGestures.None,
-                        onClick = if (!isAreaSelectMode && !isTranslationActive) {
-                            { offset ->
-                                var handled = false
-                                val tf = zoomableState.contentTransformation
-                                val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
-                                val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
-                                val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
-                                val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
-                                // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
-                                    currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
-                                    val (fitScale, fitOffset) = calculateImageTransform(
-                                        ImageScaleMode.AUTO_FIT,
-                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
-                                        currentAutoOcrImageWidth.toFloat(), currentAutoOcrImageHeight.toFloat(),
-                                    )
-                                    val hitX = (localX - fitOffset.x) / fitScale
-                                    val hitY = (localY - fitOffset.y) / fitScale
-                                    val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
-                                        hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
-                                            hitY in b.y.toFloat()..(b.y + b.height).toFloat()
-                                    }
-                                    if (hitIdx >= 0) {
-                                        currentOnOcrBlockTap(hitIdx)
-                                        handled = true
-                                    }
+                        gestures = EnabledZoomGestures.ZoomAndPan,
+                        onClick = { offset ->
+                            var handled = false
+                            val tf = zoomableState.contentTransformation
+                            val originPxX = tf.transformOrigin.pivotFractionX * containerSize.width
+                            val originPxY = tf.transformOrigin.pivotFractionY * containerSize.height
+                            val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
+                            val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
+                            // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
+                            if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
+                                currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
+                                val (fitScale, fitOffset) = calculateImageTransform(
+                                    ImageScaleMode.AUTO_FIT,
+                                    containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                    currentAutoOcrImageWidth.toFloat(), currentAutoOcrImageHeight.toFloat(),
+                                )
+                                val hitX = (localX - fitOffset.x) / fitScale
+                                val hitY = (localY - fitOffset.y) / fitScale
+                                val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
+                                    hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                        hitY in b.y.toFloat()..(b.y + b.height).toFloat()
                                 }
-
-                                // 캐시된 블록 탭 (자동 OCR OFF일 때)
-                                if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
-                                    val (fitScale, fitOffset) = calculateImageTransform(
-                                        ImageScaleMode.AUTO_FIT,
-                                        containerSize.width.toFloat(), containerSize.height.toFloat(),
-                                        currentCachedImageWidth.toFloat(), currentCachedImageHeight.toFloat(),
-                                    )
-                                    val hitX = (localX - fitOffset.x) / fitScale
-                                    val hitY = (localY - fitOffset.y) / fitScale
-                                    val hitIdx = currentCachedBlocks.indexOfFirst { b ->
-                                        hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
-                                            hitY in b.y.toFloat()..(b.y + b.height).toFloat()
-                                    }
-                                    if (hitIdx >= 0) {
-                                        currentOnCachedBlockTap(hitIdx)
-                                        handled = true
-                                    }
-                                }
-                                if (!handled) {
-                                    when {
-                                        offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                        offset.x > containerSize.width * 0.8f -> onTapRight()
-                                        else -> onTapCenter()
-                                    }
+                                if (hitIdx >= 0) {
+                                    currentOnOcrBlockTap(hitIdx)
+                                    handled = true
                                 }
                             }
-                        } else {
-                            null
+
+                            // 캐시된 블록 탭 (자동 OCR OFF일 때)
+                            if (!handled && currentCachedBlocks.isNotEmpty() && currentCachedImageWidth > 0 && currentCachedImageHeight > 0) {
+                                val (fitScale, fitOffset) = calculateImageTransform(
+                                    ImageScaleMode.AUTO_FIT,
+                                    containerSize.width.toFloat(), containerSize.height.toFloat(),
+                                    currentCachedImageWidth.toFloat(), currentCachedImageHeight.toFloat(),
+                                )
+                                val hitX = (localX - fitOffset.x) / fitScale
+                                val hitY = (localY - fitOffset.y) / fitScale
+                                val hitIdx = currentCachedBlocks.indexOfFirst { b ->
+                                    hitX in b.x.toFloat()..(b.x + b.width).toFloat() &&
+                                        hitY in b.y.toFloat()..(b.y + b.height).toFloat()
+                                }
+                                if (hitIdx >= 0) {
+                                    currentOnCachedBlockTap(hitIdx)
+                                    handled = true
+                                }
+                            }
+                            if (!handled) {
+                                when {
+                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> onTapRight()
+                                    else -> onTapCenter()
+                                }
+                            }
                         },
                     ),
                 contentAlignment = Alignment.Center,
@@ -1790,36 +816,6 @@ private fun ZoomableImage(
                                     zoomableState.zoomTo(zoom, animationSpec = snap())
                                 }
                                 coilReady = true
-                            }
-
-                            // OCR 원본 이미지 크기 사용 (Coil 다운샘플링 대응)
-                            val overlayWidth = if (ocrImageWidth > 0) ocrImageWidth else imgWidth
-                            val overlayHeight = if (ocrImageHeight > 0) ocrImageHeight else imgHeight
-
-                            // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                            // 오버레이는 Fit 좌표계 기준으로 그림 (줌은 zoomableState가 처리)
-                            if (ocrResults.isNotEmpty() && !globalOverlayEnabled) {
-                                BoundingBoxOverlay(
-                                    textBlocks = ocrResults,
-                                    imageWidth = overlayWidth,
-                                    imageHeight = overlayHeight,
-                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
-                                    onBlockTap = onTextBlockTap,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-
-                            // 번역 오버레이
-                            if (globalOverlayEnabled && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
-                                TranslationOverlay(
-                                    textBlocks = ocrResults,
-                                    translationResults = translationResults,
-                                    dominantColors = overlayColors,
-                                    imageWidth = overlayWidth,
-                                    imageHeight = overlayHeight,
-                                    imageScaleMode = ImageScaleMode.AUTO_FIT,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
                             }
 
                             // 캐시된 말풍선 오버레이
@@ -1897,15 +893,6 @@ private fun ZoomableImage(
                 } else {
                     CircularProgressIndicator(color = Color.White)
                 }
-            }
-
-            // 선택 영역 크롭 오버레이 (zoomable 외부 — 화면 좌표계)
-            if (isAreaSelectMode) {
-                CropOverlay(
-                    cropRect = cropRect,
-                    onUpdateCropRect = onUpdateCropRect,
-                    modifier = Modifier.fillMaxSize(),
-                )
             }
         }
     }
@@ -2007,173 +994,6 @@ private fun BoundingBoxDisplayOverlay(
     }
 }
 
-// ── 크롭 오버레이 ─────────────────────────────────────────────
-
-@Composable
-private fun CropOverlay(
-    cropRect: CropRect?,
-    onUpdateCropRect: (CropRect) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    val handleRadius = 18f
-    val handleTouchRadius = 64f // 터치 영역은 시각적 핸들보다 크게/
-    val minCropSize = 60f
-
-    // Always measure container - must happen before early return
-    Box(modifier = modifier.onSizeChanged { containerSize = it }) {
-        // Initialize default centered 1:1 crop box when sentinel values detected
-        LaunchedEffect(cropRect, containerSize) {
-            if (cropRect != null && cropRect.startX < 0f && containerSize.width > 0) {
-                val boxSize = minOf(containerSize.width, containerSize.height) * 0.5f
-                val cx = containerSize.width / 2f
-                val cy = containerSize.height / 2f
-                onUpdateCropRect(
-                    CropRect(
-                        startX = cx - boxSize / 2f,
-                        startY = cy - boxSize / 2f,
-                        endX = cx + boxSize / 2f,
-                        endY = cy + boxSize / 2f,
-                    )
-                )
-            }
-        }
-
-        if (cropRect == null || cropRect.startX < 0f) return@Box
-
-        val minX = minOf(cropRect.startX, cropRect.endX)
-        val minY = minOf(cropRect.startY, cropRect.endY)
-        val maxX = maxOf(cropRect.startX, cropRect.endX)
-        val maxY = maxOf(cropRect.startY, cropRect.endY)
-        val rectWidth = maxX - minX
-        val rectHeight = maxY - minY
-
-        var dragMode by remember { mutableStateOf(DragMode.NONE) }
-        val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f), 0f)
-        // rememberUpdatedState로 최신 cropRect를 pointerInput 내부에서 참조
-        // pointerInput(Unit)을 사용해 드래그 중 재시작 방지
-        val currentCropRect by rememberUpdatedState(cropRect)
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            val cr = currentCropRect ?: return@detectDragGestures
-                            val cMinX = minOf(cr.startX, cr.endX)
-                            val cMinY = minOf(cr.startY, cr.endY)
-                            val cMaxX = maxOf(cr.startX, cr.endX)
-                            val cMaxY = maxOf(cr.startY, cr.endY)
-                            val corners = listOf(
-                                DragMode.TOP_LEFT to Offset(cMinX, cMinY),
-                                DragMode.TOP_RIGHT to Offset(cMaxX, cMinY),
-                                DragMode.BOTTOM_LEFT to Offset(cMinX, cMaxY),
-                                DragMode.BOTTOM_RIGHT to Offset(cMaxX, cMaxY),
-                            )
-                            val hitCorner = corners.firstOrNull { (_, pos) ->
-                                (offset - pos).getDistance() < handleTouchRadius
-                            }
-                            dragMode = if (hitCorner != null) {
-                                hitCorner.first
-                            } else {
-                                DragMode.MOVE
-                            }
-                        },
-                        onDrag = { change, delta ->
-                            change.consume()
-                            val cr = currentCropRect ?: return@detectDragGestures
-                            val cMinX = minOf(cr.startX, cr.endX)
-                            val cMinY = minOf(cr.startY, cr.endY)
-                            val cMaxX = maxOf(cr.startX, cr.endX)
-                            val cMaxY = maxOf(cr.startY, cr.endY)
-                            val cWidth = cMaxX - cMinX
-                            val cHeight = cMaxY - cMinY
-                            val w = containerSize.width.toFloat()
-                            val h = containerSize.height.toFloat()
-                            when (dragMode) {
-                                DragMode.MOVE -> {
-                                    val newMinX = (cMinX + delta.x).coerceIn(0f, w - cWidth)
-                                    val newMinY = (cMinY + delta.y).coerceIn(0f, h - cHeight)
-                                    onUpdateCropRect(
-                                        CropRect(
-                                            startX = newMinX,
-                                            startY = newMinY,
-                                            endX = newMinX + cWidth,
-                                            endY = newMinY + cHeight,
-                                        )
-                                    )
-                                }
-                                DragMode.TOP_LEFT -> {
-                                    val newX = (cMinX + delta.x).coerceIn(0f, cMaxX - minCropSize)
-                                    val newY = (cMinY + delta.y).coerceIn(0f, cMaxY - minCropSize)
-                                    onUpdateCropRect(CropRect(startX = newX, startY = newY, endX = cMaxX, endY = cMaxY))
-                                }
-                                DragMode.TOP_RIGHT -> {
-                                    val newX = (cMaxX + delta.x).coerceIn(cMinX + minCropSize, w)
-                                    val newY = (cMinY + delta.y).coerceIn(0f, cMaxY - minCropSize)
-                                    onUpdateCropRect(CropRect(startX = cMinX, startY = newY, endX = newX, endY = cMaxY))
-                                }
-                                DragMode.BOTTOM_LEFT -> {
-                                    val newX = (cMinX + delta.x).coerceIn(0f, cMaxX - minCropSize)
-                                    val newY = (cMaxY + delta.y).coerceIn(cMinY + minCropSize, h)
-                                    onUpdateCropRect(CropRect(startX = newX, startY = cMinY, endX = cMaxX, endY = newY))
-                                }
-                                DragMode.BOTTOM_RIGHT -> {
-                                    val newX = (cMaxX + delta.x).coerceIn(cMinX + minCropSize, w)
-                                    val newY = (cMaxY + delta.y).coerceIn(cMinY + minCropSize, h)
-                                    onUpdateCropRect(CropRect(startX = cMinX, startY = cMinY, endX = newX, endY = newY))
-                                }
-                                DragMode.NONE -> {}
-                            }
-                        },
-                        onDragEnd = { dragMode = DragMode.NONE },
-                    )
-                },
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val dimColor = Color.Black.copy(alpha = 0.5f)
-                drawRect(dimColor, Offset.Zero, Size(size.width, minY))
-                drawRect(dimColor, Offset(0f, maxY), Size(size.width, size.height - maxY))
-                drawRect(dimColor, Offset(0f, minY), Size(minX, rectHeight))
-                drawRect(dimColor, Offset(maxX, minY), Size(size.width - maxX, rectHeight))
-
-                drawRect(
-                    color = AreaSelectBorder,
-                    topLeft = Offset(minX, minY),
-                    size = Size(rectWidth, rectHeight),
-                    style = Stroke(width = 2f, pathEffect = dashEffect),
-                )
-
-                val corners = listOf(
-                    Offset(minX, minY),
-                    Offset(maxX, minY),
-                    Offset(minX, maxY),
-                    Offset(maxX, maxY),
-                )
-                corners.forEach { corner ->
-                    drawCircle(color = Color.White, radius = handleRadius, center = corner)
-                    drawCircle(color = AreaSelectBorder, radius = handleRadius - 3f, center = corner)
-                }
-
-                val edges = listOf(
-                    Offset((minX + maxX) / 2f, minY),
-                    Offset((minX + maxX) / 2f, maxY),
-                    Offset(minX, (minY + maxY) / 2f),
-                    Offset(maxX, (minY + maxY) / 2f),
-                )
-                edges.forEach { edge ->
-                    drawCircle(color = Color.White, radius = 6f, center = edge)
-                    drawCircle(color = AreaSelectBorder, radius = 4f, center = edge)
-                }
-            }
-        }
-    }
-}
-
-private enum class DragMode {
-    NONE, MOVE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
-}
 
 // ── 이미지 비율 모드 ─────────────────────────────────────────────
 
@@ -2207,286 +1027,6 @@ private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
     ImageScaleMode.ORIGINAL -> ContentScale.None
 }
 
-@Composable
-private fun ImageScaleMode.displayLabel(): String = when (this) {
-    ImageScaleMode.FIT_WIDTH -> stringResource(Res.string.scale_fit_width)
-    ImageScaleMode.FIT_HEIGHT -> stringResource(Res.string.scale_fit_height)
-    ImageScaleMode.AUTO_FIT -> stringResource(Res.string.scale_auto_fit)
-    ImageScaleMode.ORIGINAL -> stringResource(Res.string.scale_original)
-}
-
-@Composable
-private fun ImageScaleModeSelector(
-    currentMode: ImageScaleMode,
-    onModeSelected: (ImageScaleMode) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .background(
-                color = Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(12.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(12.dp),
-            )
-            .clip(RoundedCornerShape(12.dp))
-            .padding(2.dp),
-    ) {
-        ImageScaleMode.entries.forEach { mode ->
-            val isSelected = mode == currentMode
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = if (isSelected) OcrButtonColor.copy(alpha = 0.4f)
-                        else Color.Transparent,
-                        shape = RoundedCornerShape(10.dp),
-                    )
-                    .clickable { onModeSelected(mode) }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = mode.displayLabel(),
-                    color = if (isSelected) OcrButtonColor else Color.White.copy(alpha = 0.6f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AutoProcessStatusIndicator(
-    mode: AutoProcessMode,
-    status: AutoProcessStatus,
-    hasCachedTranslation: Boolean = false,
-    hasCachedOcr: Boolean = false,
-    onRetry: () -> Unit,
-) {
-    // 번역 안함 모드에서도 캐시가 있으면 완료 상태 표시
-    if (mode == AutoProcessMode.NONE) {
-        if (hasCachedTranslation) {
-            PulsingStatusText(stringResource(Res.string.status_translate_done), BoundingBoxColor)
-        } else if (hasCachedOcr) {
-            PulsingStatusText(stringResource(Res.string.status_ocr_done), BoundingBoxColor)
-        }
-        return
-    }
-
-    when (status) {
-        AutoProcessStatus.OCR_PROCESSING -> {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    color = OcrButtonColor,
-                    strokeWidth = 2.dp,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(Res.string.status_ocr_processing), color = OcrButtonColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        AutoProcessStatus.OCR_DONE -> {
-            if (mode == AutoProcessMode.AUTO_OCR) {
-                PulsingStatusText(stringResource(Res.string.status_ocr_done), BoundingBoxColor)
-            }
-            // AUTO_TRANSLATE 모드에서는 OCR_DONE이 일시적 — 곧 번역 시작
-        }
-        AutoProcessStatus.OCR_FAILED -> {
-            Text(
-                text = stringResource(Res.string.status_ocr_failed),
-                color = Color(0xFFEF4444),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onRetry() },
-            )
-        }
-        AutoProcessStatus.TRANSLATE_PROCESSING -> {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    color = OcrButtonColor,
-                    strokeWidth = 2.dp,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(Res.string.status_translate_processing), color = OcrButtonColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        AutoProcessStatus.TRANSLATE_DONE -> {
-            PulsingStatusText(stringResource(Res.string.status_translate_done), BoundingBoxColor)
-        }
-        AutoProcessStatus.TRANSLATE_FAILED -> {
-            Text(
-                text = stringResource(Res.string.status_translate_failed),
-                color = Color(0xFFEF4444),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onRetry() },
-            )
-        }
-        AutoProcessStatus.IDLE -> {}
-    }
-}
-
-@Composable
-private fun PulsingStatusText(text: String, color: Color) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse,
-        ),
-    )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .background(color.copy(alpha = alpha), RoundedCornerShape(50)),
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = text,
-            color = color.copy(alpha = alpha),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
-private fun AutoProcessModeDialog(
-    currentMode: AutoProcessMode,
-    onModeSelected: (AutoProcessMode) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.dialog_auto_process_title)) },
-        text = {
-            Column {
-                AutoProcessMode.entries.forEach { mode ->
-                    val modeLabel = when (mode) {
-                        AutoProcessMode.NONE -> stringResource(Res.string.auto_process_none)
-                        AutoProcessMode.AUTO_OCR -> stringResource(Res.string.auto_process_ocr)
-                        AutoProcessMode.AUTO_TRANSLATE -> stringResource(Res.string.auto_process_translate)
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onModeSelected(mode)
-                                onDismiss()
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = currentMode == mode,
-                            onClick = {
-                                onModeSelected(mode)
-                                onDismiss()
-                            },
-                        )
-                        Text(
-                            text = modeLabel,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.close))
-            }
-        },
-    )
-}
-
-@Composable
-private fun ViewModeSettingsDialog(
-    preference: ViewerPreference,
-    onSetViewMode: (ViewMode) -> Unit,
-    onSetReadingDirection: (ReadingDirection) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.dialog_view_settings_title)) },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(Res.string.dialog_reading_direction),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-                ReadingDirection.entries.forEach { direction ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSetReadingDirection(direction) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = preference.readingDirection == direction,
-                            onClick = { onSetReadingDirection(direction) },
-                        )
-                        Text(
-                            text = when (direction) {
-                                ReadingDirection.LTR -> stringResource(Res.string.reading_direction_ltr)
-                                ReadingDirection.RTL -> stringResource(Res.string.reading_direction_rtl)
-                            },
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = stringResource(Res.string.dialog_view_mode),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-                ViewMode.entries.forEach { mode ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSetViewMode(mode) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = preference.viewMode == mode,
-                            onClick = { onSetViewMode(mode) },
-                        )
-                        Text(
-                            text = when (mode) {
-                                ViewMode.SINGLE_PAGE -> stringResource(Res.string.view_mode_single)
-                                ViewMode.DOUBLE_PAGE -> stringResource(Res.string.view_mode_double)
-                                ViewMode.WEBTOON -> stringResource(Res.string.view_mode_webtoon_full)
-                            },
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.close))
-            }
-        },
-    )
-}
 
 // ── 선택 번역 바텀시트 ──────────────────────────────────────────
 

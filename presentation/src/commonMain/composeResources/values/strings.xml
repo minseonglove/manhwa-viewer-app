@@ -44,13 +44,13 @@
 
     <!-- 뷰어: 하단 컨트롤 - 자동 처리 모드 -->
     <string name="auto_process_none">번역 안함</string>
-    <string name="auto_process_ocr">자동 OCR</string>
+    <string name="auto_process_ocr">말풍선 감지</string>
     <string name="auto_process_translate">자동 번역</string>
 
     <!-- 뷰어: 하단 컨트롤 - 자동 처리 상태 -->
-    <string name="status_ocr_processing">OCR 진행 중</string>
-    <string name="status_ocr_done">OCR 완료</string>
-    <string name="status_ocr_failed">OCR 실패</string>
+    <string name="status_ocr_processing">감지 중</string>
+    <string name="status_ocr_done">감지 완료</string>
+    <string name="status_ocr_failed">감지 실패</string>
     <string name="status_translate_processing">번역 진행 중</string>
     <string name="status_translate_done">번역 완료</string>
     <string name="status_translate_failed">번역 실패</string>
