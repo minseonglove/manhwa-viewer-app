@@ -3,18 +3,12 @@ package com.manhwaviewer.presentation.screen.viewer
 import com.manhwaviewer.domain.entity.ArchiveFile
 import androidx.compose.ui.graphics.Color
 import com.manhwaviewer.domain.entity.OcrBlock
-import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationBlock
-import com.manhwaviewer.domain.entity.TranslationResult
 import androidx.compose.ui.geometry.Offset
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
-
-enum class TranslationMode {
-    NONE, AREA_SELECT, PAGE_TRANSLATE
-}
 
 enum class PipelineStage {
     IDLE, DETECTING, CROPPING, RECOGNIZING, TRANSLATING, DONE
@@ -36,13 +30,6 @@ enum class AutoProcessStatus {
     TRANSLATE_FAILED,
 }
 
-data class CropRect(
-    val startX: Float = 0f,
-    val startY: Float = 0f,
-    val endX: Float = 0f,
-    val endY: Float = 0f,
-)
-
 data class ViewerState(
     val archive: ArchiveFile? = null,
     val filePath: String = "",
@@ -52,19 +39,8 @@ data class ViewerState(
     val preference: ViewerPreference = ViewerPreference(),
     val showControls: Boolean = false,
     val isLoading: Boolean = true,
-    val isOcrProcessing: Boolean = false,
-    val ocrResults: List<TextBlock> = emptyList(),
-    val translationMode: TranslationMode = TranslationMode.NONE,
-    val cropRect: CropRect? = null,
     val pipelineStage: PipelineStage = PipelineStage.IDLE,
-    val ocrBottomSheetText: String? = null,
-    val isOcrSheetExpanded: Boolean = false,
-    val translationResults: List<TranslationResult> = emptyList(),
-    val isTranslating: Boolean = false,
     val globalOverlayEnabled: Boolean = false,
-    val overlayColors: List<Color> = emptyList(),
-    val ocrImageWidth: Int = 0,
-    val ocrImageHeight: Int = 0,
     val cachedBlocks: List<TranslationBlock> = emptyList(),
     val cachedImageWidth: Int = 0,
     val cachedImageHeight: Int = 0,
@@ -90,8 +66,7 @@ data class ViewerState(
                 autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE ||
                 autoProcessStatus == AutoProcessStatus.TRANSLATE_PROCESSING ||
                 cachedBlocks.isNotEmpty() ||
-                autoTranslationBlocks.isNotEmpty() ||
-                pipelineStage == PipelineStage.DONE
+                autoTranslationBlocks.isNotEmpty()
 }
 
 sealed interface ViewerIntent {
@@ -101,22 +76,6 @@ sealed interface ViewerIntent {
     data object PreviousPage : ViewerIntent
     data object ToggleControls : ViewerIntent
     data object SaveProgress : ViewerIntent
-    data object RunPageOcr : ViewerIntent
-    data class SetTranslationMode(val mode: TranslationMode) : ViewerIntent
-    data class UpdateCropRect(val rect: CropRect) : ViewerIntent
-    data class ConfirmCrop(
-        val containerWidth: Int,
-        val containerHeight: Int,
-        val zoomScaleX: Float = 1f,
-        val zoomScaleY: Float = 1f,
-        val zoomOffsetX: Float = 0f,
-        val zoomOffsetY: Float = 0f,
-        val transformOriginX: Float = 0.5f,
-        val transformOriginY: Float = 0.5f,
-        val useSubSampling: Boolean = false,
-    ) : ViewerIntent
-    data object ExpandOcrResult : ViewerIntent
-    data object DismissOcrResult : ViewerIntent
     data object ToggleGlobalOverlay : ViewerIntent
     data object TranslateSelectedBlocks : ViewerIntent
     data object DismissSelectedTranslation : ViewerIntent

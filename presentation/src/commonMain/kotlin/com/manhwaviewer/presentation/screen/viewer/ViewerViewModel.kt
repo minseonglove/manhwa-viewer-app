@@ -60,7 +60,6 @@ class ViewerViewModel(
     private val savePageOcrCacheUseCase: SavePageOcrCacheUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
-    private var ocrJob: Job? = null
     private var cacheJob: Job? = null
     private var autoOcrJob: Job? = null
     private var autoTranslateJob: Job? = null
@@ -107,58 +106,6 @@ class ViewerViewModel(
                 copy(showControls = !showControls)
             }
             is ViewerIntent.SaveProgress -> saveProgress()
-            is ViewerIntent.RunPageOcr -> runPageOcr()
-            is ViewerIntent.SetTranslationMode -> {
-                val clearOcr = intent.mode == TranslationMode.NONE || intent.mode == TranslationMode.AREA_SELECT
-                val clearCache = intent.mode != TranslationMode.NONE
-                updateState {
-                    copy(
-                        translationMode = intent.mode,
-                        cropRect = when (intent.mode) {
-                            TranslationMode.AREA_SELECT -> CropRect(
-                                startX = -1f, startY = -1f,
-                                endX = -1f, endY = -1f,
-                            )
-                            TranslationMode.NONE -> null
-                            else -> cropRect
-                        },
-                        ocrBottomSheetText = if (clearOcr) null else ocrBottomSheetText,
-                        ocrResults = if (clearOcr) emptyList() else ocrResults,
-                        isOcrSheetExpanded = if (clearOcr) false else isOcrSheetExpanded,
-                        pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
-                        translationResults = if (clearOcr) emptyList() else translationResults,
-                        isTranslating = if (clearOcr) false else isTranslating,
-                        // globalOverlayEnabled는 모드 전환 시 유지 (글로벌 상태)
-                        overlayColors = if (clearOcr) emptyList() else overlayColors,
-                        ocrImageWidth = if (clearOcr) 0 else ocrImageWidth,
-                        ocrImageHeight = if (clearOcr) 0 else ocrImageHeight,
-                        cachedBlocks = if (clearCache) emptyList() else cachedBlocks,
-                        cachedImageWidth = if (clearCache) 0 else cachedImageWidth,
-                        cachedImageHeight = if (clearCache) 0 else cachedImageHeight,
-                        cachedOverlayColors = if (clearCache) emptyList() else cachedOverlayColors,
-                        visibleCachedBlockIndices = if (clearCache) emptySet() else visibleCachedBlockIndices,
-                    )
-                }
-                if (intent.mode == TranslationMode.NONE) {
-                    loadCachedTranslation(currentState.currentPage)
-                }
-            }
-            is ViewerIntent.UpdateCropRect -> updateState {
-                copy(cropRect = intent.rect)
-            }
-            is ViewerIntent.ConfirmCrop -> confirmCrop(
-                intent.containerWidth, intent.containerHeight,
-                intent.zoomScaleX, intent.zoomScaleY,
-                intent.zoomOffsetX, intent.zoomOffsetY,
-                intent.transformOriginX, intent.transformOriginY,
-                intent.useSubSampling,
-            )
-            is ViewerIntent.ExpandOcrResult -> updateState {
-                copy(isOcrSheetExpanded = true)
-            }
-            is ViewerIntent.DismissOcrResult -> updateState {
-                copy(isOcrSheetExpanded = false)
-            }
             is ViewerIntent.ToggleGlobalOverlay -> {
                 val newValue = !currentState.globalOverlayEnabled
                 updateState { copy(globalOverlayEnabled = newValue) }
@@ -626,7 +573,6 @@ class ViewerViewModel(
     }
 
     private fun cancelAllAutoJobs() {
-        ocrJob?.cancel()
         cacheJob?.cancel()
         autoOcrJob?.cancel()
         autoTranslateJob?.cancel()
@@ -635,15 +581,8 @@ class ViewerViewModel(
     }
 
     private fun ViewerState.resetPageOcrState() = copy(
-        ocrResults = emptyList(),
-        ocrBottomSheetText = null,
-        translationResults = emptyList(),
         pipelineStage = PipelineStage.IDLE,
-        isOcrSheetExpanded = false,
         // globalOverlayEnabled는 리셋하지 않음 (글로벌 상태)
-        overlayColors = emptyList(),
-        ocrImageWidth = 0,
-        ocrImageHeight = 0,
         cachedBlocks = emptyList(),
         cachedImageWidth = 0,
         cachedImageHeight = 0,
@@ -1291,224 +1230,4 @@ class ViewerViewModel(
         )
     }
 
-    private fun runPageOcr() {
-        if (currentState.isOcrProcessing) return
-        ocrJob?.cancel()
-        ocrJob = viewModelScope.launch {
-            updateState {
-                copy(
-                    isOcrProcessing = true,
-                    ocrResults = emptyList(),
-                    pipelineStage = PipelineStage.DETECTING,
-                    translationMode = TranslationMode.PAGE_TRANSLATE,
-                )
-            }
-            try {
-                val state = currentState
-                val isDoublePage = state.preference.viewMode == ViewMode.DOUBLE_PAGE
-
-                val combined: PageOcrResult?
-
-                if (isDoublePage) {
-                    val spread = pageToSpread(state.currentPage)
-                    val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
-
-                    updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
-
-                    // 각 페이지를 병렬로 OCR + 번역
-                    val firstDeferred = async { processPageOcr(firstPage) }
-                    val secondDeferred = if (secondPage != null) async { processPageOcr(secondPage) } else null
-
-                    val firstResult = firstDeferred.await()
-                    val secondResult = secondDeferred?.await()
-
-                    if (firstResult == null) {
-                        updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
-                        return@launch
-                    }
-
-                    val isRtl = state.preference.readingDirection == ReadingDirection.RTL
-                    combined = combinePageResults(firstResult, secondResult, isRtl)
-                } else {
-                    // 단면/웹툰 모드: 단일 페이지 처리
-                    updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
-                    combined = processPageOcr(state.currentPage)
-
-                    if (combined == null) {
-                        updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
-                        return@launch
-                    }
-                }
-
-                val combinedText = combined.ocrResults.joinToString("\n") { it.text }
-
-                updateState {
-                    copy(
-                        isOcrProcessing = false,
-                        ocrResults = combined.ocrResults,
-                        translationResults = combined.translationResults,
-                        pipelineStage = PipelineStage.DONE,
-                        ocrBottomSheetText = combinedText.ifEmpty { null },
-                        isOcrSheetExpanded = combinedText.isNotEmpty(),
-                        ocrImageWidth = combined.imageWidth,
-                        ocrImageHeight = combined.imageHeight,
-                        isTranslating = false,
-                        // globalOverlayEnabled가 true이면 오버레이 자동 활성 (페이지 번역 모드)
-                        overlayColors = combined.overlayColors,
-                    )
-                }
-            } catch (e: Exception) {
-                updateState { copy(isOcrProcessing = false, pipelineStage = PipelineStage.IDLE) }
-            }
-        }
-    }
-
-    private fun confirmCrop(
-        containerWidth: Int,
-        containerHeight: Int,
-        zoomScaleX: Float,
-        zoomScaleY: Float,
-        zoomOffsetX: Float,
-        zoomOffsetY: Float,
-        transformOriginX: Float,
-        transformOriginY: Float,
-        useSubSampling: Boolean,
-    ) {
-        val crop = currentState.cropRect ?: return
-        ocrJob?.cancel()
-        ocrJob = viewModelScope.launch {
-            updateState { copy(pipelineStage = PipelineStage.DETECTING, isOcrProcessing = true) }
-            try {
-                // 가상 합성 좌표계 크기 계산 (실제 합성 없이)
-                val virtualLayout = getVirtualSpreadLayout() ?: run {
-                    updateState {
-                        copy(
-                            pipelineStage = PipelineStage.IDLE,
-                            isOcrProcessing = false,
-                            translationMode = TranslationMode.NONE,
-                            cropRect = null,
-                        )
-                    }
-                    return@launch
-                }
-                val imgW = virtualLayout.totalWidth
-                val imgH = virtualLayout.totalHeight
-
-                val cropMinX = minOf(crop.startX, crop.endX)
-                val cropMinY = minOf(crop.startY, crop.endY)
-                val cropMaxX = maxOf(crop.startX, crop.endX)
-                val cropMaxY = maxOf(crop.startY, crop.endY)
-
-                // Step 1: screen → content 좌표 (줌 역변환)
-                val originPxX = transformOriginX * containerWidth
-                val originPxY = transformOriginY * containerHeight
-                fun screenToContentX(sx: Float) = (sx - zoomOffsetX - originPxX) / zoomScaleX + originPxX
-                fun screenToContentY(sy: Float) = (sy - zoomOffsetY - originPxY) / zoomScaleY + originPxY
-
-                val contentMinX = screenToContentX(cropMinX)
-                val contentMinY = screenToContentY(cropMinY)
-                val contentMaxX = screenToContentX(cropMaxX)
-                val contentMaxY = screenToContentY(cropMaxY)
-
-                // Step 2: content → image 좌표
-                // SubSampling: contentTransformation이 fit 스케일을 포함하므로 Step 1만으로 이미지 좌표 획득
-                // Coil: contentTransformation은 baseZoom+userZoom만 포함, AUTO_FIT 역변환 필요
-                val imgLeft: Int
-                val imgTop: Int
-                val imgRight: Int
-                val imgBottom: Int
-                if (useSubSampling) {
-                    imgLeft = contentMinX.toInt().coerceIn(0, imgW)
-                    imgTop = contentMinY.toInt().coerceIn(0, imgH)
-                    imgRight = contentMaxX.toInt().coerceIn(0, imgW)
-                    imgBottom = contentMaxY.toInt().coerceIn(0, imgH)
-                } else {
-                    val (fitScale, transformOffset) = calculateImageTransform(
-                        ImageScaleMode.AUTO_FIT,
-                        containerWidth.toFloat(),
-                        containerHeight.toFloat(),
-                        imgW.toFloat(),
-                        imgH.toFloat(),
-                    )
-                    val fitOffsetX = transformOffset.x
-                    val fitOffsetY = transformOffset.y
-                    imgLeft = ((contentMinX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
-                    imgTop = ((contentMinY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
-                    imgRight = ((contentMaxX - fitOffsetX) / fitScale).toInt().coerceIn(0, imgW)
-                    imgBottom = ((contentMaxY - fitOffsetY) / fitScale).toInt().coerceIn(0, imgH)
-                }
-                val cropW = (imgRight - imgLeft).coerceAtLeast(1)
-                val cropH = (imgBottom - imgTop).coerceAtLeast(1)
-
-                // 이미지 크롭 (양면 모드: 페이지별 분리 크롭, 단일 모드: 직접 크롭)
-                val croppedBytes = cropFromVirtualSpread(virtualLayout, imgLeft, imgTop, cropW, cropH)
-
-                updateState { copy(pipelineStage = PipelineStage.RECOGNIZING) }
-
-                // 크롭된 이미지로 OCR 실행
-                val results = recognizePageTextUseCase(croppedBytes)
-
-                // OCR 좌표를 크롭 영역 기준 → 전체 페이지 기준으로 변환
-                val pageResults = results.map { block ->
-                    TextBlock(
-                        x = block.x + imgLeft,
-                        y = block.y + imgTop,
-                        width = block.width,
-                        height = block.height,
-                        text = block.text,
-                    )
-                }
-
-                val combinedText = pageResults.joinToString("\n") { it.text }
-
-                updateState {
-                    copy(
-                        pipelineStage = PipelineStage.TRANSLATING,
-                        isOcrProcessing = false,
-                        ocrResults = pageResults,
-                        ocrBottomSheetText = combinedText.ifEmpty { null },
-                        isOcrSheetExpanded = combinedText.isNotEmpty(),
-                        ocrImageWidth = imgW,
-                        ocrImageHeight = imgH,
-                    )
-                }
-
-                if (results.isNotEmpty()) {
-                    updateState { copy(isTranslating = true) }
-                    try {
-                        val translationResults = translateTextUseCase(results.map { it.text })
-                        val colors = extractDominantColors(croppedBytes, results)
-                        updateState {
-                            copy(
-                                translationResults = translationResults,
-                                pipelineStage = PipelineStage.DONE,
-                                isTranslating = false,
-                                // globalOverlayEnabled는 유지 (영역 선택 번역에서는 변경하지 않음)
-                                overlayColors = colors,
-                            )
-                        }
-                    } catch (e: Exception) {
-                        updateState {
-                            copy(
-                                translationResults = emptyList(),
-                                isTranslating = false,
-                                pipelineStage = PipelineStage.DONE,
-                            )
-                        }
-                    }
-                } else {
-                    updateState { copy(pipelineStage = PipelineStage.DONE) }
-                }
-            } catch (e: Exception) {
-                updateState {
-                    copy(
-                        pipelineStage = PipelineStage.IDLE,
-                        isOcrProcessing = false,
-                        translationMode = TranslationMode.NONE,
-                        cropRect = null,
-                    )
-                }
-            }
-        }
-    }
 }
