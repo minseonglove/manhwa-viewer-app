@@ -1,7 +1,12 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -49,8 +54,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -98,8 +101,56 @@ import com.manhwaviewer.domain.entity.ViewerPreference
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.auto_process_none
+import manhwa_viewer.presentation.generated.resources.auto_process_ocr
+import manhwa_viewer.presentation.generated.resources.auto_process_translate
+import manhwa_viewer.presentation.generated.resources.back
+import manhwa_viewer.presentation.generated.resources.close
+import manhwa_viewer.presentation.generated.resources.dialog_auto_process_title
+import manhwa_viewer.presentation.generated.resources.dialog_reading_direction
+import manhwa_viewer.presentation.generated.resources.dialog_view_mode
+import manhwa_viewer.presentation.generated.resources.dialog_view_settings_title
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
+import manhwa_viewer.presentation.generated.resources.ic_book
+import manhwa_viewer.presentation.generated.resources.ic_translate
+import manhwa_viewer.presentation.generated.resources.pipeline_cropping
+import manhwa_viewer.presentation.generated.resources.pipeline_detecting
+import manhwa_viewer.presentation.generated.resources.pipeline_recognizing
+import manhwa_viewer.presentation.generated.resources.pipeline_translating
+import manhwa_viewer.presentation.generated.resources.reading_direction_ltr
+import manhwa_viewer.presentation.generated.resources.reading_direction_rtl
+import manhwa_viewer.presentation.generated.resources.scale_auto_fit
+import manhwa_viewer.presentation.generated.resources.scale_fit_height
+import manhwa_viewer.presentation.generated.resources.scale_fit_width
+import manhwa_viewer.presentation.generated.resources.scale_original
+import manhwa_viewer.presentation.generated.resources.status_ocr_done
+import manhwa_viewer.presentation.generated.resources.status_ocr_failed
+import manhwa_viewer.presentation.generated.resources.status_ocr_processing
+import manhwa_viewer.presentation.generated.resources.status_translate_done
+import manhwa_viewer.presentation.generated.resources.status_translate_failed
+import manhwa_viewer.presentation.generated.resources.status_translate_processing
+import manhwa_viewer.presentation.generated.resources.view_mode_double
+import manhwa_viewer.presentation.generated.resources.view_mode_single
+import manhwa_viewer.presentation.generated.resources.view_mode_webtoon
+import manhwa_viewer.presentation.generated.resources.view_mode_webtoon_full
+import manhwa_viewer.presentation.generated.resources.viewer_area_select
+import manhwa_viewer.presentation.generated.resources.viewer_area_translate
+import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
+import manhwa_viewer.presentation.generated.resources.viewer_page_translate
+import manhwa_viewer.presentation.generated.resources.viewer_page_translate_title
+import manhwa_viewer.presentation.generated.resources.viewer_reselect
+import manhwa_viewer.presentation.generated.resources.viewer_select_done
+import manhwa_viewer.presentation.generated.resources.viewer_show_translation
+import manhwa_viewer.presentation.generated.resources.viewer_toggle_overlay
+import manhwa_viewer.presentation.generated.resources.viewer_settings
+import manhwa_viewer.presentation.generated.resources.viewer_translate
+import manhwa_viewer.presentation.generated.resources.viewer_translating
+import manhwa_viewer.presentation.generated.resources.viewer_translation_pending
+import org.jetbrains.compose.resources.stringResource
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
 import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
 import me.saket.telephoto.zoomable.ZoomableContentLocation
@@ -199,6 +250,7 @@ fun ViewerScreen(
     var zoomOriginX by remember { mutableStateOf(0.5f) }
     var zoomOriginY by remember { mutableStateOf(0.5f) }
     var showViewModeDialog by remember { mutableStateOf(false) }
+    var showAutoProcessDialog by remember { mutableStateOf(false) }
 
     if (showViewModeDialog) {
         ViewModeSettingsDialog(
@@ -206,6 +258,14 @@ fun ViewerScreen(
             onSetViewMode = { viewModel.onIntent(ViewerIntent.SetViewMode(it)) },
             onSetReadingDirection = { viewModel.onIntent(ViewerIntent.SetReadingDirection(it)) },
             onDismiss = { showViewModeDialog = false },
+        )
+    }
+
+    if (showAutoProcessDialog) {
+        AutoProcessModeDialog(
+            currentMode = state.autoProcessMode,
+            onModeSelected = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
+            onDismiss = { showAutoProcessDialog = false },
         )
     }
 
@@ -302,7 +362,7 @@ fun ViewerScreen(
                             autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
-                            autoOcrStatus = if (page == state.currentPage) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            autoProcessStatus = if (page == state.currentPage) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
@@ -402,7 +462,7 @@ fun ViewerScreen(
                             autoOcrBlocks = if (isCurrentSpread) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (isCurrentSpread) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (isCurrentSpread) state.autoOcrImageHeight else 0,
-                            autoOcrStatus = if (isCurrentSpread) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            autoProcessStatus = if (isCurrentSpread) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (isCurrentSpread) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
@@ -494,7 +554,7 @@ fun ViewerScreen(
                             autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
-                            autoOcrStatus = if (page == state.currentPage) state.autoOcrStatus else AutoOcrStatus.IDLE,
+                            autoProcessStatus = if (page == state.currentPage) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
@@ -508,7 +568,7 @@ fun ViewerScreen(
             }
         } else {
             Text(
-                text = "이미지를 찾을 수 없습니다",
+                text = stringResource(Res.string.viewer_image_not_found),
                 color = Color.White,
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -546,13 +606,13 @@ fun ViewerScreen(
                 }) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(Res.string.back),
                         tint = Color.White,
                     )
                 }
 
                 Text(
-                    text = "영역 선택",
+                    text = stringResource(Res.string.viewer_area_select),
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
@@ -602,7 +662,7 @@ fun ViewerScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (hasOcrResults) "다시 선택" else "선택 완료",
+                        text = if (hasOcrResults) stringResource(Res.string.viewer_reselect) else stringResource(Res.string.viewer_select_done),
                         color = if (hasOcrResults) AreaSelectBorder else Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -634,13 +694,13 @@ fun ViewerScreen(
                 }) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(Res.string.back),
                         tint = Color.White,
                     )
                 }
 
                 Text(
-                    text = "페이지 번역",
+                    text = stringResource(Res.string.viewer_page_translate_title),
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
@@ -654,7 +714,7 @@ fun ViewerScreen(
                     Icon(
                         imageVector = if (state.showTranslationOverlay) Icons.Default.Visibility
                         else Icons.Default.VisibilityOff,
-                        contentDescription = "번역 오버레이 토글",
+                        contentDescription = stringResource(Res.string.viewer_toggle_overlay),
                         tint = if (state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty()) Color.White
                         else Color.White.copy(alpha = 0.3f),
                     )
@@ -685,7 +745,7 @@ fun ViewerScreen(
                 }) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_arrow_back),
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(Res.string.back),
                         tint = Color.White,
                     )
                 }
@@ -716,7 +776,7 @@ fun ViewerScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "번역",
+                        text = stringResource(Res.string.viewer_translate),
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -729,7 +789,7 @@ fun ViewerScreen(
                 IconButton(onClick = onSettings) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "설정",
+                        contentDescription = stringResource(Res.string.viewer_settings),
                         tint = Color.White,
                     )
                 }
@@ -761,6 +821,18 @@ fun ViewerScreen(
             )
         }
 
+        // 하단 컨트롤에서 사용할 string resource 변수
+        val viewModeLabel = when (viewMode) {
+            ViewMode.DOUBLE_PAGE -> stringResource(Res.string.view_mode_double)
+            ViewMode.WEBTOON -> stringResource(Res.string.view_mode_webtoon)
+            ViewMode.SINGLE_PAGE -> stringResource(Res.string.view_mode_single)
+        }
+        val autoProcessModeLabel = when (state.autoProcessMode) {
+            AutoProcessMode.NONE -> stringResource(Res.string.auto_process_none)
+            AutoProcessMode.AUTO_OCR -> stringResource(Res.string.auto_process_ocr)
+            AutoProcessMode.AUTO_TRANSLATE -> stringResource(Res.string.auto_process_translate)
+        }
+
         // 하단 컨트롤 (번역 모드에서는 숨김)
         AnimatedVisibility(
             visible = state.showControls && state.translationMode == TranslationMode.NONE,
@@ -776,151 +848,146 @@ fun ViewerScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                // 파이프라인 인디케이터
-                if (state.pipelineStage != PipelineStage.IDLE) {
-                    PipelineIndicator(
-                        stage = state.pipelineStage,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                    )
-                }
-
-                // 자동 OCR 토글
+                // Row 1: [RTL/양면 버튼] [OCR/번역 버튼] [상태 표시]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 4.dp),
+                        .padding(bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = "자동 OCR",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Switch(
-                        checked = state.autoOcrEnabled,
-                        onCheckedChange = { viewModel.onIntent(ViewerIntent.ToggleAutoOcr) },
-                        modifier = Modifier.height(20.dp),
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = BoundingBoxColor,
-                            uncheckedThumbColor = Color.White.copy(alpha = 0.6f),
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.2f),
-                        ),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    when (state.autoOcrStatus) {
-                        AutoOcrStatus.PROCESSING -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                color = OcrButtonColor,
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "진행 중...",
-                                color = OcrButtonColor,
-                                fontSize = 11.sp,
-                            )
-                        }
-                        AutoOcrStatus.DONE -> {
-                            Text(
-                                text = "OCR 완료!",
-                                color = BoundingBoxColor,
-                                fontSize = 11.sp,
-                            )
-                        }
-                        AutoOcrStatus.IDLE -> {}
-                    }
-                }
-
-                // 1행: 페이지 표시 + RTL/LTR 배지
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = if (isDoublePage && state.totalPages > 1) {
-                            val spread = pageToSpread(state.currentPage)
-                            val (left, right) = spreadToPages(spread, state.totalPages)
-                            if (right != null) "${left + 1}-${right + 1} / ${state.totalPages}"
-                            else "${left + 1} / ${state.totalPages}"
-                        } else {
-                            "${state.currentPage + 1} / ${state.totalPages}"
-                        },
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    // RTL/양면 버튼
                     Box(
                         modifier = Modifier
                             .clickable { showViewModeDialog = true }
                             .background(
                                 color = Color.White.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(4.dp),
+                                shape = RoundedCornerShape(8.dp),
                             )
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.05f),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
-                        Text(
-                            text = buildString {
-                                append(if (state.preference.readingDirection == ReadingDirection.RTL) "RTL \u2190" else "LTR \u2192")
-                                when (viewMode) {
-                                    ViewMode.WEBTOON -> append(" \u00B7 \uC6F9\uD230")
-                                    ViewMode.DOUBLE_PAGE -> append(" \u00B7 \uC591\uBA74")
-                                    ViewMode.SINGLE_PAGE -> {}
-                                }
-                            },
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_book),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = buildString {
+                                    append(if (state.preference.readingDirection == ReadingDirection.RTL) "RTL" else "LTR")
+                                    append(" / ")
+                                    append(viewModeLabel)
+                                },
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
+
+                    // OCR/번역 버튼
+                    Box(
+                        modifier = Modifier
+                            .clickable { showAutoProcessDialog = true }
+                            .background(
+                                color = Color.White.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.05f),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_translate),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = autoProcessModeLabel,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+
+                    // 상태 표시
+                    AutoProcessStatusIndicator(
+                        mode = state.autoProcessMode,
+                        status = state.autoProcessStatus,
+                        onRetry = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
+                    )
                 }
 
-                // 이미지 비율 선택
+                // Row 2: 이미지 비율 선택 (pill group)
                 ImageScaleModeSelector(
                     currentMode = state.preference.imageScaleMode,
                     onModeSelected = { mode ->
                         viewModel.onIntent(ViewerIntent.SetImageScaleMode(mode))
                     },
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
 
-                // 2행: 슬라이더
-                if (state.totalPages > 1) {
-                    Slider(
-                        value = if (isDoublePage) pageToSpread(state.currentPage).toFloat() else state.currentPage.toFloat(),
-                        onValueChange = {
-                            coroutineScope.launch {
-                                pagerState.scrollToPage(it.toInt())
-                            }
-                        },
-                        valueRange = 0f..(pagerPageCount - 1).toFloat().coerceAtLeast(0f),
-                        steps = (pagerPageCount - 2).coerceAtLeast(0),
-                        colors = SliderDefaults.colors(
-                            thumbColor = OcrButtonColor,
-                            activeTrackColor = OcrButtonColor,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                        ),
-                        modifier = Modifier.padding(vertical = 0.dp),
-                    )
-                }
-
-                // 3행: 양쪽 끝 페이지 번호
+                // Row 3: [현재 페이지] ── slider ── [총 페이지]
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val currentPageLabel = if (isDoublePage && state.totalPages > 1) {
+                        val spread = pageToSpread(state.currentPage)
+                        val (left, right) = spreadToPages(spread, state.totalPages)
+                        if (right != null) "${left + 1}-${right + 1}" else "${left + 1}"
+                    } else {
+                        "${state.currentPage + 1}"
+                    }
                     Text(
-                        text = "1",
-                        color = Color.White.copy(alpha = 0.4f),
-                        fontSize = 9.sp,
+                        text = currentPageLabel,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.widthIn(min = 32.dp),
+                        textAlign = TextAlign.Center,
                     )
+                    if (state.totalPages > 1) {
+                        Slider(
+                            value = if (isDoublePage) pageToSpread(state.currentPage).toFloat() else state.currentPage.toFloat(),
+                            onValueChange = {
+                                coroutineScope.launch {
+                                    pagerState.scrollToPage(it.toInt())
+                                }
+                            },
+                            valueRange = 0f..(pagerPageCount - 1).toFloat().coerceAtLeast(0f),
+                            steps = (pagerPageCount - 2).coerceAtLeast(0),
+                            colors = SliderDefaults.colors(
+                                thumbColor = OcrButtonColor,
+                                activeTrackColor = OcrButtonColor,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                            ),
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                     Text(
                         text = "${state.totalPages}",
-                        color = Color.White.copy(alpha = 0.4f),
-                        fontSize = 9.sp,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.widthIn(min = 32.dp),
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
@@ -989,7 +1056,7 @@ private fun TranslationOptionBar(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "\u2702 선택영역번역",
+                text = stringResource(Res.string.viewer_area_translate),
                 color = AreaSelectText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -1014,7 +1081,7 @@ private fun TranslationOptionBar(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "\uD83D\uDCC4 페이지번역",
+                text = stringResource(Res.string.viewer_page_translate),
                 color = PageTranslateText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -1031,10 +1098,10 @@ private fun PipelineIndicator(
     modifier: Modifier = Modifier,
 ) {
     val stages = listOf(
-        "탐지" to PipelineStage.DETECTING,
-        "크롭" to PipelineStage.CROPPING,
-        "OCR" to PipelineStage.RECOGNIZING,
-        "번역" to PipelineStage.TRANSLATING,
+        stringResource(Res.string.pipeline_detecting) to PipelineStage.DETECTING,
+        stringResource(Res.string.pipeline_cropping) to PipelineStage.CROPPING,
+        stringResource(Res.string.pipeline_recognizing) to PipelineStage.RECOGNIZING,
+        stringResource(Res.string.pipeline_translating) to PipelineStage.TRANSLATING,
     )
 
     Row(
@@ -1153,7 +1220,7 @@ private fun OcrBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (isTranslating) "\u2192 번역 중..." else "\u2192 번역 대기",
+                    text = if (isTranslating) stringResource(Res.string.viewer_translating) else stringResource(Res.string.viewer_translation_pending),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -1194,7 +1261,7 @@ private fun OcrCollapsedHandle(
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "번역 결과 보기",
+                text = stringResource(Res.string.viewer_show_translation),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
@@ -1234,7 +1301,7 @@ private fun ZoomableImage(
     autoOcrBlocks: List<OcrBlock>,
     autoOcrImageWidth: Int,
     autoOcrImageHeight: Int,
-    autoOcrStatus: AutoOcrStatus,
+    autoProcessStatus: AutoProcessStatus,
     selectedOcrBlockIndices: Set<Int>,
     onOcrBlockTap: (Int) -> Unit,
     onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
@@ -1285,7 +1352,7 @@ private fun ZoomableImage(
     val currentAutoOcrBlocks by rememberUpdatedState(autoOcrBlocks)
     val currentAutoOcrImageWidth by rememberUpdatedState(autoOcrImageWidth)
     val currentAutoOcrImageHeight by rememberUpdatedState(autoOcrImageHeight)
-    val currentAutoOcrStatus by rememberUpdatedState(autoOcrStatus)
+    val currentAutoProcessStatus by rememberUpdatedState(autoProcessStatus)
     val currentOnOcrBlockTap by rememberUpdatedState(onOcrBlockTap)
 
     // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
@@ -1347,7 +1414,7 @@ private fun ZoomableImage(
                                 val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
                                 val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
                                 // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && currentAutoOcrStatus == AutoOcrStatus.DONE &&
+                                if (!handled && currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE &&
                                     currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
                                     val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
                                         imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
@@ -1475,7 +1542,7 @@ private fun ZoomableImage(
                     }
 
                     // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
-                    if (autoOcrStatus == AutoOcrStatus.DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                    if (autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
                         val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
                             selectedOcrBlockIndices.sorted().mapNotNull { i ->
                                 autoOcrBlocks.getOrNull(i)?.let {
@@ -1524,7 +1591,7 @@ private fun ZoomableImage(
                                 val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
                                 val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
                                 // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && currentAutoOcrStatus == AutoOcrStatus.DONE &&
+                                if (!handled && currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE &&
                                     currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
                                     val (fitScale, fitOffset) = calculateImageTransform(
                                         ImageScaleMode.AUTO_FIT,
@@ -1678,7 +1745,7 @@ private fun ZoomableImage(
                             }
 
                             // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
-                            if (autoOcrStatus == AutoOcrStatus.DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                            if (autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
                                 val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
                                     selectedOcrBlockIndices.sorted().mapNotNull { i ->
                                         autoOcrBlocks.getOrNull(i)?.let {
@@ -2010,11 +2077,12 @@ private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
     ImageScaleMode.ORIGINAL -> ContentScale.None
 }
 
+@Composable
 private fun ImageScaleMode.displayLabel(): String = when (this) {
-    ImageScaleMode.FIT_WIDTH -> "가로"
-    ImageScaleMode.FIT_HEIGHT -> "세로"
-    ImageScaleMode.AUTO_FIT -> "자동"
-    ImageScaleMode.ORIGINAL -> "원본"
+    ImageScaleMode.FIT_WIDTH -> stringResource(Res.string.scale_fit_width)
+    ImageScaleMode.FIT_HEIGHT -> stringResource(Res.string.scale_fit_height)
+    ImageScaleMode.AUTO_FIT -> stringResource(Res.string.scale_auto_fit)
+    ImageScaleMode.ORIGINAL -> stringResource(Res.string.scale_original)
 }
 
 @Composable
@@ -2024,31 +2092,180 @@ private fun ImageScaleModeSelector(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
+            .background(
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp),
+            )
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp),
+            )
+            .clip(RoundedCornerShape(12.dp))
+            .padding(2.dp),
     ) {
         ImageScaleMode.entries.forEach { mode ->
             val isSelected = mode == currentMode
             Box(
                 modifier = Modifier
                     .background(
-                        color = if (isSelected) OcrButtonColor.copy(alpha = 0.3f)
-                        else Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(6.dp),
+                        color = if (isSelected) OcrButtonColor.copy(alpha = 0.4f)
+                        else Color.Transparent,
+                        shape = RoundedCornerShape(10.dp),
                     )
                     .clickable { onModeSelected(mode) }
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = mode.displayLabel(),
                     color = if (isSelected) OcrButtonColor else Color.White.copy(alpha = 0.6f),
                     fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
     }
+}
+
+@Composable
+private fun AutoProcessStatusIndicator(
+    mode: AutoProcessMode,
+    status: AutoProcessStatus,
+    onRetry: () -> Unit,
+) {
+    if (mode == AutoProcessMode.NONE) return
+
+    when (status) {
+        AutoProcessStatus.OCR_PROCESSING -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    color = OcrButtonColor,
+                    strokeWidth = 2.dp,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(Res.string.status_ocr_processing), color = OcrButtonColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        AutoProcessStatus.OCR_DONE -> {
+            if (mode == AutoProcessMode.AUTO_OCR) {
+                PulsingStatusText(stringResource(Res.string.status_ocr_done), BoundingBoxColor)
+            }
+            // AUTO_TRANSLATE 모드에서는 OCR_DONE이 일시적 — 곧 번역 시작
+        }
+        AutoProcessStatus.OCR_FAILED -> {
+            Text(
+                text = stringResource(Res.string.status_ocr_failed),
+                color = Color(0xFFEF4444),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { onRetry() },
+            )
+        }
+        AutoProcessStatus.TRANSLATE_PROCESSING -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    color = OcrButtonColor,
+                    strokeWidth = 2.dp,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(Res.string.status_translate_processing), color = OcrButtonColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        AutoProcessStatus.TRANSLATE_DONE -> {
+            PulsingStatusText(stringResource(Res.string.status_translate_done), BoundingBoxColor)
+        }
+        AutoProcessStatus.TRANSLATE_FAILED -> {
+            Text(
+                text = stringResource(Res.string.status_translate_failed),
+                color = Color(0xFFEF4444),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { onRetry() },
+            )
+        }
+        AutoProcessStatus.IDLE -> {}
+    }
+}
+
+@Composable
+private fun PulsingStatusText(text: String, color: Color) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse,
+        ),
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(color.copy(alpha = alpha), RoundedCornerShape(50)),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            color = color.copy(alpha = alpha),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun AutoProcessModeDialog(
+    currentMode: AutoProcessMode,
+    onModeSelected: (AutoProcessMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.dialog_auto_process_title)) },
+        text = {
+            Column {
+                AutoProcessMode.entries.forEach { mode ->
+                    val modeLabel = when (mode) {
+                        AutoProcessMode.NONE -> stringResource(Res.string.auto_process_none)
+                        AutoProcessMode.AUTO_OCR -> stringResource(Res.string.auto_process_ocr)
+                        AutoProcessMode.AUTO_TRANSLATE -> stringResource(Res.string.auto_process_translate)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onModeSelected(mode)
+                                onDismiss()
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = currentMode == mode,
+                            onClick = {
+                                onModeSelected(mode)
+                                onDismiss()
+                            },
+                        )
+                        Text(
+                            text = modeLabel,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.close))
+            }
+        },
+    )
 }
 
 @Composable
@@ -2060,11 +2277,11 @@ private fun ViewModeSettingsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("보기 설정") },
+        title = { Text(stringResource(Res.string.dialog_view_settings_title)) },
         text = {
             Column {
                 Text(
-                    text = "읽기 방향",
+                    text = stringResource(Res.string.dialog_reading_direction),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -2083,8 +2300,8 @@ private fun ViewModeSettingsDialog(
                         )
                         Text(
                             text = when (direction) {
-                                ReadingDirection.LTR -> "왼쪽 → 오른쪽 (LTR)"
-                                ReadingDirection.RTL -> "오른쪽 → 왼쪽 (RTL)"
+                                ReadingDirection.LTR -> stringResource(Res.string.reading_direction_ltr)
+                                ReadingDirection.RTL -> stringResource(Res.string.reading_direction_rtl)
                             },
                             modifier = Modifier.padding(start = 8.dp),
                         )
@@ -2094,7 +2311,7 @@ private fun ViewModeSettingsDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "보기 모드",
+                    text = stringResource(Res.string.dialog_view_mode),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -2113,9 +2330,9 @@ private fun ViewModeSettingsDialog(
                         )
                         Text(
                             text = when (mode) {
-                                ViewMode.SINGLE_PAGE -> "단면"
-                                ViewMode.DOUBLE_PAGE -> "양면"
-                                ViewMode.WEBTOON -> "웹툰 (세로 스크롤)"
+                                ViewMode.SINGLE_PAGE -> stringResource(Res.string.view_mode_single)
+                                ViewMode.DOUBLE_PAGE -> stringResource(Res.string.view_mode_double)
+                                ViewMode.WEBTOON -> stringResource(Res.string.view_mode_webtoon_full)
                             },
                             modifier = Modifier.padding(start = 8.dp),
                         )
@@ -2125,7 +2342,7 @@ private fun ViewModeSettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("닫기")
+                Text(stringResource(Res.string.close))
             }
         },
     )

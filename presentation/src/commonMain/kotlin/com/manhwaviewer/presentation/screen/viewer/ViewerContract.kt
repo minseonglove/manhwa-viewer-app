@@ -20,8 +20,20 @@ enum class PipelineStage {
     IDLE, DETECTING, CROPPING, RECOGNIZING, TRANSLATING, DONE
 }
 
-enum class AutoOcrStatus {
-    IDLE, PROCESSING, DONE
+enum class AutoProcessMode {
+    NONE,           // 번역 안함
+    AUTO_OCR,       // 자동 OCR
+    AUTO_TRANSLATE  // 자동 번역
+}
+
+enum class AutoProcessStatus {
+    IDLE,
+    OCR_PROCESSING,
+    OCR_DONE,
+    OCR_FAILED,
+    TRANSLATE_PROCESSING,
+    TRANSLATE_DONE,
+    TRANSLATE_FAILED,
 }
 
 data class CropRect(
@@ -58,12 +70,16 @@ data class ViewerState(
     val cachedImageHeight: Int = 0,
     val cachedOverlayColors: List<Color> = emptyList(),
     val visibleCachedBlockIndices: Set<Int> = emptySet(),
-    val autoOcrEnabled: Boolean = false,
-    val autoOcrStatus: AutoOcrStatus = AutoOcrStatus.IDLE,
+    val autoProcessMode: AutoProcessMode = AutoProcessMode.NONE,
+    val autoProcessStatus: AutoProcessStatus = AutoProcessStatus.IDLE,
     val autoOcrBlocks: List<OcrBlock> = emptyList(),
     val autoOcrImageWidth: Int = 0,
     val autoOcrImageHeight: Int = 0,
     val selectedOcrBlockIndices: Set<Int> = emptySet(),
+    val autoTranslationBlocks: List<TranslationBlock> = emptyList(),
+    val autoTranslationImageWidth: Int = 0,
+    val autoTranslationImageHeight: Int = 0,
+    val autoTranslationOverlayColors: List<Color> = emptyList(),
 )
 
 sealed interface ViewerIntent {
@@ -94,7 +110,8 @@ sealed interface ViewerIntent {
     data class SetViewMode(val mode: ViewMode) : ViewerIntent
     data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent
     data class ToggleCachedBlockOverlay(val blockIndex: Int) : ViewerIntent
-    data object ToggleAutoOcr : ViewerIntent
+    data class SetAutoProcessMode(val mode: AutoProcessMode) : ViewerIntent
+    data object RetryAutoProcess : ViewerIntent
     data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
 }
 

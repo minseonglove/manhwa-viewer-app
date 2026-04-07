@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 공통 -->
+    <string name="back">뒤로가기</string>
+    <string name="close">닫기</string>
+    <string name="viewer_settings">설정</string>
+
+    <!-- 뷰어: 상단 바 -->
+    <string name="viewer_area_select">영역 선택</string>
+    <string name="viewer_reselect">다시 선택</string>
+    <string name="viewer_select_done">선택 완료</string>
+    <string name="viewer_page_translate_title">페이지 번역</string>
+    <string name="viewer_translate">번역</string>
+    <string name="viewer_toggle_overlay">번역 오버레이 토글</string>
+    <string name="viewer_image_not_found">이미지를 찾을 수 없습니다</string>
+
+    <!-- 뷰어: 번역 옵션 바 -->
+    <string name="viewer_area_translate">✂ 선택영역번역</string>
+    <string name="viewer_page_translate">📄 페이지번역</string>
+
+    <!-- 뷰어: 파이프라인 단계 -->
+    <string name="pipeline_detecting">탐지</string>
+    <string name="pipeline_cropping">크롭</string>
+    <string name="pipeline_recognizing">OCR</string>
+    <string name="pipeline_translating">번역</string>
+
+    <!-- 뷰어: OCR 바텀시트 -->
+    <string name="viewer_show_translation">번역 결과 보기</string>
+    <string name="viewer_translating">→ 번역 중…</string>
+    <string name="viewer_translation_pending">→ 번역 대기</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 보기 모드 -->
+    <string name="view_mode_single">단면</string>
+    <string name="view_mode_double">양면</string>
+    <string name="view_mode_webtoon">웹툰</string>
+    <string name="view_mode_webtoon_full">웹툰 (세로 스크롤)</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 이미지 비율 -->
+    <string name="scale_fit_width">가로</string>
+    <string name="scale_fit_height">세로</string>
+    <string name="scale_auto_fit">자동</string>
+    <string name="scale_original">원본</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 자동 처리 모드 -->
+    <string name="auto_process_none">번역 안함</string>
+    <string name="auto_process_ocr">자동 OCR</string>
+    <string name="auto_process_translate">자동 번역</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 자동 처리 상태 -->
+    <string name="status_ocr_processing">OCR 진행 중</string>
+    <string name="status_ocr_done">OCR 완료</string>
+    <string name="status_ocr_failed">OCR 실패</string>
+    <string name="status_translate_processing">번역 진행 중</string>
+    <string name="status_translate_done">번역 완료</string>
+    <string name="status_translate_failed">번역 실패</string>
+
+    <!-- 뷰어: 다이얼로그 -->
+    <string name="dialog_auto_process_title">OCR / 번역 설정</string>
+    <string name="dialog_view_settings_title">보기 설정</string>
+    <string name="dialog_reading_direction">읽기 방향</string>
+    <string name="dialog_view_mode">보기 모드</string>
+    <string name="reading_direction_ltr">왼쪽 → 오른쪽 (LTR)</string>
+    <string name="reading_direction_rtl">오른쪽 → 왼쪽 (RTL)</string>
+</resources>
