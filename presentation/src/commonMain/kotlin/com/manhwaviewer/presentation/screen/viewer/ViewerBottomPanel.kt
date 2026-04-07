@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -86,6 +85,7 @@ import org.jetbrains.compose.resources.stringResource
 private val PanelBackground = Color(0xE01C1C1E)  // rgba(28,28,30,0.88)
 private val PanelBorder = Color(0x21FFFFFF)        // rgba(255,255,255,0.13)
 private val BlueHi = Color(0xFF2997FF)
+private val BlueBg = Color(0x292997FF)              // rgba(41,151,255,0.16)
 private val Green = Color(0xFF30D158)
 private val GreenDark = Color(0x2930D158)          // rgba(48,209,88,0.16)
 private val Red = Color(0xFFFF453A)
@@ -391,7 +391,6 @@ private fun TranslationTabContent(
             modifier = Modifier.padding(start = 4.dp),
         ) {
             TranslationStatusChip(
-                mode = autoProcessMode,
                 status = autoProcessStatus,
                 hasCachedTranslation = hasCachedTranslation,
                 hasCachedOcr = hasCachedOcr,
@@ -413,7 +412,6 @@ private fun TranslationTabContent(
 
 @Composable
 private fun TranslationStatusChip(
-    mode: AutoProcessMode,
     status: AutoProcessStatus,
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
@@ -440,23 +438,12 @@ private fun TranslationStatusChip(
                 modifier = Modifier.clickable(onClick = onRetry),
             )
         }
+        // 진행 중 — 칩으로 표시
         status == AutoProcessStatus.OCR_PROCESSING -> {
-            CircularProgressIndicator(
-                modifier = Modifier.size(12.dp),
-                color = BlueHi,
-                strokeWidth = 2.dp,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(stringResource(Res.string.status_ocr_processing), color = BlueHi, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            StatusChip(label = stringResource(Res.string.status_ocr_processing), color = BlueHi, bg = BlueBg)
         }
         status == AutoProcessStatus.TRANSLATE_PROCESSING -> {
-            CircularProgressIndicator(
-                modifier = Modifier.size(12.dp),
-                color = BlueHi,
-                strokeWidth = 2.dp,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(stringResource(Res.string.status_translate_processing), color = BlueHi, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            StatusChip(label = stringResource(Res.string.status_translate_processing), color = BlueHi, bg = BlueBg)
         }
         // 완료 — hasCachedTranslation을 hasCachedOcr보다 먼저 체크
         status == AutoProcessStatus.TRANSLATE_DONE || hasCachedTranslation -> {

@@ -51,7 +51,7 @@
     <string name="status_ocr_processing">감지 중</string>
     <string name="status_ocr_done">감지 완료</string>
     <string name="status_ocr_failed">감지 실패</string>
-    <string name="status_translate_processing">번역 진행 중</string>
+    <string name="status_translate_processing">번역 중</string>
     <string name="status_translate_done">번역 완료</string>
     <string name="status_translate_failed">번역 실패</string>
 
