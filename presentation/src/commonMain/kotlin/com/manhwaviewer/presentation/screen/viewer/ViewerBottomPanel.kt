@@ -78,23 +78,24 @@ import manhwa_viewer.presentation.generated.resources.status_translate_processin
 import manhwa_viewer.presentation.generated.resources.view_mode_double
 import manhwa_viewer.presentation.generated.resources.view_mode_single
 import manhwa_viewer.presentation.generated.resources.view_mode_webtoon
+import com.manhwaviewer.presentation.theme.MangaLensColors
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-// ── Colors ──
-private val PanelBackground = Color(0xE01C1C1E)  // rgba(28,28,30,0.88)
-private val PanelBorder = Color(0x21FFFFFF)        // rgba(255,255,255,0.13)
-private val BlueHi = Color(0xFF2997FF)
-private val BlueBg = Color(0x292997FF)              // rgba(41,151,255,0.16)
-private val Green = Color(0xFF30D158)
-private val GreenDark = Color(0x2930D158)          // rgba(48,209,88,0.16)
-private val Red = Color(0xFFFF453A)
-private val RedBg = Color(0x24FF453A)              // rgba(255,69,58,0.14)
-private val T2 = Color(0x99EBEBF5)                 // rgba(235,235,245,0.60)
-private val SegBg = Color(0x2E787880)              // rgba(120,120,128,0.18)
-private val SegActive = Color(0xFF1C1C1E)          // CARD
-private val PipelineGreen = Color(0xFF10B981)
-private val PipelineOrange = Color(0xFFF59E0B)
+// ── Colors (from MangaLensColors design tokens) ──
+private val PanelBackground = MangaLensColors.surfaceGlass
+private val PanelBorder = MangaLensColors.separator
+private val BlueHi = MangaLensColors.blueHi
+private val BlueBg = MangaLensColors.blueBg
+private val Green = MangaLensColors.green
+private val GreenDark = MangaLensColors.greenBg
+private val Red = MangaLensColors.red
+private val RedBg = MangaLensColors.redBg
+private val T2 = MangaLensColors.textSecondary
+private val SegBg = MangaLensColors.fillSecondary
+private val SegActive = MangaLensColors.surface1
+private val PipelineGreen = MangaLensColors.emerald
+private val PipelineOrange = MangaLensColors.amber
 
 private enum class BottomPanelTab { VIEW, SCALE, TRANSLATION }
 
@@ -176,7 +177,7 @@ fun ViewerBottomPanel(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Tab Navigation Bar ──
-        HorizontalDivider(color = Color.White.copy(alpha = 0.09f))
+        HorizontalDivider(color = MangaLensColors.separatorLight)
         Spacer(modifier = Modifier.height(14.dp))
         TabNavigationBar(
             selectedTab = selectedTab,
@@ -232,7 +233,7 @@ private fun ProgressSlider(
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
             ) {
-                Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.14f)))
+                Box(Modifier.fillMaxSize().background(MangaLensColors.fillTrack))
                 Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(Color.White, RoundedCornerShape(2.dp)))
             }
         },
@@ -336,7 +337,7 @@ private fun ScaleTabContent(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(9.dp))
+                .background(MangaLensColors.fillQuaternary, RoundedCornerShape(9.dp))
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         ) {
             Box(
@@ -511,7 +512,7 @@ private fun PipelineSteps(
                     modifier = Modifier
                         .padding(horizontal = 3.dp)
                         .size(width = 8.dp, height = 0.5.dp)
-                        .background(if (isDone) PipelineGreen else if (isFail) Red else Color.White.copy(alpha = 0.2f)),
+                        .background(if (isDone) PipelineGreen else if (isFail) Red else MangaLensColors.fillPending),
                 )
             }
             isFirstVisible = false
@@ -560,12 +561,12 @@ private fun TranslationModeButtons(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        color = if (isActive) Color(0x2E0071E3) else Color.White.copy(alpha = 0.08f),
+                        color = if (isActive) MangaLensColors.blueActiveBg else MangaLensColors.fillTertiary,
                         shape = RoundedCornerShape(10.dp),
                     )
                     .border(
                         width = if (isActive) 1.dp else 0.5.dp,
-                        color = if (isActive) BlueHi else Color.White.copy(alpha = 0.15f),
+                        color = if (isActive) BlueHi else MangaLensColors.borderInactive,
                         shape = RoundedCornerShape(10.dp),
                     )
                     .clickable { onModeSelected(mode) }

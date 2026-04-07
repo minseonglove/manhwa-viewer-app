@@ -25,22 +25,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
 import manhwa_viewer.presentation.generated.resources.viewer_translate_selected
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private val ToolbarGradient = Brush.verticalGradient(
-    listOf(Color(0xD1000000), Color.Transparent),  // rgba(0,0,0,0.82) -> transparent
-)
-private val BlueButton = Color(0xFF0071E3)
+private val ToolbarGradient = MangaLensColors.toolbarGradient
+private val BlueButton = MangaLensColors.blue
 
 @Composable
 fun ViewerTopToolbar(

@@ -57,6 +57,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import com.manhwaviewer.presentation.theme.MangaLensColors
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -98,7 +99,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-private val BoundingBoxColor = Color(0xFF10B981)
+private val BoundingBoxColor = MangaLensColors.emerald
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -1041,7 +1042,7 @@ private fun SelectedTranslationBottomSheet(
             .fillMaxWidth()
             .heightIn(max = 300.dp)
             .background(
-                color = Color(0xFF1A1A1A),
+                color = MangaLensColors.surface1,
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             )
             .pointerInput(Unit) { detectTapGestures { /* 터치 소비 — 외부 dismiss 방지 */ } }
@@ -1060,7 +1061,7 @@ private fun SelectedTranslationBottomSheet(
                 modifier = Modifier
                     .width(32.dp)
                     .height(4.dp)
-                    .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
+                    .background(MangaLensColors.textSecondary, RoundedCornerShape(2.dp)),
             )
         }
 
@@ -1080,7 +1081,7 @@ private fun SelectedTranslationBottomSheet(
                     Column {
                         Text(
                             text = original,
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = MangaLensColors.textSecondary,
                             fontSize = 12.sp,
                         )
                         Text(
@@ -1091,7 +1092,7 @@ private fun SelectedTranslationBottomSheet(
                         )
                     }
                     if (index < translations.lastIndex) {
-                        HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+                        HorizontalDivider(color = MangaLensColors.borderInactive)
                     }
                 }
             }
