@@ -764,6 +764,16 @@ fun ViewerScreen(
                     )
                 }
 
+                // 파일명
+                Text(
+                    text = state.archive?.displayName() ?: "",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+
                 // 선택 번역 버튼 (바운딩 박스 선택 시에만 표시)
                 AnimatedVisibility(visible = state.selectedOcrBlockIndices.isNotEmpty()) {
                     Box(
@@ -802,16 +812,6 @@ fun ViewerScreen(
                         else Color.White.copy(alpha = 0.3f),
                     )
                 }
-
-                // 파일명
-                Text(
-                    text = state.archive?.displayName() ?: "",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
 
                 // [미사용] 번역 버튼 — 상단 툴바에서 제거됨. 기능은 TranslationOptionBar에 보존.
                 // Box(
@@ -2501,7 +2501,7 @@ private fun SelectedTranslationBottomSheet(
             .fillMaxWidth()
             .heightIn(max = 300.dp)
             .background(
-                color = OverlayBackground,
+                color = Color(0xFF1A1A1A),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             )
             .pointerInput(Unit) { detectTapGestures { /* 터치 소비 — 외부 dismiss 방지 */ } }
