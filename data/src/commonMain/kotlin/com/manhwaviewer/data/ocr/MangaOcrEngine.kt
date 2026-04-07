@@ -21,4 +21,8 @@ object MangaOcrConfig {
     const val CTD_MODEL = "mangaocr/comic-text-detector_fp16.onnx"
     const val CTD_INPUT_SIZE = 1024
     const val CTD_NUM_ANCHORS = 64512
+
+    const val YOLO_MODEL = "mangaocr/manga_panel_detector_fp16.onnx"
+    const val YOLO_INPUT_SIZE = 640
+    const val YOLO_MAX_DETECTIONS = 300
 }

@@ -15,11 +15,13 @@ class TextDetectionRepositoryImpl(
     private val textDetector: TextDetector,
     private val verticalOcr: MangaOcrEngine,
     private val horizontalOcr: MangaOcrEngine,
+    private val platformRecognizer: PlatformTextRecognizer? = null,
 ) : TextDetectionRepository {
 
     companion object {
         private const val HORIZONTAL_RATIO = 2.0f
         private const val MAX_CONCURRENT_OCR = 3
+        private const val OVERLAP_IOU_THRESHOLD = 0.3f
     }
 
     private val ocrSemaphore = Semaphore(MAX_CONCURRENT_OCR)
@@ -28,31 +30,46 @@ class TextDetectionRepositoryImpl(
         withContext(Dispatchers.Default) {
             val totalStart = now()
 
-            // 1. 텍스트 영역 검출
-            val start = now()
-            val allRegions = textDetector.detect(imageBytes)
-            println("PageOCR | Detection: ${now() - start}ms (${allRegions.size} regions)")
-
-            // 2. 가로/세로 분리 (width/height >= HORIZONTAL_RATIO → 가로)
-            val (horizontal, vertical) = allRegions.partition {
-                it.height > 0 && it.width.toFloat() / it.height >= HORIZONTAL_RATIO
-            }
-            println("PageOCR | Split: ${horizontal.size} horizontal, ${vertical.size} vertical")
-
-            // 3. 영역별 병렬 인식 (Semaphore로 동시 추론 수 제한)
             coroutineScope {
-                val horizontalResults = horizontal.mapIndexed { i, region ->
+                // 1. YOLO 검출 + MLKit 가로 텍스트 인식을 병렬 실행
+                val detectionDeferred = async {
+                    val start = now()
+                    val regions = textDetector.detect(imageBytes)
+                    println("PageOCR | Detection: ${now() - start}ms (${regions.size} regions)")
+                    regions
+                }
+
+                val horizontalTextDeferred = platformRecognizer?.let {
                     async {
-                        ocrSemaphore.withPermit {
-                            val ocrStart = now()
-                            val text = horizontalOcr.recognizeText(region.croppedImageBytes)
-                            println("PageOCR |   H[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
-                            TextBlock(region.x, region.y, region.width, region.height, text)
-                        }
+                        val start = now()
+                        val results = it.detectHorizontalText(imageBytes)
+                        println("PageOCR | Platform horizontal: ${now() - start}ms (${results.size} regions)")
+                        results
                     }
                 }
 
-                val verticalResults = vertical.mapIndexed { i, region ->
+                val allRegions = detectionDeferred.await()
+                val platformHorizontal = horizontalTextDeferred?.await().orEmpty()
+
+                // 2. 플랫폼 인식 결과를 TextBlock으로 변환
+                val platformBlocks = platformHorizontal.map { r ->
+                    TextBlock(r.x, r.y, r.width, r.height, r.text)
+                }
+
+                // 3. YOLO 검출 영역 중 플랫폼 결과와 겹치지 않는 세로 영역만 OCR
+                val verticalRegions = allRegions.filter { region ->
+                    val isHorizontal = region.height > 0 &&
+                        region.width.toFloat() / region.height >= HORIZONTAL_RATIO
+                    if (isHorizontal) return@filter false
+
+                    // 플랫폼 결과와 겹치는 영역 제외
+                    platformBlocks.none { pb -> iou(region, pb) > OVERLAP_IOU_THRESHOLD }
+                }
+
+                println("PageOCR | Vertical OCR targets: ${verticalRegions.size} (skipped ${allRegions.size - verticalRegions.size} horizontal/overlapping)")
+
+                // 4. 세로 영역만 MangaOCR로 인식
+                val verticalResults = verticalRegions.mapIndexed { i, region ->
                     async {
                         ocrSemaphore.withPermit {
                             val ocrStart = now()
@@ -63,13 +80,25 @@ class TextDetectionRepositoryImpl(
                     }
                 }
 
-                val result = (horizontalResults.awaitAll() + verticalResults.awaitAll())
+                // 5. 병합, 필터, 정렬
+                val result = (platformBlocks + verticalResults.awaitAll())
                     .filter { it.text.containsCjkOrKana() }
                     .sortedWith(compareBy({ it.y }, { it.x }))
                 println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
                 result
             }
         }
+
+    private fun iou(region: DetectedRegion, block: TextBlock): Float {
+        val ix1 = maxOf(region.x, block.x)
+        val iy1 = maxOf(region.y, block.y)
+        val ix2 = minOf(region.x + region.width, block.x + block.width)
+        val iy2 = minOf(region.y + region.height, block.y + block.height)
+        val intersection = maxOf(0, ix2 - ix1) * maxOf(0, iy2 - iy1)
+        if (intersection == 0) return 0f
+        val union = region.width * region.height + block.width * block.height - intersection
+        return intersection.toFloat() / union.toFloat()
+    }
 
     private fun now(): Long = Clock.System.now().toEpochMilliseconds()
 

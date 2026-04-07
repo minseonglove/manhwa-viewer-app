@@ -7,8 +7,9 @@ import com.manhwaviewer.data.db.getDatabaseBuilder
 import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
 import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
-import com.manhwaviewer.data.ocr.CtdTextDetector
 import com.manhwaviewer.data.ocr.ManagedOcrEngine
+import com.manhwaviewer.data.ocr.MlKitTextRecognizer
+import com.manhwaviewer.data.ocr.YoloTextDetector
 import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.OcrRepositoryImpl
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
@@ -86,9 +87,10 @@ val appModule = module {
     single<OcrRepository> { OcrRepositoryImpl(get(qualifier = named("paddle"))) }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
-            CtdTextDetector(androidContext()),
+            YoloTextDetector(androidContext()),
             verticalOcr = get(qualifier = named("manga")),
             horizontalOcr = get(qualifier = named("paddle")),
+            platformRecognizer = MlKitTextRecognizer(),
         )
     }
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
