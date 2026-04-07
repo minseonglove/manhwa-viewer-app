@@ -61,7 +61,7 @@ data class ViewerState(
     val isOcrSheetExpanded: Boolean = false,
     val translationResults: List<TranslationResult> = emptyList(),
     val isTranslating: Boolean = false,
-    val showTranslationOverlay: Boolean = false,
+    val globalOverlayEnabled: Boolean = false,
     val overlayColors: List<Color> = emptyList(),
     val ocrImageWidth: Int = 0,
     val ocrImageHeight: Int = 0,
@@ -80,7 +80,19 @@ data class ViewerState(
     val autoTranslationImageWidth: Int = 0,
     val autoTranslationImageHeight: Int = 0,
     val autoTranslationOverlayColors: List<Color> = emptyList(),
-)
+    // 선택 번역 바텀시트
+    val selectedBlockTranslations: List<Pair<String, String>> = emptyList(),
+    val isSelectedTranslationSheetVisible: Boolean = false,
+    val isSelectedTranslating: Boolean = false,
+) {
+    val isOverlayButtonEnabled: Boolean
+        get() = autoProcessStatus == AutoProcessStatus.OCR_DONE ||
+                autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE ||
+                autoProcessStatus == AutoProcessStatus.TRANSLATE_PROCESSING ||
+                cachedBlocks.isNotEmpty() ||
+                autoTranslationBlocks.isNotEmpty() ||
+                pipelineStage == PipelineStage.DONE
+}
 
 sealed interface ViewerIntent {
     data class LoadArchive(val archiveId: Long, val startPage: Int = -1, val sortByDate: Boolean = false, val sortAscending: Boolean = true) : ViewerIntent
@@ -105,7 +117,9 @@ sealed interface ViewerIntent {
     ) : ViewerIntent
     data object ExpandOcrResult : ViewerIntent
     data object DismissOcrResult : ViewerIntent
-    data object ToggleTranslationOverlay : ViewerIntent
+    data object ToggleGlobalOverlay : ViewerIntent
+    data object TranslateSelectedBlocks : ViewerIntent
+    data object DismissSelectedTranslation : ViewerIntent
     data class SetImageScaleMode(val mode: ImageScaleMode) : ViewerIntent
     data class SetViewMode(val mode: ViewMode) : ViewerIntent
     data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent

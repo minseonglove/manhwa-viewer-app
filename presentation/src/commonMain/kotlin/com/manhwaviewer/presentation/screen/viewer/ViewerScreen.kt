@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -148,6 +149,7 @@ import manhwa_viewer.presentation.generated.resources.viewer_show_translation
 import manhwa_viewer.presentation.generated.resources.viewer_toggle_overlay
 import manhwa_viewer.presentation.generated.resources.viewer_settings
 import manhwa_viewer.presentation.generated.resources.viewer_translate
+import manhwa_viewer.presentation.generated.resources.viewer_translate_selected
 import manhwa_viewer.presentation.generated.resources.viewer_translating
 import manhwa_viewer.presentation.generated.resources.viewer_translation_pending
 import org.jetbrains.compose.resources.stringResource
@@ -308,7 +310,7 @@ fun ViewerScreen(
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
                             translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
-                            showTranslationOverlay = state.showTranslationOverlay,
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
                             ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
@@ -365,6 +367,10 @@ fun ViewerScreen(
                             autoProcessStatus = if (page == state.currentPage) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
+                            autoTranslationBlocks = if (page == state.currentPage) state.autoTranslationBlocks else emptyList(),
+                            autoTranslationImageWidth = if (page == state.currentPage) state.autoTranslationImageWidth else 0,
+                            autoTranslationImageHeight = if (page == state.currentPage) state.autoTranslationImageHeight else 0,
+                            autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -404,7 +410,7 @@ fun ViewerScreen(
                             cropRect = if (isCurrentSpread) state.cropRect else null,
                             ocrResults = if (isCurrentSpread) state.ocrResults else emptyList(),
                             translationResults = if (isCurrentSpread) state.translationResults else emptyList(),
-                            showTranslationOverlay = state.showTranslationOverlay,
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                             overlayColors = if (isCurrentSpread) state.overlayColors else emptyList(),
                             ocrImageWidth = if (isCurrentSpread) state.ocrImageWidth else 0,
                             ocrImageHeight = if (isCurrentSpread) state.ocrImageHeight else 0,
@@ -465,6 +471,10 @@ fun ViewerScreen(
                             autoProcessStatus = if (isCurrentSpread) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (isCurrentSpread) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
+                            autoTranslationBlocks = if (isCurrentSpread) state.autoTranslationBlocks else emptyList(),
+                            autoTranslationImageWidth = if (isCurrentSpread) state.autoTranslationImageWidth else 0,
+                            autoTranslationImageHeight = if (isCurrentSpread) state.autoTranslationImageHeight else 0,
+                            autoTranslationOverlayColors = if (isCurrentSpread) state.autoTranslationOverlayColors else emptyList(),
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -496,7 +506,7 @@ fun ViewerScreen(
                             cropRect = if (page == state.currentPage) state.cropRect else null,
                             ocrResults = if (page == state.currentPage) state.ocrResults else emptyList(),
                             translationResults = if (page == state.currentPage) state.translationResults else emptyList(),
-                            showTranslationOverlay = state.showTranslationOverlay,
+                            globalOverlayEnabled = state.globalOverlayEnabled,
                             overlayColors = if (page == state.currentPage) state.overlayColors else emptyList(),
                             ocrImageWidth = if (page == state.currentPage) state.ocrImageWidth else 0,
                             ocrImageHeight = if (page == state.currentPage) state.ocrImageHeight else 0,
@@ -557,6 +567,10 @@ fun ViewerScreen(
                             autoProcessStatus = if (page == state.currentPage) state.autoProcessStatus else AutoProcessStatus.IDLE,
                             selectedOcrBlockIndices = if (page == state.currentPage) state.selectedOcrBlockIndices else emptySet(),
                             onOcrBlockTap = { viewModel.onIntent(ViewerIntent.ToggleOcrBlockSelection(it)) },
+                            autoTranslationBlocks = if (page == state.currentPage) state.autoTranslationBlocks else emptyList(),
+                            autoTranslationImageWidth = if (page == state.currentPage) state.autoTranslationImageWidth else 0,
+                            autoTranslationImageHeight = if (page == state.currentPage) state.autoTranslationImageHeight else 0,
+                            autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
                             onZoomTransformChanged = { sx, sy, ox, oy, origX, origY ->
                                 zoomScaleX = sx; zoomScaleY = sy
                                 zoomOffsetX = ox; zoomOffsetY = oy
@@ -708,11 +722,11 @@ fun ViewerScreen(
                 )
 
                 IconButton(
-                    onClick = { viewModel.onIntent(ViewerIntent.ToggleTranslationOverlay) },
+                    onClick = { viewModel.onIntent(ViewerIntent.ToggleGlobalOverlay) },
                     enabled = state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty(),
                 ) {
                     Icon(
-                        imageVector = if (state.showTranslationOverlay) Icons.Default.Visibility
+                        imageVector = if (state.globalOverlayEnabled) Icons.Default.Visibility
                         else Icons.Default.VisibilityOff,
                         contentDescription = stringResource(Res.string.viewer_toggle_overlay),
                         tint = if (state.pipelineStage == PipelineStage.DONE && state.translationResults.isNotEmpty()) Color.White
@@ -750,6 +764,45 @@ fun ViewerScreen(
                     )
                 }
 
+                // 선택 번역 버튼 (바운딩 박스 선택 시에만 표시)
+                AnimatedVisibility(visible = state.selectedOcrBlockIndices.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = OcrButtonColor,
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = {
+                                    viewModel.onIntent(ViewerIntent.TranslateSelectedBlocks)
+                                })
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.viewer_translate_selected),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+
+                // 오버레이 아이콘
+                IconButton(
+                    onClick = { viewModel.onIntent(ViewerIntent.ToggleGlobalOverlay) },
+                    enabled = state.isOverlayButtonEnabled,
+                ) {
+                    Icon(
+                        imageVector = if (state.globalOverlayEnabled) Icons.Default.Visibility
+                        else Icons.Default.VisibilityOff,
+                        contentDescription = stringResource(Res.string.viewer_toggle_overlay),
+                        tint = if (state.isOverlayButtonEnabled) Color.White
+                        else Color.White.copy(alpha = 0.3f),
+                    )
+                }
+
                 // 파일명
                 Text(
                     text = state.archive?.displayName() ?: "",
@@ -760,39 +813,24 @@ fun ViewerScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                // 번역 버튼 - 옵션 표시 토글
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = OcrButtonColor,
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = {
-                                showTranslationOptions = !showTranslationOptions
-                            })
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.viewer_translate),
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
+                // [미사용] 번역 버튼 — 상단 툴바에서 제거됨. 기능은 TranslationOptionBar에 보존.
+                // Box(
+                //     modifier = Modifier
+                //         .background(color = OcrButtonColor, shape = RoundedCornerShape(8.dp))
+                //         .padding(horizontal = 12.dp, vertical = 4.dp)
+                //         .pointerInput(Unit) {
+                //             detectTapGestures(onTap = { showTranslationOptions = !showTranslationOptions })
+                //         },
+                //     contentAlignment = Alignment.Center,
+                // ) {
+                //     Text(text = stringResource(Res.string.viewer_translate), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                // }
+                // Spacer(modifier = Modifier.width(4.dp))
 
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // 설정 아이콘
-                IconButton(onClick = onSettings) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = stringResource(Res.string.viewer_settings),
-                        tint = Color.White,
-                    )
-                }
+                // [미사용] 설정 아이콘 — 상단 툴바에서 제거됨. onSettings 콜백은 보존.
+                // IconButton(onClick = onSettings) {
+                //     Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(Res.string.viewer_settings), tint = Color.White)
+                // }
             }
         }
 
@@ -928,6 +966,8 @@ fun ViewerScreen(
                     AutoProcessStatusIndicator(
                         mode = state.autoProcessMode,
                         status = state.autoProcessStatus,
+                        hasCachedTranslation = state.cachedBlocks.isNotEmpty(),
+                        hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
                         onRetry = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
                     )
                 }
@@ -1017,6 +1057,33 @@ fun ViewerScreen(
         ) {
             OcrCollapsedHandle(
                 onExpand = { viewModel.onIntent(ViewerIntent.ExpandOcrResult) },
+            )
+        }
+
+        // 선택 번역 바텀시트 외부 터치 감지 (dismiss) — 바텀시트보다 먼저 배치
+        if (state.isSelectedTranslationSheetVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            viewModel.onIntent(ViewerIntent.DismissSelectedTranslation)
+                        }
+                    },
+            )
+        }
+
+        // 선택 번역 바텀시트
+        AnimatedVisibility(
+            visible = state.isSelectedTranslationSheetVisible,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            SelectedTranslationBottomSheet(
+                translations = state.selectedBlockTranslations,
+                isTranslating = state.isSelectedTranslating,
+                onDismiss = { viewModel.onIntent(ViewerIntent.DismissSelectedTranslation) },
             )
         }
     }
@@ -1281,7 +1348,7 @@ private fun ZoomableImage(
     cropRect: CropRect?,
     ocrResults: List<TextBlock>,
     translationResults: List<TranslationResult>,
-    showTranslationOverlay: Boolean,
+    globalOverlayEnabled: Boolean,
     overlayColors: List<androidx.compose.ui.graphics.Color>,
     ocrImageWidth: Int,
     ocrImageHeight: Int,
@@ -1304,6 +1371,10 @@ private fun ZoomableImage(
     autoProcessStatus: AutoProcessStatus,
     selectedOcrBlockIndices: Set<Int>,
     onOcrBlockTap: (Int) -> Unit,
+    autoTranslationBlocks: List<TranslationBlock>,
+    autoTranslationImageWidth: Int,
+    autoTranslationImageHeight: Int,
+    autoTranslationOverlayColors: List<androidx.compose.ui.graphics.Color>,
     onZoomTransformChanged: (scaleX: Float, scaleY: Float, offsetX: Float, offsetY: Float, originX: Float, originY: Float) -> Unit,
 ) {
     val zoomableState = rememberZoomableState(
@@ -1414,7 +1485,7 @@ private fun ZoomableImage(
                                 val imgX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
                                 val imgY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
                                 // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE &&
+                                if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
                                     currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
                                     val hitIdx = currentAutoOcrBlocks.indexOfFirst { b ->
                                         imgX in b.x.toFloat()..(b.x + b.width).toFloat() &&
@@ -1494,7 +1565,7 @@ private fun ZoomableImage(
                     }
 
                     // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
-                    if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                    if (ocrResults.isNotEmpty() && !globalOverlayEnabled) {
                         BoundingBoxOverlay(
                             textBlocks = ocrResults,
                             imageWidth = overlayWidth,
@@ -1506,7 +1577,7 @@ private fun ZoomableImage(
                     }
 
                     // 번역 오버레이
-                    if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                    if (globalOverlayEnabled && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
                         TranslationOverlay(
                             textBlocks = ocrResults,
                             translationResults = translationResults,
@@ -1518,31 +1589,61 @@ private fun ZoomableImage(
                         )
                     }
 
-                    // 캐시된 말풍선 개별 오버레이 (일반 모드)
-                    if (cachedBlocks.isNotEmpty() && visibleCachedBlockIndices.isNotEmpty()) {
-                        val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
-                            visibleCachedBlockIndices, cachedBlocks, cachedOverlayColors,
+                    // 캐시된 말풍선 오버레이
+                    if (cachedBlocks.isNotEmpty()) {
+                        // globalOverlayEnabled → 전체 블록 표시, 아니면 개별 탭 방식
+                        val indices = if (globalOverlayEnabled) {
+                            remember(cachedBlocks) { cachedBlocks.indices.toSet() }
+                        } else {
+                            visibleCachedBlockIndices
+                        }
+                        if (indices.isNotEmpty()) {
+                            val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
+                                indices, cachedBlocks, cachedOverlayColors,
+                            ) {
+                                val sorted = indices.sorted()
+                                Triple(
+                                    sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
+                                    sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
+                                    sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                )
+                            }
+                            TranslationOverlay(
+                                textBlocks = visibleTextBlocks,
+                                translationResults = visibleTranslations,
+                                dominantColors = visibleColors,
+                                imageWidth = cachedImageWidth,
+                                imageHeight = cachedImageHeight,
+                                imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                modifier = overlayZoomModifier(cachedImageWidth, cachedImageHeight),
+                            )
+                        }
+                    }
+
+                    // 자동 번역 완료 시 오버레이 (globalOverlayEnabled + 캐시 블록 없을 때만 — 이중 렌더링 방지)
+                    if (globalOverlayEnabled && autoTranslationBlocks.isNotEmpty() && cachedBlocks.isEmpty()) {
+                        val (autoTextBlocks, autoTranslations, autoColors) = remember(
+                            autoTranslationBlocks, autoTranslationOverlayColors,
                         ) {
-                            val sorted = visibleCachedBlockIndices.sorted()
                             Triple(
-                                sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
-                                sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
-                                sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                autoTranslationBlocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) },
+                                autoTranslationBlocks.map { TranslationResult(it.originalText, it.translatedText) },
+                                autoTranslationOverlayColors,
                             )
                         }
                         TranslationOverlay(
-                            textBlocks = visibleTextBlocks,
-                            translationResults = visibleTranslations,
-                            dominantColors = visibleColors,
-                            imageWidth = cachedImageWidth,
-                            imageHeight = cachedImageHeight,
+                            textBlocks = autoTextBlocks,
+                            translationResults = autoTranslations,
+                            dominantColors = autoColors,
+                            imageWidth = autoTranslationImageWidth,
+                            imageHeight = autoTranslationImageHeight,
                             imageScaleMode = ImageScaleMode.AUTO_FIT,
-                            modifier = overlayZoomModifier(cachedImageWidth, cachedImageHeight),
+                            modifier = overlayZoomModifier(autoTranslationImageWidth, autoTranslationImageHeight),
                         )
                     }
 
                     // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
-                    if (autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                    if ((autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
                         val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
                             selectedOcrBlockIndices.sorted().mapNotNull { i ->
                                 autoOcrBlocks.getOrNull(i)?.let {
@@ -1591,7 +1692,7 @@ private fun ZoomableImage(
                                 val localX = (offset.x - tf.offset.x - originPxX) / tf.scale.scaleX + originPxX
                                 val localY = (offset.y - tf.offset.y - originPxY) / tf.scale.scaleY + originPxY
                                 // 자동 OCR 완료 상태: OCR 블록 바운딩 박스 토글
-                                if (!handled && currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE &&
+                                if (!handled && (currentAutoProcessStatus == AutoProcessStatus.OCR_DONE || currentAutoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) &&
                                     currentAutoOcrBlocks.isNotEmpty() && currentAutoOcrImageWidth > 0) {
                                     val (fitScale, fitOffset) = calculateImageTransform(
                                         ImageScaleMode.AUTO_FIT,
@@ -1697,7 +1798,7 @@ private fun ZoomableImage(
 
                             // Bounding Box 하이라이트 (오버레이 표시 중에는 숨김)
                             // 오버레이는 Fit 좌표계 기준으로 그림 (줌은 zoomableState가 처리)
-                            if (ocrResults.isNotEmpty() && !showTranslationOverlay) {
+                            if (ocrResults.isNotEmpty() && !globalOverlayEnabled) {
                                 BoundingBoxOverlay(
                                     textBlocks = ocrResults,
                                     imageWidth = overlayWidth,
@@ -1709,7 +1810,7 @@ private fun ZoomableImage(
                             }
 
                             // 번역 오버레이
-                            if (showTranslationOverlay && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
+                            if (globalOverlayEnabled && translationResults.isNotEmpty() && ocrResults.isNotEmpty()) {
                                 TranslationOverlay(
                                     textBlocks = ocrResults,
                                     translationResults = translationResults,
@@ -1721,31 +1822,60 @@ private fun ZoomableImage(
                                 )
                             }
 
-                            // 캐시된 말풍선 개별 오버레이 (일반 모드)
-                            if (cachedBlocks.isNotEmpty() && visibleCachedBlockIndices.isNotEmpty()) {
-                                val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
-                                    visibleCachedBlockIndices, cachedBlocks, cachedOverlayColors,
+                            // 캐시된 말풍선 오버레이
+                            if (cachedBlocks.isNotEmpty()) {
+                                val indices = if (globalOverlayEnabled) {
+                                    remember(cachedBlocks) { cachedBlocks.indices.toSet() }
+                                } else {
+                                    visibleCachedBlockIndices
+                                }
+                                if (indices.isNotEmpty()) {
+                                    val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
+                                        indices, cachedBlocks, cachedOverlayColors,
+                                    ) {
+                                        val sorted = indices.sorted()
+                                        Triple(
+                                            sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
+                                            sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
+                                            sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                        )
+                                    }
+                                    TranslationOverlay(
+                                        textBlocks = visibleTextBlocks,
+                                        translationResults = visibleTranslations,
+                                        dominantColors = visibleColors,
+                                        imageWidth = cachedImageWidth,
+                                        imageHeight = cachedImageHeight,
+                                        imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
+                            }
+
+                            // 자동 번역 완료 시 오버레이 (globalOverlayEnabled + 캐시 블록 없을 때만 — 이중 렌더링 방지)
+                            if (globalOverlayEnabled && autoTranslationBlocks.isNotEmpty() && cachedBlocks.isEmpty()) {
+                                val (autoTextBlocks, autoTranslations, autoColors) = remember(
+                                    autoTranslationBlocks, autoTranslationOverlayColors,
                                 ) {
-                                    val sorted = visibleCachedBlockIndices.sorted()
                                     Triple(
-                                        sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
-                                        sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
-                                        sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                        autoTranslationBlocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) },
+                                        autoTranslationBlocks.map { TranslationResult(it.originalText, it.translatedText) },
+                                        autoTranslationOverlayColors,
                                     )
                                 }
                                 TranslationOverlay(
-                                    textBlocks = visibleTextBlocks,
-                                    translationResults = visibleTranslations,
-                                    dominantColors = visibleColors,
-                                    imageWidth = cachedImageWidth,
-                                    imageHeight = cachedImageHeight,
+                                    textBlocks = autoTextBlocks,
+                                    translationResults = autoTranslations,
+                                    dominantColors = autoColors,
+                                    imageWidth = autoTranslationImageWidth,
+                                    imageHeight = autoTranslationImageHeight,
                                     imageScaleMode = ImageScaleMode.AUTO_FIT,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
 
                             // 자동 OCR 완료 시 선택된 블록 바운딩 박스 (터치 비소비)
-                            if (autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
+                            if ((autoProcessStatus == AutoProcessStatus.OCR_DONE || autoProcessStatus == AutoProcessStatus.TRANSLATE_DONE) && selectedOcrBlockIndices.isNotEmpty() && autoOcrBlocks.isNotEmpty()) {
                                 val selectedTextBlocks = remember(selectedOcrBlockIndices, autoOcrBlocks) {
                                     selectedOcrBlockIndices.sorted().mapNotNull { i ->
                                         autoOcrBlocks.getOrNull(i)?.let {
@@ -2133,9 +2263,19 @@ private fun ImageScaleModeSelector(
 private fun AutoProcessStatusIndicator(
     mode: AutoProcessMode,
     status: AutoProcessStatus,
+    hasCachedTranslation: Boolean = false,
+    hasCachedOcr: Boolean = false,
     onRetry: () -> Unit,
 ) {
-    if (mode == AutoProcessMode.NONE) return
+    // 번역 안함 모드에서도 캐시가 있으면 완료 상태 표시
+    if (mode == AutoProcessMode.NONE) {
+        if (hasCachedTranslation) {
+            PulsingStatusText(stringResource(Res.string.status_translate_done), BoundingBoxColor)
+        } else if (hasCachedOcr) {
+            PulsingStatusText(stringResource(Res.string.status_ocr_done), BoundingBoxColor)
+        }
+        return
+    }
 
     when (status) {
         AutoProcessStatus.OCR_PROCESSING -> {
@@ -2346,4 +2486,75 @@ private fun ViewModeSettingsDialog(
             }
         },
     )
+}
+
+// ── 선택 번역 바텀시트 ──────────────────────────────────────────
+
+@Composable
+private fun SelectedTranslationBottomSheet(
+    translations: List<Pair<String, String>>,
+    isTranslating: Boolean,
+    onDismiss: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .background(
+                color = OverlayBackground,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            )
+            .pointerInput(Unit) { detectTapGestures { /* 터치 소비 — 외부 dismiss 방지 */ } }
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        // 드래그 핸들 (터치 영역 확보를 위해 전체 너비 Row로 감쌈)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onDismiss() }
+                .padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(4.dp)
+                    .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
+            )
+        }
+
+        if (isTranslating) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            }
+        } else {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                translations.forEachIndexed { index, (original, translated) ->
+                    Column {
+                        Text(
+                            text = original,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                        )
+                        Text(
+                            text = translated,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    if (index < translations.lastIndex) {
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+                    }
+                }
+            }
+        }
+    }
 }

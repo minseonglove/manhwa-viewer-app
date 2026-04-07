@@ -128,7 +128,7 @@ class ViewerViewModel(
                         pipelineStage = if (clearOcr) PipelineStage.IDLE else pipelineStage,
                         translationResults = if (clearOcr) emptyList() else translationResults,
                         isTranslating = if (clearOcr) false else isTranslating,
-                        showTranslationOverlay = if (clearOcr) false else showTranslationOverlay,
+                        // globalOverlayEnabled는 모드 전환 시 유지 (글로벌 상태)
                         overlayColors = if (clearOcr) emptyList() else overlayColors,
                         ocrImageWidth = if (clearOcr) 0 else ocrImageWidth,
                         ocrImageHeight = if (clearOcr) 0 else ocrImageHeight,
@@ -159,8 +159,19 @@ class ViewerViewModel(
             is ViewerIntent.DismissOcrResult -> updateState {
                 copy(isOcrSheetExpanded = false)
             }
-            is ViewerIntent.ToggleTranslationOverlay -> updateState {
-                copy(showTranslationOverlay = !showTranslationOverlay)
+            is ViewerIntent.ToggleGlobalOverlay -> {
+                val newValue = !currentState.globalOverlayEnabled
+                updateState { copy(globalOverlayEnabled = newValue) }
+                if (newValue && currentState.autoProcessMode == AutoProcessMode.AUTO_OCR
+                    && currentState.autoProcessStatus == AutoProcessStatus.OCR_DONE
+                    && currentState.autoTranslationBlocks.isEmpty()
+                    && autoTranslateJob?.isActive != true) {
+                    triggerOverlayTranslation()
+                }
+            }
+            is ViewerIntent.TranslateSelectedBlocks -> translateSelectedBlocks()
+            is ViewerIntent.DismissSelectedTranslation -> updateState {
+                copy(isSelectedTranslationSheetVisible = false, selectedBlockTranslations = emptyList())
             }
             is ViewerIntent.SetImageScaleMode -> {
                 viewModelScope.launch {
@@ -206,6 +217,58 @@ class ViewerViewModel(
         }
     }
 
+    // ── 선택 번역 ─────────────────────────────────────────────────
+
+    private var selectedTranslateJob: Job? = null
+
+    private fun translateSelectedBlocks() {
+        val state = currentState
+        val selectedTexts = state.selectedOcrBlockIndices.sorted().mapNotNull { i ->
+            state.autoOcrBlocks.getOrNull(i)?.text
+        }
+        if (selectedTexts.isEmpty()) return
+
+        selectedTranslateJob?.cancel()
+        selectedTranslateJob = viewModelScope.launch {
+            updateState { copy(isSelectedTranslating = true, isSelectedTranslationSheetVisible = true) }
+            try {
+                val results = translateTextUseCase(selectedTexts)
+                val pairs = selectedTexts.zip(results.map { it.translatedText })
+                updateState {
+                    copy(
+                        selectedBlockTranslations = pairs,
+                        isSelectedTranslating = false,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                updateState {
+                    copy(
+                        isSelectedTranslating = false,
+                        isSelectedTranslationSheetVisible = false,
+                    )
+                }
+            }
+        }
+    }
+
+    // ── 오버레이 ON 시 번역 트리거 ──────────────────────────────────
+
+    private fun triggerOverlayTranslation() {
+        val state = currentState
+        val page = state.currentPage
+        val ocrData = PageOcrCache(
+            archiveId = state.archive?.id ?: return,
+            page = page,
+            imageWidth = state.autoOcrImageWidth,
+            imageHeight = state.autoOcrImageHeight,
+            blocks = state.autoOcrBlocks,
+            createdAt = 0L,
+        )
+        runAutoTranslate(page, ocrData)
+    }
+
     private fun loadArchive(archiveId: Long, startPage: Int = 0, sortByDate: Boolean = false, sortAscending: Boolean = true) {
         viewModelScope.launch {
             val archive = getArchiveByIdUseCase(archiveId) ?: run {
@@ -226,6 +289,9 @@ class ViewerViewModel(
                 )
             }
             loadCachedTranslation(initialPage)
+            if (currentState.autoProcessMode == AutoProcessMode.NONE) {
+                checkOcrCacheForStatus(initialPage)
+            }
         }
     }
 
@@ -535,6 +601,27 @@ class ViewerViewModel(
         loadCachedTranslation(newPage)
         if (currentState.autoProcessMode != AutoProcessMode.NONE) {
             scheduleAutoProcess(newPage)
+        } else {
+            // 번역 안함 모드: OCR 캐시 확인하여 상태 표시용으로 로드
+            checkOcrCacheForStatus(newPage)
+        }
+    }
+
+    private fun checkOcrCacheForStatus(page: Int) {
+        val archive = currentState.archive ?: return
+        viewModelScope.launch {
+            try {
+                val ocrCache = getPageOcrCacheUseCase(archive.id, page)
+                if (ocrCache != null && ocrCache.blocks.isNotEmpty()) {
+                    updateState {
+                        copy(
+                            autoOcrBlocks = ocrCache.blocks,
+                            autoOcrImageWidth = ocrCache.imageWidth,
+                            autoOcrImageHeight = ocrCache.imageHeight,
+                        )
+                    }
+                }
+            } catch (_: Exception) { /* 무시 */ }
         }
     }
 
@@ -544,6 +631,7 @@ class ViewerViewModel(
         autoOcrJob?.cancel()
         autoTranslateJob?.cancel()
         pageChangeDebounceJob?.cancel()
+        selectedTranslateJob?.cancel()
     }
 
     private fun ViewerState.resetPageOcrState() = copy(
@@ -552,7 +640,7 @@ class ViewerViewModel(
         translationResults = emptyList(),
         pipelineStage = PipelineStage.IDLE,
         isOcrSheetExpanded = false,
-        showTranslationOverlay = false,
+        // globalOverlayEnabled는 리셋하지 않음 (글로벌 상태)
         overlayColors = emptyList(),
         ocrImageWidth = 0,
         ocrImageHeight = 0,
@@ -570,6 +658,10 @@ class ViewerViewModel(
         autoTranslationImageWidth = 0,
         autoTranslationImageHeight = 0,
         autoTranslationOverlayColors = emptyList(),
+        // 선택 번역 상태 리셋
+        isSelectedTranslationSheetVisible = false,
+        selectedBlockTranslations = emptyList(),
+        isSelectedTranslating = false,
     )
 
     // ── 300ms 디바운스 ──────────────────────────────────────────────
@@ -616,7 +708,10 @@ class ViewerViewModel(
                 }
 
                 // OCR 완료 후 모드 재확인 — AUTO_TRANSLATE이면 번역 시작
-                if (currentState.autoProcessMode == AutoProcessMode.AUTO_TRANSLATE) {
+                // AUTO_OCR + globalOverlayEnabled이면 오버레이용 번역도 트리거
+                val mode = currentState.autoProcessMode
+                if (mode == AutoProcessMode.AUTO_TRANSLATE ||
+                    (mode == AutoProcessMode.AUTO_OCR && currentState.globalOverlayEnabled)) {
                     runAutoTranslate(page, ocrResult)
                 }
             } catch (e: CancellationException) {
@@ -1258,7 +1353,7 @@ class ViewerViewModel(
                         ocrImageWidth = combined.imageWidth,
                         ocrImageHeight = combined.imageHeight,
                         isTranslating = false,
-                        showTranslationOverlay = combined.translationResults.isNotEmpty(),
+                        // globalOverlayEnabled가 true이면 오버레이 자동 활성 (페이지 번역 모드)
                         overlayColors = combined.overlayColors,
                     )
                 }
@@ -1388,7 +1483,7 @@ class ViewerViewModel(
                                 translationResults = translationResults,
                                 pipelineStage = PipelineStage.DONE,
                                 isTranslating = false,
-                                showTranslationOverlay = false,
+                                // globalOverlayEnabled는 유지 (영역 선택 번역에서는 변경하지 않음)
                                 overlayColors = colors,
                             )
                         }
