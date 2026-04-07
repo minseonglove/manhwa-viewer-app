@@ -28,6 +28,7 @@ import com.manhwaviewer.presentation.util.getImageDimensions
 import com.manhwaviewer.presentation.util.mergeImagesHorizontally
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
+import com.manhwaviewer.domain.repository.DetectionStage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -511,7 +512,14 @@ class ViewerViewModel(
         // 캐시 미스 — OCR 실행
         val imageBytes = getImageBytes(pageIndex) ?: return null
         val (imgW, imgH) = getImageDimensions(imageBytes)
-        val ocrResults = recognizePageTextUseCase(imageBytes)
+        val ocrResults = recognizePageTextUseCase(imageBytes) { stage ->
+            val pipelineStage = when (stage) {
+                DetectionStage.DETECTING -> PipelineStage.DETECTING
+                DetectionStage.CROPPING -> PipelineStage.CROPPING
+                DetectionStage.RECOGNIZING -> PipelineStage.RECOGNIZING
+            }
+            updateState { copy(pipelineStage = pipelineStage) }
+        }
 
         val ocrBlocks = ocrResults.map { block ->
             OcrBlock(block.x, block.y, block.width, block.height, block.text)
@@ -623,6 +631,13 @@ class ViewerViewModel(
                 val state = currentState
                 val archive = state.archive ?: return@launch
                 val isDoublePage = state.preference.viewMode == ViewMode.DOUBLE_PAGE
+                val needsTranslation = state.autoProcessMode == AutoProcessMode.AUTO_TRANSLATE ||
+                    (state.autoProcessMode == AutoProcessMode.AUTO_OCR && state.globalOverlayEnabled)
+
+                // 번역 캐시 우선 확인 — 캐시 히트 시 OCR 단계 건너뜀
+                if (needsTranslation && tryApplyTranslationCache(archive.id, page, state)) {
+                    return@launch
+                }
 
                 updateState { copy(autoProcessStatus = AutoProcessStatus.OCR_PROCESSING) }
 
@@ -640,6 +655,7 @@ class ViewerViewModel(
                 updateState {
                     copy(
                         autoProcessStatus = AutoProcessStatus.OCR_DONE,
+                        pipelineStage = PipelineStage.DONE,
                         autoOcrBlocks = ocrResult.blocks,
                         autoOcrImageWidth = ocrResult.imageWidth,
                         autoOcrImageHeight = ocrResult.imageHeight,
@@ -648,9 +664,7 @@ class ViewerViewModel(
 
                 // OCR 완료 후 모드 재확인 — AUTO_TRANSLATE이면 번역 시작
                 // AUTO_OCR + globalOverlayEnabled이면 오버레이용 번역도 트리거
-                val mode = currentState.autoProcessMode
-                if (mode == AutoProcessMode.AUTO_TRANSLATE ||
-                    (mode == AutoProcessMode.AUTO_OCR && currentState.globalOverlayEnabled)) {
+                if (needsTranslation) {
                     runAutoTranslate(page, ocrResult)
                 }
             } catch (e: CancellationException) {
@@ -659,6 +673,28 @@ class ViewerViewModel(
                 updateState { copy(autoProcessStatus = AutoProcessStatus.OCR_FAILED) }
             }
         }
+    }
+
+    /** 번역 캐시가 있으면 바로 적용하고 true 반환. 없으면 false. */
+    private suspend fun tryApplyTranslationCache(archiveId: Long, page: Int, state: ViewerState): Boolean {
+        val isDoublePage = state.preference.viewMode == ViewMode.DOUBLE_PAGE
+        if (isDoublePage) {
+            val spread = pageToSpread(page)
+            val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
+            val firstCache = getPageTranslationCacheUseCase(archiveId, firstPage)
+            val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archiveId, secondPage) else null
+            if (firstCache != null && (secondPage == null || secondCache != null)) {
+                applyAutoTranslationFromCache(firstCache, secondCache, state)
+                return true
+            }
+        } else {
+            val cached = getPageTranslationCacheUseCase(archiveId, page)
+            if (cached != null) {
+                applyAutoTranslationFromSingleCache(cached)
+                return true
+            }
+        }
+        return false
     }
 
     private suspend fun runAutoOcrSinglePageInternal(archiveId: Long, page: Int): PageOcrCache? {
@@ -690,7 +726,12 @@ class ViewerViewModel(
         autoTranslateJob?.cancel()
         autoTranslateJob = viewModelScope.launch {
             try {
-                updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_PROCESSING) }
+                updateState {
+                    copy(
+                        autoProcessStatus = AutoProcessStatus.TRANSLATE_PROCESSING,
+                        pipelineStage = PipelineStage.TRANSLATING,
+                    )
+                }
 
                 val archive = currentState.archive ?: return@launch
                 val isDoublePage = currentState.preference.viewMode == ViewMode.DOUBLE_PAGE
@@ -716,7 +757,12 @@ class ViewerViewModel(
                 // 캐시 미스 — 번역 실행
                 val texts = ocrData.blocks.map { it.text }
                 if (texts.isEmpty()) {
-                    updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE) }
+                    updateState {
+                        copy(
+                            autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE,
+                            pipelineStage = PipelineStage.DONE,
+                        )
+                    }
                     return@launch
                 }
 
@@ -732,7 +778,7 @@ class ViewerViewModel(
                     if (firstCache != null) {
                         applyAutoTranslationFromCache(firstCache, secondCache, currentState)
                     } else {
-                        updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE) }
+                        updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE, pipelineStage = PipelineStage.DONE) }
                     }
                 } else {
                     translateAndCachePage(archive.id, page)
@@ -740,7 +786,7 @@ class ViewerViewModel(
                     if (cached != null) {
                         applyAutoTranslationFromSingleCache(cached)
                     } else {
-                        updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE) }
+                        updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE, pipelineStage = PipelineStage.DONE) }
                     }
                 }
             } catch (e: CancellationException) {
@@ -775,6 +821,7 @@ class ViewerViewModel(
         updateState {
             copy(
                 autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE,
+                pipelineStage = PipelineStage.DONE,
                 autoTranslationBlocks = cache.blocks,
                 autoTranslationImageWidth = cache.imageWidth,
                 autoTranslationImageHeight = cache.imageHeight,
@@ -794,7 +841,12 @@ class ViewerViewModel(
         val secondBlocks = secondCache?.blocks ?: emptyList()
 
         if (firstBlocks.isEmpty() && secondBlocks.isEmpty()) {
-            updateState { copy(autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE) }
+            updateState {
+                copy(
+                    autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE,
+                    pipelineStage = PipelineStage.DONE,
+                )
+            }
             return
         }
 
@@ -838,6 +890,7 @@ class ViewerViewModel(
         updateState {
             copy(
                 autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE,
+                pipelineStage = PipelineStage.DONE,
                 autoTranslationBlocks = allBlocks,
                 autoTranslationImageWidth = scaledLeftW + (rightCache.imageWidth * rightScale).toInt(),
                 autoTranslationImageHeight = targetH,
