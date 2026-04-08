@@ -2,6 +2,7 @@ package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -12,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -67,6 +71,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.domain.entity.OcrBlock
@@ -86,6 +91,7 @@ import androidx.compose.ui.text.style.TextAlign
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.page_content_description
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
+import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
 import org.jetbrains.compose.resources.stringResource
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
 import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
@@ -98,6 +104,9 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.koin.compose.koinInject
@@ -414,6 +423,11 @@ fun ViewerScreen(
             )
         }
 
+        // 바텀시트 표시 중 뒤로가기 → 바텀시트만 닫기
+        BackHandler(enabled = state.isSelectedTranslationSheetVisible) {
+            viewModel.onIntent(ViewerIntent.DismissSelectedTranslation)
+        }
+
         // 선택 번역 바텀시트 외부 터치 감지 (dismiss) — 바텀시트보다 먼저 배치
         if (state.isSelectedTranslationSheetVisible) {
             Box(
@@ -438,6 +452,7 @@ fun ViewerScreen(
                 translations = state.selectedBlockTranslations,
                 isTranslating = state.isSelectedTranslating,
                 onDismiss = { viewModel.onIntent(ViewerIntent.DismissSelectedTranslation) },
+                hazeState = hazeState,
             )
         }
     }
@@ -1068,62 +1083,111 @@ private fun SelectedTranslationBottomSheet(
     translations: List<Pair<String, String>>,
     isTranslating: Boolean,
     onDismiss: () -> Unit,
+    hazeState: HazeState,
 ) {
+    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val density = LocalDensity.current
+    val dismissThreshold = with(density) { 80.dp.toPx() }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    val animatedOffsetY by animateFloatAsState(targetValue = dragOffsetY)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 300.dp)
-            .background(
-                color = MangaLensColors.surface1,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            .heightIn(max = 340.dp)
+            .graphicsLayer { translationY = animatedOffsetY }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { _, dragAmount ->
+                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                    },
+                    onDragEnd = {
+                        if (dragOffsetY > dismissThreshold) {
+                            onDismiss()
+                        }
+                        dragOffsetY = 0f
+                    },
+                    onDragCancel = { dragOffsetY = 0f },
+                )
+            }
+            .clip(sheetShape)
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = MangaLensColors.surface1,
+                    tints = listOf(HazeTint(MangaLensColors.surfaceGlass)),
+                    blurRadius = 28.dp,
+                    noiseFactor = 0.12f,
+                ),
             )
+            .border(0.5.dp, MangaLensColors.separator, sheetShape)
             .pointerInput(Unit) { detectTapGestures { /* 터치 소비 — 외부 dismiss 방지 */ } }
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
-        // 드래그 핸들 (터치 영역 확보를 위해 전체 너비 Row로 감쌈)
+        // 드래그 핸들
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onDismiss() }
-                .padding(vertical = 8.dp),
+                .padding(top = 10.dp, bottom = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .width(32.dp)
-                    .height(4.dp)
-                    .background(MangaLensColors.textSecondary, RoundedCornerShape(2.dp)),
+                    .width(36.dp)
+                    .height(5.dp)
+                    .background(MangaLensColors.fillSecondary, RoundedCornerShape(3.dp)),
             )
         }
 
+        // "번역 결과" 타이틀
+        Text(
+            text = stringResource(Res.string.viewer_translation_result_title),
+            color = Color.White,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp),
+        )
+
+        // 타이틀 하단 separator
+        HorizontalDivider(
+            color = MangaLensColors.separator,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
         if (isTranslating) {
             Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             }
         } else {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
             ) {
                 translations.forEachIndexed { index, (original, translated) ->
-                    Column {
+                    Column(modifier = Modifier.padding(vertical = 11.dp)) {
                         Text(
                             text = original,
                             color = MangaLensColors.textSecondary,
                             style = MaterialTheme.typography.labelMedium,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(bottom = 4.dp),
                         )
                         Text(
                             text = translated,
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 22.sp,
                         )
                     }
                     if (index < translations.lastIndex) {
-                        HorizontalDivider(color = MangaLensColors.borderInactive)
+                        HorizontalDivider(
+                            color = MangaLensColors.separator,
+                            thickness = 0.5.dp,
+                        )
                     }
                 }
             }

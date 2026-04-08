@@ -25,6 +25,7 @@
     <string name="pipeline_translating">번역</string>
 
     <!-- 뷰어: OCR 바텀시트 -->
+    <string name="viewer_translation_result_title">번역 결과</string>
     <string name="viewer_show_translation">번역 결과 보기</string>
     <string name="viewer_translating">→ 번역 중…</string>
     <string name="viewer_translation_pending">→ 번역 대기</string>
