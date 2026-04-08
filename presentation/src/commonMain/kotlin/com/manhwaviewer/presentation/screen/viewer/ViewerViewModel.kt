@@ -437,11 +437,12 @@ class ViewerViewModel(
 
                     if (firstResult == null && secondResult == null) { clearCachedBlocks(); return@launch }
 
-                    val combined = when {
-                        firstResult != null && secondResult != null -> combinePageResults(firstResult, secondResult, isRtl)
-                        firstResult != null -> firstResult
-                        else -> secondResult!!
-                    }
+                    // 한쪽만 번역이 있어도 스프레드 좌표계로 변환해야 함
+                    val combined = combinePageResults(
+                        firstResult ?: emptyPageOcrResult(firstPage),
+                        secondResult ?: (secondPage?.let { emptyPageOcrResult(it) }),
+                        isRtl,
+                    )
 
                     val cachedTranslationBlocks = combined.ocrResults.zip(combined.translationResults).map { (ocr, tr) ->
                         TranslationBlock(ocr.x, ocr.y, ocr.width, ocr.height, tr.originalText, tr.translatedText)
@@ -609,11 +610,12 @@ class ViewerViewModel(
 
             if (firstResult == null && secondResult == null) return null
 
-            val combined = when {
-                firstResult != null && secondResult != null -> combinePageResults(firstResult, secondResult, isRtl)
-                firstResult != null -> firstResult
-                else -> secondResult!!
-            }
+            // 한쪽만 번역이 있어도 스프레드 좌표계로 변환해야 함
+            val combined = combinePageResults(
+                firstResult ?: emptyPageOcrResult(firstPage),
+                secondResult ?: (secondPage?.let { emptyPageOcrResult(it) }),
+                isRtl,
+            )
 
             val blocks = combined.ocrResults.zip(combined.translationResults).map { (ocr, tr) ->
                 TranslationBlock(ocr.x, ocr.y, ocr.width, ocr.height, tr.originalText, tr.translatedText)
@@ -688,7 +690,10 @@ class ViewerViewModel(
 
     private fun ViewerState.resetPageOcrStateKeepingCache() = copy(
         pipelineStage = PipelineStage.IDLE,
-        // cachedBlocks 등은 유지 — loadCachedTranslation 완료 시 갱신됨
+        cachedBlocks = emptyList(),
+        cachedImageWidth = 0,
+        cachedImageHeight = 0,
+        cachedOverlayColors = emptyList(),
         visibleCachedBlockIndices = emptySet(),
         autoProcessStatus = AutoProcessStatus.IDLE,
         autoOcrBlocks = emptyList(),
@@ -982,14 +987,38 @@ class ViewerViewModel(
         val leftCache = if (isRtl && secondCache != null) secondCache else firstCache
         val rightCache = if (isRtl) firstCache else secondCache
 
-        if (rightCache == null) {
+        // secondPage가 없는 스프레드(홀수 마지막 페이지)인지 확인
+        val spread = pageToSpread(state.currentPage)
+        val (_, secondPage) = spreadToPages(spread, state.totalPages)
+
+        if (rightCache == null && secondPage == null) {
+            // 실제로 두 번째 페이지가 없는 스프레드 → 단면 그대로
             applyAutoTranslationFromSingleCache(leftCache)
             return
         }
 
-        val targetH = maxOf(leftCache.imageHeight, rightCache.imageHeight)
+        // rightCache가 null이면 해당 페이지의 이미지 크기를 조회하여 스프레드 좌표계 계산
+        val rightImageW: Int
+        val rightImageH: Int
+        if (rightCache != null) {
+            rightImageW = rightCache.imageWidth
+            rightImageH = rightCache.imageHeight
+        } else {
+            val missingPage = if (isRtl) firstCache.page else secondPage!!
+            val bytes = getImageBytes(missingPage)
+            if (bytes != null) {
+                val (w, h) = getImageDimensions(bytes)
+                rightImageW = w
+                rightImageH = h
+            } else {
+                applyAutoTranslationFromSingleCache(leftCache)
+                return
+            }
+        }
+
+        val targetH = maxOf(leftCache.imageHeight, rightImageH)
         val leftScale = targetH.toFloat() / leftCache.imageHeight
-        val rightScale = targetH.toFloat() / rightCache.imageHeight
+        val rightScale = targetH.toFloat() / rightImageH
         val scaledLeftW = (leftCache.imageWidth * leftScale).toInt()
 
         val scaledLeftBlocks = leftCache.blocks.map { b ->
@@ -1000,7 +1029,7 @@ class ViewerViewModel(
                 dominantColorArgb = b.dominantColorArgb,
             )
         }
-        val scaledRightBlocks = rightCache.blocks.map { b ->
+        val scaledRightBlocks = (rightCache?.blocks ?: emptyList()).map { b ->
             TranslationBlock(
                 x = (b.x * rightScale).toInt() + scaledLeftW, y = (b.y * rightScale).toInt(),
                 width = (b.width * rightScale).toInt(), height = (b.height * rightScale).toInt(),
@@ -1011,16 +1040,20 @@ class ViewerViewModel(
 
         val allBlocks = scaledLeftBlocks + scaledRightBlocks
         val leftTextBlocks = leftCache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
-        val rightTextBlocks = rightCache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
+        val rightTextBlocks = (rightCache?.blocks ?: emptyList()).map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
         val leftColors = restoreOrExtractColors(leftCache.blocks, leftTextBlocks, leftCache.page) ?: emptyList()
-        val rightColors = restoreOrExtractColors(rightCache.blocks, rightTextBlocks, rightCache.page) ?: emptyList()
+        val rightColors = if (rightCache != null && rightTextBlocks.isNotEmpty()) {
+            restoreOrExtractColors(rightCache.blocks, rightTextBlocks, rightCache.page) ?: emptyList()
+        } else {
+            emptyList()
+        }
 
         updateState {
             copy(
                 autoProcessStatus = AutoProcessStatus.TRANSLATE_DONE,
                 pipelineStage = PipelineStage.DONE,
                 autoTranslationBlocks = allBlocks,
-                autoTranslationImageWidth = scaledLeftW + (rightCache.imageWidth * rightScale).toInt(),
+                autoTranslationImageWidth = scaledLeftW + (rightImageW * rightScale).toInt(),
                 autoTranslationImageHeight = targetH,
                 autoTranslationOverlayColors = leftColors + rightColors,
             )
@@ -1359,6 +1392,12 @@ class ViewerViewModel(
      * - LTR: [firstPage | secondPage]
      * - RTL: [secondPage | firstPage]
      */
+    private suspend fun emptyPageOcrResult(pageIndex: Int): PageOcrResult {
+        val bytes = getImageBytes(pageIndex)
+        val (w, h) = if (bytes != null) getImageDimensions(bytes) else Pair(0, 0)
+        return PageOcrResult(pageIndex, w, h, emptyList(), emptyList(), emptyList())
+    }
+
     private fun combinePageResults(
         firstResult: PageOcrResult,
         secondResult: PageOcrResult?,
