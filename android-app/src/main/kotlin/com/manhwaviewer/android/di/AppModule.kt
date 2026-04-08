@@ -44,6 +44,7 @@ import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetPageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
+import com.manhwaviewer.domain.usecase.GetNextArchiveUseCase
 import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
@@ -120,6 +121,7 @@ val appModule = module {
     factory { GetPageTranslationCacheUseCase(get()) }
     factory { GetPageOcrCacheUseCase(get()) }
     factory { SavePageOcrCacheUseCase(get()) }
+    factory { GetNextArchiveUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
@@ -127,6 +129,6 @@ val appModule = module {
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }

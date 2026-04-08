@@ -63,6 +63,9 @@ data class ViewerState(
     val isSelectedTranslationSheetVisible: Boolean = false,
     val isSelectedTranslating: Boolean = false,
     val selectedBottomTab: BottomPanelTab = BottomPanelTab.VIEW,
+    // 다음 권
+    val nextVolume: NextVolumeInfo? = null,
+    val isLastPage: Boolean = false,
 ) {
     val isOverlayButtonEnabled: Boolean
         get() = autoProcessStatus == AutoProcessStatus.OCR_DONE ||
@@ -93,10 +96,19 @@ sealed interface ViewerIntent {
     data object RetryAutoProcess : ViewerIntent
     data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
     data class SetBottomTab(val tab: BottomPanelTab) : ViewerIntent
+    data object NavigateToNextVolume : ViewerIntent
 }
+
+data class NextVolumeInfo(
+    val archiveId: Long,
+    val fileName: String,
+    val filePath: String,
+    val thumbnailBytes: ByteArray? = null,
+)
 
 sealed interface ViewerSideEffect {
     data object NavigateBack : ViewerSideEffect
+    data class NavigateToNextVolume(val archiveId: Long, val isRtl: Boolean) : ViewerSideEffect
 }
 
 // ── DOUBLE_PAGE 모드: 스프레드(양면) 인덱스 ↔ 실제 페이지 인덱스 변환 ──

@@ -123,9 +123,19 @@ fun ViewerScreen(
     sortAscending: Boolean = true,
     onBack: () -> Unit,
     onSettings: () -> Unit,
+    onNavigateToNextVolume: (archiveId: Long, isRtl: Boolean) -> Unit,
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                is ViewerSideEffect.NavigateBack -> onBack()
+                is ViewerSideEffect.NavigateToNextVolume -> onNavigateToNextVolume(effect.archiveId, effect.isRtl)
+            }
+        }
+    }
 
     LaunchedEffect(archiveId) {
         viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
@@ -413,6 +423,9 @@ fun ViewerScreen(
                 hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty() || state.cachedBlocks.isNotEmpty(),
                 hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
                 selectedTab = state.selectedBottomTab,
+                isLastPage = state.isLastPage,
+                nextVolumeName = state.nextVolume?.fileName,
+                nextVolumeThumbnail = state.nextVolume?.thumbnailBytes,
                 onPageChange = { page ->
                     scope.launch { pagerState.scrollToPage(page) }
                 },
@@ -422,6 +435,7 @@ fun ViewerScreen(
                 onSetAutoProcessMode = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
                 onRetryAutoProcess = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
                 onTabSelected = { viewModel.onIntent(ViewerIntent.SetBottomTab(it)) },
+                onNavigateToNextVolume = { viewModel.onIntent(ViewerIntent.NavigateToNextVolume) },
             )
         }
 
