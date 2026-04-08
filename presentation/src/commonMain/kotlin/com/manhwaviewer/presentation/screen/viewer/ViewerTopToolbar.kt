@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -32,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
+import manhwa_viewer.presentation.generated.resources.ic_translate_off
+import manhwa_viewer.presentation.generated.resources.ic_translate_on
 import manhwa_viewer.presentation.generated.resources.viewer_back
 import manhwa_viewer.presentation.generated.resources.viewer_toggle_overlay
 import manhwa_viewer.presentation.generated.resources.viewer_translate_selected
@@ -105,17 +104,17 @@ fun ViewerTopToolbar(
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        // Eye icon (overlay toggle)
+        // Translate overlay toggle
         IconButton(
             onClick = onToggleOverlay,
             enabled = isOverlayButtonEnabled,
             modifier = Modifier.size(36.dp),
         ) {
             Icon(
-                imageVector = if (isOverlayEnabled) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                painter = painterResource(if (isOverlayEnabled) Res.drawable.ic_translate_on else Res.drawable.ic_translate_off),
                 contentDescription = stringResource(Res.string.viewer_toggle_overlay),
-                tint = if (isOverlayButtonEnabled) Color.White.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.15f),
-                modifier = Modifier.size(20.dp),
+                tint = if (isOverlayButtonEnabled) Color.White.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.25f),
+                modifier = Modifier.size(32.dp),
             )
         }
     }
