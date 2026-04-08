@@ -181,7 +181,7 @@ class FileBrowserViewModel(
             }
         }
         val secondaryComparator = when (field) {
-            SortField.NAME -> compareBy<ArchiveFile> { naturalSortKey(it.fileName) }
+            SortField.NAME -> compareBy<ArchiveFile> { com.manhwaviewer.domain.util.naturalSortKey(it.fileName) }
             SortField.DATE -> compareBy { it.addedAt }
         }
         val comparator = compareBy<ArchiveFile> { typeOrder(it.type) }
@@ -189,9 +189,4 @@ class FileBrowserViewModel(
         return files.sortedWith(comparator)
     }
 
-    private fun naturalSortKey(name: String): String {
-        return name.lowercase().replace(Regex("(\\d+)")) { match ->
-            match.value.padStart(20, '0')
-        }
-    }
 }
