@@ -96,6 +96,10 @@ import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.zoomable
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import dev.chrisbanes.haze.HazeDefaults
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -163,6 +167,8 @@ fun ViewerScreen(
         BackgroundColor.AUTO -> Color.Black // AUTO는 기본 검정 (향후 이미지 분석 기반 결정)
     }
 
+    val hazeState = rememberHazeState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -178,7 +184,8 @@ fun ViewerScreen(
                 ViewMode.WEBTOON -> {
                     VerticalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                            .hazeSource(state = hazeState),
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
                     ) { page ->
@@ -228,7 +235,8 @@ fun ViewerScreen(
                     val isRtl = state.preference.readingDirection == ReadingDirection.RTL
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                            .hazeSource(state = hazeState),
                         reverseLayout = isRtl,
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
@@ -291,7 +299,8 @@ fun ViewerScreen(
                     val isSinglePageRtl = state.preference.readingDirection == ReadingDirection.RTL
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                            .hazeSource(state = hazeState),
                         reverseLayout = isSinglePageRtl,
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
@@ -380,6 +389,7 @@ fun ViewerScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             ViewerBottomPanel(
+                hazeState = hazeState,
                 currentPage = state.currentPage,
                 totalPages = state.totalPages,
                 isDoublePage = isDoublePage,

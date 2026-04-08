@@ -92,6 +92,10 @@ import manhwa_viewer.presentation.generated.resources.scale_auto_fit_desc
 import manhwa_viewer.presentation.generated.resources.scale_original_desc
 import manhwa_viewer.presentation.generated.resources.retry
 import com.manhwaviewer.presentation.theme.MangaLensColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -114,6 +118,7 @@ private enum class BottomPanelTab { VIEW, SCALE, TRANSLATION }
 
 @Composable
 fun ViewerBottomPanel(
+    hazeState: HazeState,
     currentPage: Int,
     totalPages: Int,
     isDoublePage: Boolean,
@@ -141,9 +146,17 @@ fun ViewerBottomPanel(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 24.dp)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .background(PanelBackground, RoundedCornerShape(24.dp))
-            .border(1.dp, PanelBorder, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp))
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = MangaLensColors.surface1,
+                    tints = listOf(HazeTint(PanelBackground)),
+                    blurRadius = 20.dp,
+                    noiseFactor = 0.15f,
+                ),
+            )
+            .border(1.dp, PanelBorder, RoundedCornerShape(24.dp))
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         // ── Progress Slider ──

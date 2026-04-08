@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.telephoto.zoomable)
             implementation(libs.telephoto.sub.sampling.image)
+            implementation(libs.haze)
         }
         androidMain.dependencies {
         }
