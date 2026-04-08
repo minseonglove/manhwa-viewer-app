@@ -412,6 +412,7 @@ fun ViewerScreen(
                 pipelineStage = state.pipelineStage,
                 hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty() || state.cachedBlocks.isNotEmpty(),
                 hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
+                selectedTab = state.selectedBottomTab,
                 onPageChange = { page ->
                     scope.launch { pagerState.scrollToPage(page) }
                 },
@@ -420,6 +421,7 @@ fun ViewerScreen(
                 onSetImageScaleMode = { viewModel.onIntent(ViewerIntent.SetImageScaleMode(it)) },
                 onSetAutoProcessMode = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
                 onRetryAutoProcess = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
+                onTabSelected = { viewModel.onIntent(ViewerIntent.SetBottomTab(it)) },
             )
         }
 

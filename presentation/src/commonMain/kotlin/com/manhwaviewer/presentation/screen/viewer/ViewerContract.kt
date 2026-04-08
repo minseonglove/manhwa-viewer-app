@@ -20,6 +20,8 @@ enum class AutoProcessMode {
     AUTO_TRANSLATE  // 자동 번역
 }
 
+enum class BottomPanelTab { VIEW, SCALE, TRANSLATION }
+
 enum class AutoProcessStatus {
     IDLE,
     OCR_PROCESSING,
@@ -60,6 +62,7 @@ data class ViewerState(
     val selectedBlockTranslations: List<Pair<String, String>> = emptyList(),
     val isSelectedTranslationSheetVisible: Boolean = false,
     val isSelectedTranslating: Boolean = false,
+    val selectedBottomTab: BottomPanelTab = BottomPanelTab.VIEW,
 ) {
     val isOverlayButtonEnabled: Boolean
         get() = autoProcessStatus == AutoProcessStatus.OCR_DONE ||
@@ -89,6 +92,7 @@ sealed interface ViewerIntent {
     data class SetAutoProcessMode(val mode: AutoProcessMode) : ViewerIntent
     data object RetryAutoProcess : ViewerIntent
     data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
+    data class SetBottomTab(val tab: BottomPanelTab) : ViewerIntent
 }
 
 sealed interface ViewerSideEffect {

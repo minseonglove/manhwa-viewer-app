@@ -155,6 +155,7 @@ class ViewerViewModel(
             }
             is ViewerIntent.SetAutoProcessMode -> handleSetAutoProcessMode(intent.mode)
             is ViewerIntent.RetryAutoProcess -> handleRetryAutoProcess()
+            is ViewerIntent.SetBottomTab -> updateState { copy(selectedBottomTab = intent.tab) }
             is ViewerIntent.ToggleOcrBlockSelection -> {
                 val idx = intent.blockIndex
                 val newSet = if (idx in currentState.selectedOcrBlockIndices)

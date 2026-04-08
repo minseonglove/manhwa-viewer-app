@@ -112,8 +112,6 @@ private val SegActive = MangaLensColors.surface1
 private val PipelineGreen = MangaLensColors.emerald
 private val PipelineOrange = MangaLensColors.amber
 
-private enum class BottomPanelTab { VIEW, SCALE, TRANSLATION }
-
 @Composable
 fun ViewerBottomPanel(
     hazeState: HazeState,
@@ -130,15 +128,16 @@ fun ViewerBottomPanel(
     pipelineStage: PipelineStage,
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
+    selectedTab: BottomPanelTab,
     onPageChange: (Int) -> Unit,
     onSetReadingDirection: (ReadingDirection) -> Unit,
     onSetViewMode: (ViewMode) -> Unit,
     onSetImageScaleMode: (ImageScaleMode) -> Unit,
     onSetAutoProcessMode: (AutoProcessMode) -> Unit,
     onRetryAutoProcess: () -> Unit,
+    onTabSelected: (BottomPanelTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by remember { mutableStateOf(BottomPanelTab.VIEW) }
 
     Column(
         modifier = modifier
@@ -225,7 +224,7 @@ fun ViewerBottomPanel(
         Spacer(modifier = Modifier.height(14.dp))
         TabNavigationBar(
             selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
+            onTabSelected = onTabSelected,
         )
     }
 }
