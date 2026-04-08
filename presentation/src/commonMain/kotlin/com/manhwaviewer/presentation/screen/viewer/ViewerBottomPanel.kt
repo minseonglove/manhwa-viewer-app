@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -146,6 +147,7 @@ fun ViewerBottomPanel(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 24.dp)
             .windowInsetsPadding(WindowInsets.navigationBars)
+            .widthIn(max = 480.dp)
             .clip(RoundedCornerShape(24.dp))
             .hazeEffect(
                 state = hazeState,
@@ -292,7 +294,7 @@ private fun ViewTabContent(
             Text(
                 text = stringResource(Res.string.label_reading_direction),
                 color = T2,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.width(44.dp),
                 textAlign = TextAlign.End,
             )
@@ -314,7 +316,7 @@ private fun ViewTabContent(
             Text(
                 text = stringResource(Res.string.label_view_mode),
                 color = T2,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.width(44.dp),
                 textAlign = TextAlign.End,
             )
@@ -368,7 +370,7 @@ private fun ScaleTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MangaLensColors.fillQuaternary, RoundedCornerShape(9.dp))
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
         ) {
             Box(
                 modifier = Modifier
@@ -379,7 +381,7 @@ private fun ScaleTabContent(
             Text(
                 text = descriptions[selectedIndex],
                 color = T2,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
             )
         }
     }
@@ -495,7 +497,7 @@ private fun StatusChip(label: String, color: Color, bg: Color) {
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .background(bg, RoundedCornerShape(5.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
 
@@ -598,13 +600,13 @@ private fun TranslationModeButtons(
                         shape = RoundedCornerShape(10.dp),
                     )
                     .clickable { onModeSelected(mode) }
-                    .padding(vertical = 7.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
                     color = if (isActive) BlueHi else T2,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
@@ -662,7 +664,7 @@ private fun TabItem(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = modifier
             .clickable(onClick = onClick)
-            .padding(vertical = 4.dp)
+            .padding(vertical = 6.dp)
             .then(Modifier.background(Color.Transparent).let {
                 if (!isActive) it else it  // alpha handled per element
             }),
@@ -673,7 +675,7 @@ private fun TabItem(
         Text(
             text = label,
             color = color.copy(alpha = alpha),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
@@ -707,13 +709,13 @@ private fun SegmentedControl(
                         shape = RoundedCornerShape(8.dp),
                     )
                     .clickable { onSelect(index) }
-                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
                     color = if (isSelected) Color.White else T2,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
