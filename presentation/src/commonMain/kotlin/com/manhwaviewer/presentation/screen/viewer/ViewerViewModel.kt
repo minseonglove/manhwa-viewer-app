@@ -597,7 +597,15 @@ class ViewerViewModel(
 
     private fun handlePageChange(newPage: Int) {
         cancelAllAutoJobs()
-        val isLast = newPage >= currentState.totalPages - 1
+        val totalPages = currentState.totalPages
+        val isLast = if (currentState.preference.viewMode == ViewMode.DOUBLE_PAGE && totalPages > 0) {
+            val spread = pageToSpread(newPage)
+            val pages = spreadToPages(spread, totalPages)
+            val lastPageInSpread = pages.second ?: pages.first
+            lastPageInSpread >= totalPages - 1
+        } else {
+            newPage >= totalPages - 1
+        }
         updateState { copy(currentPage = newPage, isLastPage = isLast).resetPageOcrStateKeepingCache() }
         if (currentState.autoProcessMode != AutoProcessMode.NONE) {
             loadCachedTranslation(newPage)
