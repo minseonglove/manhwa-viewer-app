@@ -74,6 +74,12 @@ fun NavGraph(navController: NavHostController) {
             exitTransition = {
                 slideOutHorizontally { -it }
             },
+            popEnterTransition = {
+                slideInHorizontally { -it }
+            },
+            popExitTransition = {
+                slideOutHorizontally { it }
+            },
         ) { backStackEntry ->
             val archiveId = backStackEntry.arguments?.getLong("archiveId")
                 ?.takeIf { it > 0L }
