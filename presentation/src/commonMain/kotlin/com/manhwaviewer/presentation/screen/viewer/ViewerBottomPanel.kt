@@ -1,5 +1,11 @@
 package com.manhwaviewer.presentation.screen.viewer
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -165,26 +171,51 @@ fun ViewerBottomPanel(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Tab Content ──
-        when (selectedTab) {
-            BottomPanelTab.VIEW -> ViewTabContent(
-                readingDirection = readingDirection,
-                viewMode = viewMode,
-                onSetReadingDirection = onSetReadingDirection,
-                onSetViewMode = onSetViewMode,
-            )
-            BottomPanelTab.SCALE -> ScaleTabContent(
-                currentMode = imageScaleMode,
-                onModeSelected = onSetImageScaleMode,
-            )
-            BottomPanelTab.TRANSLATION -> TranslationTabContent(
-                autoProcessMode = autoProcessMode,
-                autoProcessStatus = autoProcessStatus,
-                pipelineStage = pipelineStage,
-                hasCachedTranslation = hasCachedTranslation,
-                hasCachedOcr = hasCachedOcr,
-                onSetAutoProcessMode = onSetAutoProcessMode,
-                onRetry = onRetryAutoProcess,
-            )
+        val density = LocalDensity.current
+        var targetHeight by remember { mutableStateOf(0.dp) }
+        val animatedHeight by animateDpAsState(
+            targetValue = targetHeight,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (targetHeight > 0.dp) Modifier.height(animatedHeight) else Modifier)
+                .clip(RoundedCornerShape(0.dp)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .wrapContentHeight(unbounded = true)
+                    .onSizeChanged { size ->
+                        with(density) { targetHeight = size.height.toDp() }
+                    },
+            ) {
+                when (selectedTab) {
+                    BottomPanelTab.VIEW -> ViewTabContent(
+                        readingDirection = readingDirection,
+                        viewMode = viewMode,
+                        onSetReadingDirection = onSetReadingDirection,
+                        onSetViewMode = onSetViewMode,
+                    )
+                    BottomPanelTab.SCALE -> ScaleTabContent(
+                        currentMode = imageScaleMode,
+                        onModeSelected = onSetImageScaleMode,
+                    )
+                    BottomPanelTab.TRANSLATION -> TranslationTabContent(
+                        autoProcessMode = autoProcessMode,
+                        autoProcessStatus = autoProcessStatus,
+                        pipelineStage = pipelineStage,
+                        hasCachedTranslation = hasCachedTranslation,
+                        hasCachedOcr = hasCachedOcr,
+                        onSetAutoProcessMode = onSetAutoProcessMode,
+                        onRetry = onRetryAutoProcess,
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
