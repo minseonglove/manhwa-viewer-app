@@ -1,15 +1,6 @@
 package com.manhwaviewer.presentation.screen.viewer
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.offset
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -174,32 +165,26 @@ fun ViewerBottomPanel(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Tab Content ──
-        AnimatedContent(
-            targetState = selectedTab,
-            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-            label = "tab_content",
-        ) { tab ->
-            when (tab) {
-                BottomPanelTab.VIEW -> ViewTabContent(
-                    readingDirection = readingDirection,
-                    viewMode = viewMode,
-                    onSetReadingDirection = onSetReadingDirection,
-                    onSetViewMode = onSetViewMode,
-                )
-                BottomPanelTab.SCALE -> ScaleTabContent(
-                    currentMode = imageScaleMode,
-                    onModeSelected = onSetImageScaleMode,
-                )
-                BottomPanelTab.TRANSLATION -> TranslationTabContent(
-                    autoProcessMode = autoProcessMode,
-                    autoProcessStatus = autoProcessStatus,
-                    pipelineStage = pipelineStage,
-                    hasCachedTranslation = hasCachedTranslation,
-                    hasCachedOcr = hasCachedOcr,
-                    onSetAutoProcessMode = onSetAutoProcessMode,
-                    onRetry = onRetryAutoProcess,
-                )
-            }
+        when (selectedTab) {
+            BottomPanelTab.VIEW -> ViewTabContent(
+                readingDirection = readingDirection,
+                viewMode = viewMode,
+                onSetReadingDirection = onSetReadingDirection,
+                onSetViewMode = onSetViewMode,
+            )
+            BottomPanelTab.SCALE -> ScaleTabContent(
+                currentMode = imageScaleMode,
+                onModeSelected = onSetImageScaleMode,
+            )
+            BottomPanelTab.TRANSLATION -> TranslationTabContent(
+                autoProcessMode = autoProcessMode,
+                autoProcessStatus = autoProcessStatus,
+                pipelineStage = pipelineStage,
+                hasCachedTranslation = hasCachedTranslation,
+                hasCachedOcr = hasCachedOcr,
+                onSetAutoProcessMode = onSetAutoProcessMode,
+                onRetry = onRetryAutoProcess,
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
