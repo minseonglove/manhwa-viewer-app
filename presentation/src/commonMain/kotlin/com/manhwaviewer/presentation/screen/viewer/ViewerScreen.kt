@@ -214,8 +214,8 @@ fun ViewerScreen(
                             cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
                             cachedImageHeight = if (page == state.currentPage) state.cachedImageHeight else 0,
                             cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
-                            visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
-                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            selectedCachedBlockIndices = if (page == state.currentPage) state.selectedCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockSelection(it)) },
                             autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
@@ -278,8 +278,8 @@ fun ViewerScreen(
                             cachedImageWidth = if (isCurrentSpread) state.cachedImageWidth else 0,
                             cachedImageHeight = if (isCurrentSpread) state.cachedImageHeight else 0,
                             cachedOverlayColors = if (isCurrentSpread) state.cachedOverlayColors else emptyList(),
-                            visibleCachedBlockIndices = if (isCurrentSpread) state.visibleCachedBlockIndices else emptySet(),
-                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            selectedCachedBlockIndices = if (isCurrentSpread) state.selectedCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockSelection(it)) },
                             autoOcrBlocks = if (isCurrentSpread) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (isCurrentSpread) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (isCurrentSpread) state.autoOcrImageHeight else 0,
@@ -334,8 +334,8 @@ fun ViewerScreen(
                             cachedImageWidth = if (page == state.currentPage) state.cachedImageWidth else 0,
                             cachedImageHeight = if (page == state.currentPage) state.cachedImageHeight else 0,
                             cachedOverlayColors = if (page == state.currentPage) state.cachedOverlayColors else emptyList(),
-                            visibleCachedBlockIndices = if (page == state.currentPage) state.visibleCachedBlockIndices else emptySet(),
-                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockOverlay(it)) },
+                            selectedCachedBlockIndices = if (page == state.currentPage) state.selectedCachedBlockIndices else emptySet(),
+                            onCachedBlockTap = { viewModel.onIntent(ViewerIntent.ToggleCachedBlockSelection(it)) },
                             autoOcrBlocks = if (page == state.currentPage) state.autoOcrBlocks else emptyList(),
                             autoOcrImageWidth = if (page == state.currentPage) state.autoOcrImageWidth else 0,
                             autoOcrImageHeight = if (page == state.currentPage) state.autoOcrImageHeight else 0,
@@ -369,7 +369,7 @@ fun ViewerScreen(
         ) {
             ViewerTopToolbar(
                 title = state.archive?.displayName() ?: "",
-                showSelectTranslateButton = state.selectedOcrBlockIndices.isNotEmpty(),
+                showSelectTranslateButton = state.hasSelectedBlocks,
                 isOverlayEnabled = state.globalOverlayEnabled,
                 isOverlayButtonEnabled = state.isOverlayButtonEnabled,
                 onBack = {
@@ -460,7 +460,7 @@ private fun ZoomableImage(
     cachedImageWidth: Int,
     cachedImageHeight: Int,
     cachedOverlayColors: List<androidx.compose.ui.graphics.Color>,
-    visibleCachedBlockIndices: Set<Int>,
+    selectedCachedBlockIndices: Set<Int>,
     onCachedBlockTap: (Int) -> Unit,
     autoOcrBlocks: List<OcrBlock>,
     autoOcrImageWidth: Int,
@@ -640,29 +640,39 @@ private fun ZoomableImage(
                     }
 
 
-                    // 캐시된 말풍선 오버레이
+                    // 캐시된 말풍선
                     if (cachedBlocks.isNotEmpty()) {
-                        // globalOverlayEnabled → 전체 블록 표시, 아니면 개별 탭 방식
-                        val indices = if (globalOverlayEnabled) {
-                            remember(cachedBlocks) { cachedBlocks.indices.toSet() }
-                        } else {
-                            visibleCachedBlockIndices
-                        }
-                        if (indices.isNotEmpty()) {
+                        if (globalOverlayEnabled) {
+                            // 눈 아이콘 ON: 전체 블록 번역 오버레이 표시
                             val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
-                                indices, cachedBlocks, cachedOverlayColors,
+                                cachedBlocks, cachedOverlayColors,
                             ) {
-                                val sorted = indices.sorted()
                                 Triple(
-                                    sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
-                                    sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
-                                    sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                    cachedBlocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) },
+                                    cachedBlocks.map { TranslationResult(it.originalText, it.translatedText) },
+                                    cachedOverlayColors,
                                 )
                             }
                             TranslationOverlay(
                                 textBlocks = visibleTextBlocks,
                                 translationResults = visibleTranslations,
                                 dominantColors = visibleColors,
+                                imageWidth = cachedImageWidth,
+                                imageHeight = cachedImageHeight,
+                                imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                modifier = overlayZoomModifier(cachedImageWidth, cachedImageHeight),
+                            )
+                        } else if (selectedCachedBlockIndices.isNotEmpty()) {
+                            // 개별 탭: 바운딩 박스만 표시
+                            val selectedTextBlocks = remember(selectedCachedBlockIndices, cachedBlocks) {
+                                selectedCachedBlockIndices.sorted().mapNotNull { i ->
+                                    cachedBlocks.getOrNull(i)?.let {
+                                        TextBlock(it.x, it.y, it.width, it.height, it.originalText)
+                                    }
+                                }
+                            }
+                            BoundingBoxDisplayOverlay(
+                                textBlocks = selectedTextBlocks,
                                 imageWidth = cachedImageWidth,
                                 imageHeight = cachedImageHeight,
                                 imageScaleMode = ImageScaleMode.AUTO_FIT,
@@ -830,28 +840,39 @@ private fun ZoomableImage(
                                 coilReady = true
                             }
 
-                            // 캐시된 말풍선 오버레이
+                            // 캐시된 말풍선
                             if (cachedBlocks.isNotEmpty()) {
-                                val indices = if (globalOverlayEnabled) {
-                                    remember(cachedBlocks) { cachedBlocks.indices.toSet() }
-                                } else {
-                                    visibleCachedBlockIndices
-                                }
-                                if (indices.isNotEmpty()) {
+                                if (globalOverlayEnabled) {
+                                    // 눈 아이콘 ON: 전체 블록 번역 오버레이 표시
                                     val (visibleTextBlocks, visibleTranslations, visibleColors) = remember(
-                                        indices, cachedBlocks, cachedOverlayColors,
+                                        cachedBlocks, cachedOverlayColors,
                                     ) {
-                                        val sorted = indices.sorted()
                                         Triple(
-                                            sorted.map { i -> cachedBlocks[i].let { TextBlock(it.x, it.y, it.width, it.height, it.originalText) } },
-                                            sorted.map { i -> cachedBlocks[i].let { TranslationResult(it.originalText, it.translatedText) } },
-                                            sorted.map { i -> cachedOverlayColors.getOrElse(i) { androidx.compose.ui.graphics.Color.White } },
+                                            cachedBlocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) },
+                                            cachedBlocks.map { TranslationResult(it.originalText, it.translatedText) },
+                                            cachedOverlayColors,
                                         )
                                     }
                                     TranslationOverlay(
                                         textBlocks = visibleTextBlocks,
                                         translationResults = visibleTranslations,
                                         dominantColors = visibleColors,
+                                        imageWidth = cachedImageWidth,
+                                        imageHeight = cachedImageHeight,
+                                        imageScaleMode = ImageScaleMode.AUTO_FIT,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                } else if (selectedCachedBlockIndices.isNotEmpty()) {
+                                    // 개별 탭: 바운딩 박스만 표시
+                                    val selectedTextBlocks = remember(selectedCachedBlockIndices, cachedBlocks) {
+                                        selectedCachedBlockIndices.sorted().mapNotNull { i ->
+                                            cachedBlocks.getOrNull(i)?.let {
+                                                TextBlock(it.x, it.y, it.width, it.height, it.originalText)
+                                            }
+                                        }
+                                    }
+                                    BoundingBoxDisplayOverlay(
+                                        textBlocks = selectedTextBlocks,
                                         imageWidth = cachedImageWidth,
                                         imageHeight = cachedImageHeight,
                                         imageScaleMode = ImageScaleMode.AUTO_FIT,

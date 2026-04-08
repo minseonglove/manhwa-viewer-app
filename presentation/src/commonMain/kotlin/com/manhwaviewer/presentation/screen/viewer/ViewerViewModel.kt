@@ -142,12 +142,14 @@ class ViewerViewModel(
                     )
                 }
             }
-            is ViewerIntent.ToggleCachedBlockOverlay -> {
+            is ViewerIntent.ToggleCachedBlockSelection -> {
                 val idx = intent.blockIndex
+                val newSet = if (idx in currentState.selectedCachedBlockIndices)
+                    currentState.selectedCachedBlockIndices - idx else currentState.selectedCachedBlockIndices + idx
                 updateState {
                     copy(
-                        visibleCachedBlockIndices = if (idx in visibleCachedBlockIndices)
-                            visibleCachedBlockIndices - idx else visibleCachedBlockIndices + idx
+                        selectedCachedBlockIndices = newSet,
+                        showControls = if (newSet.isNotEmpty()) true else showControls,
                     )
                 }
             }
@@ -155,10 +157,12 @@ class ViewerViewModel(
             is ViewerIntent.RetryAutoProcess -> handleRetryAutoProcess()
             is ViewerIntent.ToggleOcrBlockSelection -> {
                 val idx = intent.blockIndex
+                val newSet = if (idx in currentState.selectedOcrBlockIndices)
+                    currentState.selectedOcrBlockIndices - idx else currentState.selectedOcrBlockIndices + idx
                 updateState {
                     copy(
-                        selectedOcrBlockIndices = if (idx in selectedOcrBlockIndices)
-                            selectedOcrBlockIndices - idx else selectedOcrBlockIndices + idx
+                        selectedOcrBlockIndices = newSet,
+                        showControls = if (newSet.isNotEmpty()) true else showControls,
                     )
                 }
             }
@@ -171,20 +175,41 @@ class ViewerViewModel(
 
     private fun translateSelectedBlocks() {
         val state = currentState
-        val selectedTexts = state.selectedOcrBlockIndices.sorted().mapNotNull { i ->
+
+        // 캐시 블록 선택: 이미 번역이 있으므로 API 호출 불필요
+        val cachedPairs = state.selectedCachedBlockIndices.sorted().mapNotNull { i ->
+            state.cachedBlocks.getOrNull(i)?.let { it.originalText to it.translatedText }
+        }
+
+        // OCR 블록 선택: API 호출 필요
+        val ocrTexts = state.selectedOcrBlockIndices.sorted().mapNotNull { i ->
             state.autoOcrBlocks.getOrNull(i)?.text
         }
-        if (selectedTexts.isEmpty()) return
 
+        if (cachedPairs.isEmpty() && ocrTexts.isEmpty()) return
+
+        // 캐시만 있으면 즉시 표시
+        if (ocrTexts.isEmpty()) {
+            updateState {
+                copy(
+                    selectedBlockTranslations = cachedPairs,
+                    isSelectedTranslating = false,
+                    isSelectedTranslationSheetVisible = true,
+                )
+            }
+            return
+        }
+
+        // OCR 블록이 있으면 API 호출 (+ 캐시 결과 합산)
         selectedTranslateJob?.cancel()
         selectedTranslateJob = viewModelScope.launch {
             updateState { copy(isSelectedTranslating = true, isSelectedTranslationSheetVisible = true) }
             try {
-                val results = translateTextUseCase(selectedTexts)
-                val pairs = selectedTexts.zip(results.map { it.translatedText })
+                val results = translateTextUseCase(ocrTexts)
+                val ocrPairs = ocrTexts.zip(results.map { it.translatedText })
                 updateState {
                     copy(
-                        selectedBlockTranslations = pairs,
+                        selectedBlockTranslations = cachedPairs + ocrPairs,
                         isSelectedTranslating = false,
                     )
                 }
@@ -454,7 +479,7 @@ class ViewerViewModel(
                             cachedImageWidth = combined.imageWidth,
                             cachedImageHeight = combined.imageHeight,
                             cachedOverlayColors = combined.overlayColors,
-                            visibleCachedBlockIndices = emptySet(),
+                            selectedCachedBlockIndices = emptySet(),
                         )
                     }
                 } else {
@@ -470,7 +495,7 @@ class ViewerViewModel(
                             cachedImageWidth = cache.imageWidth,
                             cachedImageHeight = cache.imageHeight,
                             cachedOverlayColors = colors,
-                            visibleCachedBlockIndices = emptySet(),
+                            selectedCachedBlockIndices = emptySet(),
                         )
                     }
                 }
@@ -650,7 +675,7 @@ class ViewerViewModel(
                             cachedImageWidth = translationResult.imageWidth,
                             cachedImageHeight = translationResult.imageHeight,
                             cachedOverlayColors = translationResult.colors,
-                            visibleCachedBlockIndices = emptySet(),
+                            selectedCachedBlockIndices = emptySet(),
                         )
                     } else {
                         copy(
@@ -658,7 +683,7 @@ class ViewerViewModel(
                             cachedImageWidth = 0,
                             cachedImageHeight = 0,
                             cachedOverlayColors = emptyList(),
-                            visibleCachedBlockIndices = emptySet(),
+                            selectedCachedBlockIndices = emptySet(),
                         )
                     }
 
@@ -667,6 +692,7 @@ class ViewerViewModel(
                             autoOcrBlocks = ocrCache.blocks,
                             autoOcrImageWidth = ocrCache.imageWidth,
                             autoOcrImageHeight = ocrCache.imageHeight,
+                            autoProcessStatus = AutoProcessStatus.OCR_DONE,
                         )
                     } else {
                         withTranslation
@@ -694,7 +720,7 @@ class ViewerViewModel(
         cachedImageWidth = 0,
         cachedImageHeight = 0,
         cachedOverlayColors = emptyList(),
-        visibleCachedBlockIndices = emptySet(),
+        selectedCachedBlockIndices = emptySet(),
         autoProcessStatus = AutoProcessStatus.IDLE,
         autoOcrBlocks = emptyList(),
         autoOcrImageWidth = 0,
@@ -716,7 +742,7 @@ class ViewerViewModel(
                 cachedImageWidth = 0,
                 cachedImageHeight = 0,
                 cachedOverlayColors = emptyList(),
-                visibleCachedBlockIndices = emptySet(),
+                selectedCachedBlockIndices = emptySet(),
             )
         }
     }
@@ -728,7 +754,7 @@ class ViewerViewModel(
         cachedImageWidth = 0,
         cachedImageHeight = 0,
         cachedOverlayColors = emptyList(),
-        visibleCachedBlockIndices = emptySet(),
+        selectedCachedBlockIndices = emptySet(),
         autoProcessStatus = AutoProcessStatus.IDLE,
         autoOcrBlocks = emptyList(),
         autoOcrImageWidth = 0,

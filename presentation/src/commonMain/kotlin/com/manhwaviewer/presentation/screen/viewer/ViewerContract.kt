@@ -45,7 +45,7 @@ data class ViewerState(
     val cachedImageWidth: Int = 0,
     val cachedImageHeight: Int = 0,
     val cachedOverlayColors: List<Color> = emptyList(),
-    val visibleCachedBlockIndices: Set<Int> = emptySet(),
+    val selectedCachedBlockIndices: Set<Int> = emptySet(),
     val autoProcessMode: AutoProcessMode = AutoProcessMode.NONE,
     val autoProcessStatus: AutoProcessStatus = AutoProcessStatus.IDLE,
     val autoOcrBlocks: List<OcrBlock> = emptyList(),
@@ -67,6 +67,9 @@ data class ViewerState(
                 autoProcessStatus == AutoProcessStatus.TRANSLATE_PROCESSING ||
                 cachedBlocks.isNotEmpty() ||
                 autoTranslationBlocks.isNotEmpty()
+
+    val hasSelectedBlocks: Boolean
+        get() = selectedOcrBlockIndices.isNotEmpty() || selectedCachedBlockIndices.isNotEmpty()
 }
 
 sealed interface ViewerIntent {
@@ -82,7 +85,7 @@ sealed interface ViewerIntent {
     data class SetImageScaleMode(val mode: ImageScaleMode) : ViewerIntent
     data class SetViewMode(val mode: ViewMode) : ViewerIntent
     data class SetReadingDirection(val direction: ReadingDirection) : ViewerIntent
-    data class ToggleCachedBlockOverlay(val blockIndex: Int) : ViewerIntent
+    data class ToggleCachedBlockSelection(val blockIndex: Int) : ViewerIntent
     data class SetAutoProcessMode(val mode: AutoProcessMode) : ViewerIntent
     data object RetryAutoProcess : ViewerIntent
     data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
