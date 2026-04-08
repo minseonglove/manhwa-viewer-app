@@ -390,8 +390,8 @@ fun ViewerScreen(
                 autoProcessMode = state.autoProcessMode,
                 autoProcessStatus = state.autoProcessStatus,
                 pipelineStage = state.pipelineStage,
-                hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty(),
-                hasCachedOcr = state.cachedBlocks.isNotEmpty(),
+                hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty() || state.cachedBlocks.isNotEmpty(),
+                hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
                 onPageChange = { page ->
                     scope.launch { pagerState.scrollToPage(page) }
                 },

@@ -372,10 +372,10 @@ private fun TranslationTabContent(
     val isFailed = autoProcessStatus == AutoProcessStatus.OCR_FAILED ||
             autoProcessStatus == AutoProcessStatus.TRANSLATE_FAILED
 
-    // 캐시 히트 시 파이프라인을 전체 완료로 표시
+    // 캐시 히트 시 파이프라인 단계 표시
     val effectiveStage = when {
         hasCachedTranslation -> PipelineStage.DONE
-        hasCachedOcr -> PipelineStage.DONE
+        hasCachedOcr -> PipelineStage.TRANSLATING  // OCR까지만 완료 (감지/크롭/인식 ✓, 번역 ●)
         else -> pipelineStage
     }
 
