@@ -110,7 +110,7 @@ class ViewerViewModel(
             is ViewerIntent.ToggleGlobalOverlay -> {
                 val newValue = !currentState.globalOverlayEnabled
                 updateState { copy(globalOverlayEnabled = newValue) }
-                if (newValue && currentState.autoProcessMode == AutoProcessMode.AUTO_OCR
+                if (newValue && currentState.autoProcessMode != AutoProcessMode.AUTO_TRANSLATE
                     && currentState.autoProcessStatus == AutoProcessStatus.OCR_DONE
                     && currentState.autoTranslationBlocks.isEmpty()
                     && autoTranslateJob?.isActive != true) {
