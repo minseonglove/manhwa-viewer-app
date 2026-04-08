@@ -292,9 +292,9 @@ private fun ViewTabContent(
             Spacer(modifier = Modifier.width(10.dp))
             SegmentedControl(
                 options = listOf(
+                    stringResource(Res.string.view_mode_webtoon),
                     stringResource(Res.string.view_mode_single),
                     stringResource(Res.string.view_mode_double),
-                    stringResource(Res.string.view_mode_webtoon),
                 ),
                 selectedIndex = ViewMode.entries.indexOf(viewMode),
                 onSelect = { onSetViewMode(ViewMode.entries[it]) },
