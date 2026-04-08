@@ -26,10 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
@@ -76,8 +75,7 @@ fun ViewerTopToolbar(
         Text(
             text = title,
             color = Color.White,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
@@ -98,8 +96,7 @@ fun ViewerTopToolbar(
                 Text(
                     text = stringResource(Res.string.viewer_translate_selected),
                     color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Normal,
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }

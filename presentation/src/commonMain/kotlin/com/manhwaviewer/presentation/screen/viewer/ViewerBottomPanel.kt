@@ -46,10 +46,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.ViewMode
@@ -245,8 +245,8 @@ private fun ProgressSlider(
         modifier = Modifier.fillMaxWidth().offset(y = (-9).dp).padding(horizontal = 7.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text = pageLabel, color = T2, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-        Text(text = "$totalPages", color = T2, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+        Text(text = pageLabel, color = T2, style = MaterialTheme.typography.labelSmall)
+        Text(text = "$totalPages", color = T2, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -267,7 +267,7 @@ private fun ViewTabContent(
             Text(
                 text = "읽기 방향",
                 color = T2,
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.width(44.dp),
                 textAlign = TextAlign.End,
             )
@@ -286,7 +286,7 @@ private fun ViewTabContent(
             Text(
                 text = "뷰 모드",
                 color = T2,
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.width(44.dp),
                 textAlign = TextAlign.End,
             )
@@ -350,7 +350,7 @@ private fun ScaleTabContent(
             Text(
                 text = descriptions[selectedIndex],
                 color = T2,
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }
@@ -425,7 +425,7 @@ private fun TranslationStatusChip(
             Text(
                 text = "다시 시도",
                 color = BlueHi,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.clickable(onClick = onRetry),
             )
         }
@@ -435,7 +435,7 @@ private fun TranslationStatusChip(
             Text(
                 text = "다시 시도",
                 color = BlueHi,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.clickable(onClick = onRetry),
             )
         }
@@ -462,7 +462,7 @@ private fun StatusChip(label: String, color: Color, bg: Color) {
     Text(
         text = label,
         color = color,
-        fontSize = 11.sp,
+        style = MaterialTheme.typography.bodySmall,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .background(bg, RoundedCornerShape(5.dp))
@@ -533,8 +533,7 @@ private fun PipelineSteps(
             Text(
                 text = "$icon ${labels[index]}",
                 color = color,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }
@@ -576,7 +575,7 @@ private fun TranslationModeButtons(
                 Text(
                     text = label,
                     color = if (isActive) BlueHi else T2,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
@@ -645,7 +644,7 @@ private fun TabItem(
         Text(
             text = label,
             color = color.copy(alpha = alpha),
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
@@ -685,7 +684,7 @@ private fun SegmentedControl(
                 Text(
                     text = label,
                     color = if (isSelected) Color.White else T2,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }

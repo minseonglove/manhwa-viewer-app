@@ -64,10 +64,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.BackgroundColor
 import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.domain.entity.OcrBlock
@@ -346,6 +345,7 @@ fun ViewerScreen(
             Text(
                 text = stringResource(Res.string.viewer_image_not_found),
                 color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -1082,13 +1082,12 @@ private fun SelectedTranslationBottomSheet(
                         Text(
                             text = original,
                             color = MangaLensColors.textSecondary,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                         )
                         Text(
                             text = translated,
                             color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     if (index < translations.lastIndex) {
