@@ -1,6 +1,7 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.offset
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -237,11 +238,11 @@ private fun ProgressSlider(
                 Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(Color.White, RoundedCornerShape(2.dp)))
             }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(32.dp),
     )
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().offset(y = (-9).dp).padding(horizontal = 7.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(text = pageLabel, color = T2, fontSize = 10.sp, fontWeight = FontWeight.Medium)
@@ -389,7 +390,6 @@ private fun TranslationTabContent(
         // Status chip + pipeline in same row
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 4.dp),
         ) {
             TranslationStatusChip(
                 status = autoProcessStatus,
