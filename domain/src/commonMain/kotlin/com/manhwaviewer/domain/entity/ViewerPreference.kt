@@ -11,7 +11,7 @@ data class ViewerPreference(
 )
 
 enum class ReadingDirection { LTR, RTL }
-enum class ViewMode { WEBTOON, SINGLE_PAGE, DOUBLE_PAGE }
+enum class ViewMode { SINGLE_PAGE, DOUBLE_PAGE, WEBTOON }
 enum class BackgroundColor { BLACK, WHITE, AUTO }
 enum class ImageScaleMode {
     FIT_WIDTH,    // 가로 맞춤
