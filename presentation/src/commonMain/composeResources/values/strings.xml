@@ -12,7 +12,6 @@
     <string name="viewer_page_translate_title">페이지 번역</string>
     <string name="viewer_translate">번역</string>
     <string name="viewer_translate_selected">선택 번역</string>
-    <string name="viewer_toggle_overlay">번역 오버레이 토글</string>
     <string name="viewer_image_not_found">이미지를 찾을 수 없습니다</string>
 
     <!-- 뷰어: 번역 옵션 바 -->
@@ -37,8 +36,8 @@
     <string name="view_mode_webtoon_full">웹툰 (세로 스크롤)</string>
 
     <!-- 뷰어: 하단 컨트롤 - 이미지 비율 -->
-    <string name="scale_fit_width">가로</string>
-    <string name="scale_fit_height">세로</string>
+    <string name="scale_fit_width">가로맞춤</string>
+    <string name="scale_fit_height">세로맞춤</string>
     <string name="scale_auto_fit">자동</string>
     <string name="scale_original">원본</string>
 
@@ -54,6 +53,33 @@
     <string name="status_translate_processing">번역 중</string>
     <string name="status_translate_done">번역 완료</string>
     <string name="status_translate_failed">번역 실패</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 탭 -->
+    <string name="tab_view">보기</string>
+    <string name="tab_scale">비율</string>
+    <string name="tab_translation">번역</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 라벨 -->
+    <string name="label_reading_direction">읽기 방향</string>
+    <string name="label_view_mode">뷰 모드</string>
+    <string name="reading_direction_ltr_short">LTR</string>
+    <string name="reading_direction_rtl_short">RTL</string>
+
+    <!-- 뷰어: 하단 컨트롤 - 비율 설명 -->
+    <string name="scale_fit_width_desc">가로맞춤 - 화면 너비에 맞춤</string>
+    <string name="scale_fit_height_desc">세로맞춤 - 화면 높이에 맞춤</string>
+    <string name="scale_auto_fit_desc">자동 - 이미지 비율에 따라 최적 맞춤</string>
+    <string name="scale_original_desc">원본 - 원본 크기로 표시</string>
+
+    <!-- 뷰어: 공통 액션 -->
+    <string name="retry">다시 시도</string>
+
+    <!-- 뷰어: 페이지 접근성 -->
+    <string name="page_content_description">페이지 %1$d</string>
+
+    <!-- 뷰어: 상단 바 접근성 -->
+    <string name="viewer_back">뒤로가기</string>
+    <string name="viewer_toggle_overlay">번역 오버레이 토글</string>
 
     <!-- 뷰어: 다이얼로그 -->
     <string name="dialog_auto_process_title">OCR / 번역 설정</string>

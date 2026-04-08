@@ -79,6 +79,18 @@ import manhwa_viewer.presentation.generated.resources.status_translate_processin
 import manhwa_viewer.presentation.generated.resources.view_mode_double
 import manhwa_viewer.presentation.generated.resources.view_mode_single
 import manhwa_viewer.presentation.generated.resources.view_mode_webtoon
+import manhwa_viewer.presentation.generated.resources.tab_view
+import manhwa_viewer.presentation.generated.resources.tab_scale
+import manhwa_viewer.presentation.generated.resources.tab_translation
+import manhwa_viewer.presentation.generated.resources.label_reading_direction
+import manhwa_viewer.presentation.generated.resources.label_view_mode
+import manhwa_viewer.presentation.generated.resources.reading_direction_ltr_short
+import manhwa_viewer.presentation.generated.resources.reading_direction_rtl_short
+import manhwa_viewer.presentation.generated.resources.scale_fit_width_desc
+import manhwa_viewer.presentation.generated.resources.scale_fit_height_desc
+import manhwa_viewer.presentation.generated.resources.scale_auto_fit_desc
+import manhwa_viewer.presentation.generated.resources.scale_original_desc
+import manhwa_viewer.presentation.generated.resources.retry
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -265,7 +277,7 @@ private fun ViewTabContent(
         // Reading direction
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "읽기 방향",
+                text = stringResource(Res.string.label_reading_direction),
                 color = T2,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.width(44.dp),
@@ -273,7 +285,10 @@ private fun ViewTabContent(
             )
             Spacer(modifier = Modifier.width(10.dp))
             SegmentedControl(
-                options = listOf("LTR", "RTL"),
+                options = listOf(
+                    stringResource(Res.string.reading_direction_ltr_short),
+                    stringResource(Res.string.reading_direction_rtl_short),
+                ),
                 selectedIndex = if (readingDirection == ReadingDirection.LTR) 0 else 1,
                 onSelect = {
                     onSetReadingDirection(if (it == 0) ReadingDirection.LTR else ReadingDirection.RTL)
@@ -284,7 +299,7 @@ private fun ViewTabContent(
         // View mode
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "뷰 모드",
+                text = stringResource(Res.string.label_view_mode),
                 color = T2,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.width(44.dp),
@@ -293,9 +308,9 @@ private fun ViewTabContent(
             Spacer(modifier = Modifier.width(10.dp))
             SegmentedControl(
                 options = listOf(
-                    stringResource(Res.string.view_mode_webtoon),
                     stringResource(Res.string.view_mode_single),
                     stringResource(Res.string.view_mode_double),
+                    stringResource(Res.string.view_mode_webtoon),
                 ),
                 selectedIndex = ViewMode.entries.indexOf(viewMode),
                 onSelect = { onSetViewMode(ViewMode.entries[it]) },
@@ -320,10 +335,10 @@ private fun ScaleTabContent(
         stringResource(Res.string.scale_original),
     )
     val descriptions = listOf(
-        "가로맞춤 - 화면 너비에 맞춤",
-        "세로맞춤 - 화면 높이에 맞춤",
-        "자동 - 이미지 비율에 따라 최적 맞춤",
-        "원본 - 원본 크기로 표시",
+        stringResource(Res.string.scale_fit_width_desc),
+        stringResource(Res.string.scale_fit_height_desc),
+        stringResource(Res.string.scale_auto_fit_desc),
+        stringResource(Res.string.scale_original_desc),
     )
     val selectedIndex = ImageScaleMode.entries.indexOf(currentMode)
 
@@ -338,6 +353,7 @@ private fun ScaleTabContent(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
+                .fillMaxWidth()
                 .background(MangaLensColors.fillQuaternary, RoundedCornerShape(9.dp))
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         ) {
@@ -423,7 +439,7 @@ private fun TranslationStatusChip(
             StatusChip(label = stringResource(Res.string.status_ocr_failed), color = Red, bg = RedBg)
             Spacer(modifier = Modifier.width(7.dp))
             Text(
-                text = "다시 시도",
+                text = stringResource(Res.string.retry),
                 color = BlueHi,
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.clickable(onClick = onRetry),
@@ -433,7 +449,7 @@ private fun TranslationStatusChip(
             StatusChip(label = stringResource(Res.string.status_translate_failed), color = Red, bg = RedBg)
             Spacer(modifier = Modifier.width(7.dp))
             Text(
-                text = "다시 시도",
+                text = stringResource(Res.string.retry),
                 color = BlueHi,
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.clickable(onClick = onRetry),
@@ -595,21 +611,21 @@ private fun TabNavigationBar(
     Row(modifier = Modifier.fillMaxWidth()) {
         TabItem(
             icon = { tint -> Icon(painterResource(Res.drawable.ic_book), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp)) },
-            label = "보기",
+            label = stringResource(Res.string.tab_view),
             isActive = selectedTab == BottomPanelTab.VIEW,
             onClick = { onTabSelected(BottomPanelTab.VIEW) },
             modifier = Modifier.weight(1f),
         )
         TabItem(
             icon = { tint -> Icon(painterResource(Res.drawable.ic_view_grid), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp)) },
-            label = "비율",
+            label = stringResource(Res.string.tab_scale),
             isActive = selectedTab == BottomPanelTab.SCALE,
             onClick = { onTabSelected(BottomPanelTab.SCALE) },
             modifier = Modifier.weight(1f),
         )
         TabItem(
             icon = { tint -> Icon(painterResource(Res.drawable.ic_translate), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp)) },
-            label = "번역",
+            label = stringResource(Res.string.tab_translation),
             isActive = selectedTab == BottomPanelTab.TRANSLATION,
             onClick = { onTabSelected(BottomPanelTab.TRANSLATION) },
             modifier = Modifier.weight(1f),

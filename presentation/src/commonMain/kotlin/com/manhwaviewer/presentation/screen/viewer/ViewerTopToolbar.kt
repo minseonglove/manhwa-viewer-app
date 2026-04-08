@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_arrow_back
+import manhwa_viewer.presentation.generated.resources.viewer_back
+import manhwa_viewer.presentation.generated.resources.viewer_toggle_overlay
 import manhwa_viewer.presentation.generated.resources.viewer_translate_selected
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -65,7 +67,7 @@ fun ViewerTopToolbar(
         ) {
             Icon(
                 painter = painterResource(Res.drawable.ic_arrow_back),
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.viewer_back),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp),
             )
@@ -111,7 +113,7 @@ fun ViewerTopToolbar(
         ) {
             Icon(
                 imageVector = if (isOverlayEnabled) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                contentDescription = "Toggle overlay",
+                contentDescription = stringResource(Res.string.viewer_toggle_overlay),
                 tint = if (isOverlayButtonEnabled) Color.White.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.15f),
                 modifier = Modifier.size(20.dp),
             )

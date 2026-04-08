@@ -84,6 +84,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.page_content_description
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
 import org.jetbrains.compose.resources.stringResource
 import me.saket.telephoto.subsamplingimage.SubSamplingImage
@@ -598,7 +599,7 @@ private fun ZoomableImage(
 
                     SubSamplingImage(
                         state = imageState,
-                        contentDescription = "Page ${page + 1}",
+                        contentDescription = stringResource(Res.string.page_content_description, page + 1),
                         modifier = Modifier.fillMaxSize(),
                         // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
                         alpha = if (subSamplingReady || baseZoomFactor <= 1f) 1f else 0f,
@@ -783,7 +784,7 @@ private fun ZoomableImage(
 
                     Image(
                         painter = painter,
-                        contentDescription = "Page ${page + 1}",
+                        contentDescription = stringResource(Res.string.page_content_description, page + 1),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = renderScale,
                         // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
