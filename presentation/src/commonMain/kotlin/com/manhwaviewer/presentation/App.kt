@@ -6,6 +6,7 @@ import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.memory.MemoryCache
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
+import com.manhwaviewer.presentation.coil.newImageDiskCache
 import com.manhwaviewer.presentation.navigation.NavGraph
 import com.manhwaviewer.presentation.screen.viewer.ViewerImageFetcher
 import com.manhwaviewer.presentation.screen.viewer.ViewerImageKeyer
@@ -23,6 +24,7 @@ fun App() {
                     .maxSizePercent(context, 0.15)
                     .build()
             }
+            .diskCache { newImageDiskCache(context) }
             .components {
                 add(ViewerImageKeyer())
                 add(ViewerImageFetcher.Factory(getImageBytesUseCase))
