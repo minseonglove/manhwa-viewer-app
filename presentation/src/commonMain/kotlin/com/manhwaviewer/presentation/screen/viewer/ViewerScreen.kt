@@ -428,6 +428,7 @@ fun ViewerScreen(
                 pipelineStage = state.pipelineStage,
                 hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty() || state.cachedBlocks.isNotEmpty(),
                 hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
+                cacheCheckCompleted = state.cacheCheckCompleted,
                 selectedTab = state.selectedBottomTab,
                 previousVolumeName = state.previousVolume?.fileName,
                 previousVolumeThumbnailModel = state.previousVolume?.let { pv ->
@@ -551,6 +552,9 @@ private fun ZoomableImage(
     val currentAutoOcrImageHeight by rememberUpdatedState(autoOcrImageHeight)
     val currentAutoProcessStatus by rememberUpdatedState(autoProcessStatus)
     val currentOnOcrBlockTap by rememberUpdatedState(onOcrBlockTap)
+    val currentOnTapLeft by rememberUpdatedState(onTapLeft)
+    val currentOnTapRight by rememberUpdatedState(onTapRight)
+    val currentOnTapCenter by rememberUpdatedState(onTapCenter)
 
     // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
     // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
@@ -635,9 +639,9 @@ private fun ZoomableImage(
                             }
                             if (!handled) {
                                 when {
-                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> onTapRight()
-                                    else -> onTapCenter()
+                                    offset.x < containerSize.width * 0.2f -> currentOnTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> currentOnTapRight()
+                                    else -> currentOnTapCenter()
                                 }
                             }
                         },
@@ -825,9 +829,9 @@ private fun ZoomableImage(
                             }
                             if (!handled) {
                                 when {
-                                    offset.x < containerSize.width * 0.2f -> onTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> onTapRight()
-                                    else -> onTapCenter()
+                                    offset.x < containerSize.width * 0.2f -> currentOnTapLeft()
+                                    offset.x > containerSize.width * 0.8f -> currentOnTapRight()
+                                    else -> currentOnTapCenter()
                                 }
                             }
                         },
