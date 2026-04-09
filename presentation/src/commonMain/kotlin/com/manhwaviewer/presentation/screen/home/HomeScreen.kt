@@ -1,5 +1,8 @@
 package com.manhwaviewer.presentation.screen.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -168,14 +171,23 @@ fun HomeScreen(
             ) {
                 state.continueReading?.let { archive ->
                     item {
-                        ContinueReadingHeroCard(
-                            archive = archive,
-                            coverModel = state.continueReadingCoverModel,
-                            cardHeight = heroHeight,
-                            onClick = {
-                                viewModel.onIntent(HomeIntent.OpenArchive(archive.id))
-                            },
-                        )
+                        Crossfade(
+                            targetState = archive.id,
+                            animationSpec = tween(durationMillis = 300),
+                            label = "ContinueReadingCrossfade",
+                        ) { targetId ->
+                            val current = state.continueReading
+                                ?.takeIf { it.id == targetId }
+                                ?: archive
+                            ContinueReadingHeroCard(
+                                archive = current,
+                                coverModel = state.continueReadingCoverModel,
+                                cardHeight = heroHeight,
+                                onClick = {
+                                    viewModel.onIntent(HomeIntent.OpenArchive(targetId))
+                                },
+                            )
+                        }
                     }
                 }
 
@@ -221,11 +233,16 @@ private fun ContinueReadingHeroCard(
     cardHeight: Dp,
     onClick: () -> Unit,
 ) {
-    val progress = if (archive.totalPages > 0) {
+    val rawProgress = if (archive.totalPages > 0) {
         ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
     } else {
         0f
     }
+    val progress by animateFloatAsState(
+        targetValue = rawProgress,
+        animationSpec = tween(durationMillis = 300),
+        label = "ContinueReadingProgress",
+    )
     val cardBg = MangaLensColors.surface1
 
     Card(
