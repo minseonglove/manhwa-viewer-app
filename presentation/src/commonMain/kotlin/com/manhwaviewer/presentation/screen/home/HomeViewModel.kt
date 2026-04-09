@@ -36,6 +36,7 @@ class HomeViewModel(
                     copy(
                         recentArchives = limited,
                         continueReading = continueTarget,
+                        continueReadingCoverModel = continueTarget?.let { recentCoverModels[it.id] },
                     )
                 }
 
@@ -104,6 +105,7 @@ class HomeViewModel(
             HomeIntent.NavigateToImages -> sendSideEffect(HomeSideEffect.NavigateToImages)
             HomeIntent.NavigateToVault -> sendSideEffect(HomeSideEffect.NavigateToVault)
             HomeIntent.NavigateToSettings -> sendSideEffect(HomeSideEffect.NavigateToSettings)
+            HomeIntent.NavigateToSearch -> sendSideEffect(HomeSideEffect.NavigateToSearch)
             is HomeIntent.OpenArchive -> sendSideEffect(HomeSideEffect.NavigateToViewer(intent.archiveId))
         }
     }
