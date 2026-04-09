@@ -61,6 +61,7 @@ import com.manhwaviewer.presentation.screen.vault.VaultViewModel
 import com.manhwaviewer.presentation.screen.viewer.ViewerViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -129,6 +130,6 @@ val appModule = module {
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get()) }
-    viewModel { ViewerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModelOf(::ViewerViewModel)
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }

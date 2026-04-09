@@ -93,17 +93,18 @@ class ViewerViewModel(
             is ViewerIntent.LoadArchive -> loadArchive(intent.archiveId, intent.startPage, intent.sortByDate, intent.sortAscending)
             is ViewerIntent.SetPage -> {
                 if (currentState.totalPages == 0) return
+                if (intent.page >= currentState.totalPages && currentState.nextVolume != null) {
+                    navigateToNextVolume()
+                    return
+                }
                 val newPage = intent.page.coerceIn(0, currentState.totalPages - 1)
                 if (newPage == currentState.currentPage) return
                 handlePageChange(newPage)
             }
             is ViewerIntent.NextPage -> {
                 if (currentState.totalPages == 0) return
-                val nextVol = currentState.nextVolume
-                if (currentState.currentPage >= currentState.totalPages - 1 && nextVol != null) {
-                    saveProgress()
-                    val isRtl = currentState.preference.readingDirection == ReadingDirection.RTL
-                    sendSideEffect(ViewerSideEffect.NavigateToNextVolume(nextVol.archiveId, isRtl))
+                if (currentState.currentPage >= currentState.totalPages - 1 && currentState.nextVolume != null) {
+                    navigateToNextVolume()
                     return
                 }
                 val newPage = (currentState.currentPage + 1).coerceIn(0, currentState.totalPages - 1)
@@ -167,12 +168,7 @@ class ViewerViewModel(
             is ViewerIntent.SetAutoProcessMode -> handleSetAutoProcessMode(intent.mode)
             is ViewerIntent.RetryAutoProcess -> handleRetryAutoProcess()
             is ViewerIntent.SetBottomTab -> updateState { copy(selectedBottomTab = intent.tab) }
-            is ViewerIntent.NavigateToNextVolume -> {
-                val nextVol = currentState.nextVolume ?: return
-                saveProgress()
-                val isRtl = currentState.preference.readingDirection == ReadingDirection.RTL
-                sendSideEffect(ViewerSideEffect.NavigateToNextVolume(nextVol.archiveId, isRtl))
-            }
+            is ViewerIntent.NavigateToNextVolume -> navigateToNextVolume()
             is ViewerIntent.ToggleOcrBlockSelection -> {
                 val idx = intent.blockIndex
                 val newSet = if (idx in currentState.selectedOcrBlockIndices)
@@ -614,7 +610,7 @@ class ViewerViewModel(
             // 번역 안함 모드: 번역+OCR 캐시를 한 번에 조회 후 원자적 갱신
             loadCachesForNoneMode(newPage)
         }
-        if (isLast && currentState.nextVolume == null) {
+        if (isLast && currentState.nextVolume == null && nextVolumeJob?.isActive != true) {
             loadNextVolume()
         }
     }
@@ -626,25 +622,37 @@ class ViewerViewModel(
         nextVolumeJob = viewModelScope.launch {
             val filePath = currentState.filePath.ifEmpty { return@launch }
             val nextArchive = getNextArchiveUseCase(filePath) ?: return@launch
-            // DB에 upsert하여 archiveId 획득
             val archiveId = upsertArchiveUseCase(nextArchive)
-            // 첫 페이지 썸네일 로드
             val entries = getImageEntriesUseCase(nextArchive.filePath)
-            val thumbnailBytes = if (entries.isNotEmpty()) {
-                getImageBytesUseCase(nextArchive.filePath, entries.first())
-            } else null
-            if (thumbnailBytes == null) return@launch
             updateState {
                 copy(
                     nextVolume = NextVolumeInfo(
                         archiveId = archiveId,
                         fileName = nextArchive.fileName,
                         filePath = nextArchive.filePath,
-                        thumbnailBytes = thumbnailBytes,
+                        firstEntryName = entries.firstOrNull(),
                     )
                 )
             }
         }
+    }
+
+    private fun navigateToNextVolume() {
+        val nextVol = currentState.nextVolume ?: return
+        saveProgress()
+        cancelAllAutoJobs()
+        nextVolumeJob?.cancel()
+        val pref = currentState.preference
+        val processMode = currentState.autoProcessMode
+        val tab = currentState.selectedBottomTab
+        updateState {
+            ViewerState(
+                preference = pref,
+                autoProcessMode = processMode,
+                selectedBottomTab = tab,
+            )
+        }
+        loadArchive(nextVol.archiveId, startPage = 0)
     }
 
     private data class TranslationCacheData(

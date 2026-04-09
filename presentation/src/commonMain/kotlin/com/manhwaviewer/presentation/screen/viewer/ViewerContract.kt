@@ -103,12 +103,11 @@ data class NextVolumeInfo(
     val archiveId: Long,
     val fileName: String,
     val filePath: String,
-    val thumbnailBytes: ByteArray? = null,
+    val firstEntryName: String? = null,
 )
 
 sealed interface ViewerSideEffect {
     data object NavigateBack : ViewerSideEffect
-    data class NavigateToNextVolume(val archiveId: Long, val isRtl: Boolean) : ViewerSideEffect
 }
 
 // ── DOUBLE_PAGE 모드: 스프레드(양면) 인덱스 ↔ 실제 페이지 인덱스 변환 ──

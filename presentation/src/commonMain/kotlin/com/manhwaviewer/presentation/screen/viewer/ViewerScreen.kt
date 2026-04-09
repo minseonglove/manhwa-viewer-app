@@ -82,6 +82,7 @@ import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
 import com.manhwaviewer.domain.entity.ViewerPreference
+import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
@@ -89,6 +90,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.loading_next_volume
 import manhwa_viewer.presentation.generated.resources.page_content_description
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
 import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
@@ -123,19 +125,9 @@ fun ViewerScreen(
     sortAscending: Boolean = true,
     onBack: () -> Unit,
     onSettings: () -> Unit,
-    onNavigateToNextVolume: (archiveId: Long, isRtl: Boolean) -> Unit,
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.sideEffect.collect { effect ->
-            when (effect) {
-                is ViewerSideEffect.NavigateBack -> onBack()
-                is ViewerSideEffect.NavigateToNextVolume -> onNavigateToNextVolume(effect.archiveId, effect.isRtl)
-            }
-        }
-    }
 
     LaunchedEffect(archiveId) {
         viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
@@ -150,9 +142,11 @@ fun ViewerScreen(
     val viewMode = state.preference.viewMode
     val isDoublePage = viewMode == ViewMode.DOUBLE_PAGE
 
-    val pagerPageCount = if (isDoublePage) spreadCount(state.totalPages) else state.totalPages
+    val hasNextVolume = state.nextVolume != null
+    val realPageCount = if (isDoublePage) spreadCount(state.totalPages) else state.totalPages
+    val pagerPageCount = realPageCount + (if (hasNextVolume) 1 else 0)
 
-    val pagerState = key(viewMode) {
+    val pagerState = key(viewMode, state.archive?.id) {
         rememberPagerState(
             initialPage = if (isDoublePage) pageToSpread(state.currentPage) else state.currentPage,
             pageCount = { pagerPageCount },
@@ -208,6 +202,9 @@ fun ViewerScreen(
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
                     ) { page ->
+                        if (hasNextVolume && page >= realPageCount) {
+                            NextVolumeTransitionPage(nextVolume = state.nextVolume)
+                        } else {
                         val entryName = state.imageEntries.getOrNull(page)
                         val pageModel = entryName?.let {
                             ViewerPageModel(archivePath = state.filePath, entryNames = listOf(it))
@@ -247,6 +244,7 @@ fun ViewerScreen(
                             autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
                             globalOverlayEnabled = state.globalOverlayEnabled,
                         )
+                        }
                     }
                 }
 
@@ -260,6 +258,9 @@ fun ViewerScreen(
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
                     ) { spreadIndex ->
+                        if (hasNextVolume && spreadIndex >= realPageCount) {
+                            NextVolumeTransitionPage(nextVolume = state.nextVolume)
+                        } else {
                         val (firstPage, secondPage) = spreadToPages(spreadIndex, state.totalPages)
                         val firstEntry = state.imageEntries.getOrNull(firstPage)
                         val secondEntry = secondPage?.let { state.imageEntries.getOrNull(it) }
@@ -311,6 +312,7 @@ fun ViewerScreen(
                             autoTranslationOverlayColors = if (isCurrentSpread) state.autoTranslationOverlayColors else emptyList(),
                             globalOverlayEnabled = state.globalOverlayEnabled,
                         )
+                        }
                     }
                 }
 
@@ -324,6 +326,9 @@ fun ViewerScreen(
                         beyondViewportPageCount = 1,
                         userScrollEnabled = true,
                     ) { page ->
+                        if (hasNextVolume && page >= realPageCount) {
+                            NextVolumeTransitionPage(nextVolume = state.nextVolume)
+                        } else {
                         val entryName = state.imageEntries.getOrNull(page)
                         val pageModel = entryName?.let {
                             ViewerPageModel(archivePath = state.filePath, entryNames = listOf(it))
@@ -367,6 +372,7 @@ fun ViewerScreen(
                             autoTranslationOverlayColors = if (page == state.currentPage) state.autoTranslationOverlayColors else emptyList(),
                             globalOverlayEnabled = state.globalOverlayEnabled,
                         )
+                        }
                     }
                 }
             }
@@ -425,7 +431,9 @@ fun ViewerScreen(
                 selectedTab = state.selectedBottomTab,
                 isLastPage = state.isLastPage,
                 nextVolumeName = state.nextVolume?.fileName,
-                nextVolumeThumbnail = state.nextVolume?.thumbnailBytes,
+                nextVolumeThumbnailModel = state.nextVolume?.let { nv ->
+                    nv.firstEntryName?.let { ViewerPageModel(archivePath = nv.filePath, entryNames = listOf(it)) }
+                },
                 onPageChange = { page ->
                     scope.launch { pagerState.scrollToPage(page) }
                 },
@@ -1205,6 +1213,54 @@ private fun SelectedTranslationBottomSheet(
                             thickness = 0.5.dp,
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextVolumeTransitionPage(nextVolume: NextVolumeInfo?) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (nextVolume != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (nextVolume.firstEntryName != null) {
+                    AsyncImage(
+                        model = ViewerPageModel(
+                            archivePath = nextVolume.filePath,
+                            entryNames = listOf(nextVolume.firstEntryName),
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                Text(
+                    text = nextVolume.fileName,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Color.White.copy(alpha = 0.6f),
+                        strokeWidth = 2.dp,
+                    )
+                    Text(
+                        text = stringResource(Res.string.loading_next_volume),
+                        color = Color.White.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }

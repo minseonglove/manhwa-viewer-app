@@ -3,7 +3,6 @@ package com.manhwaviewer.presentation.screen.viewer
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -47,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -98,7 +96,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
-import com.manhwaviewer.presentation.util.toImageBitmap
+import coil3.compose.AsyncImage
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.next_volume
 import org.jetbrains.compose.resources.painterResource
@@ -138,7 +136,7 @@ fun ViewerBottomPanel(
     selectedTab: BottomPanelTab,
     isLastPage: Boolean,
     nextVolumeName: String?,
-    nextVolumeThumbnail: ByteArray?,
+    nextVolumeThumbnailModel: Any?,
     onPageChange: (Int) -> Unit,
     onSetReadingDirection: (ReadingDirection) -> Unit,
     onSetViewMode: (ViewMode) -> Unit,
@@ -177,7 +175,7 @@ fun ViewerBottomPanel(
             isDoublePage = isDoublePage,
             isLastPage = isLastPage,
             nextVolumeName = nextVolumeName,
-            nextVolumeThumbnail = nextVolumeThumbnail,
+            nextVolumeThumbnailModel = nextVolumeThumbnailModel,
             onPageChange = onPageChange,
             onNavigateToNextVolume = onNavigateToNextVolume,
         )
@@ -258,7 +256,7 @@ private fun ProgressSlider(
     isDoublePage: Boolean,
     isLastPage: Boolean,
     nextVolumeName: String?,
-    nextVolumeThumbnail: ByteArray?,
+    nextVolumeThumbnailModel: Any?,
     onPageChange: (Int) -> Unit,
     onNavigateToNextVolume: () -> Unit,
 ) {
@@ -311,7 +309,7 @@ private fun ProgressSlider(
         if (showNextVolume) {
             NextVolumeHint(
                 name = nextVolumeName,
-                thumbnailBytes = nextVolumeThumbnail,
+                thumbnailModel = nextVolumeThumbnailModel,
                 onClick = onNavigateToNextVolume,
             )
         }
@@ -336,7 +334,7 @@ private fun ProgressSlider(
 @Composable
 private fun NextVolumeHint(
     name: String,
-    thumbnailBytes: ByteArray?,
+    thumbnailModel: Any?,
     onClick: () -> Unit,
 ) {
     Row(
@@ -354,10 +352,9 @@ private fun NextVolumeHint(
         )
         Spacer(modifier = Modifier.width(6.dp))
         // 썸네일
-        if (thumbnailBytes != null) {
-            val bitmap = remember(thumbnailBytes) { thumbnailBytes.toImageBitmap() }
-            Image(
-                bitmap = bitmap,
+        if (thumbnailModel != null) {
+            AsyncImage(
+                model = thumbnailModel,
                 contentDescription = null,
                 modifier = Modifier
                     .size(20.dp)
