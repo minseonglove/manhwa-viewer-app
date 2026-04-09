@@ -11,6 +11,7 @@ class FakeArchiveFileRepository : ArchiveFileRepository {
     val recentArchives = MutableStateFlow<List<ArchiveFile>>(emptyList())
     val recentCount = MutableStateFlow(0)
     val vaultFiles = MutableStateFlow<List<ArchiveFile>>(emptyList())
+    var scanResult: List<ArchiveFile> = emptyList()
 
     override fun getRecentArchives(): Flow<List<ArchiveFile>> = recentArchives
     override fun getRecentArchivesCount(): Flow<Int> = recentCount
@@ -19,7 +20,7 @@ class FakeArchiveFileRepository : ArchiveFileRepository {
     override suspend fun upsertArchive(archive: ArchiveFile): Long = archive.id
     override suspend fun updateLastReadIndex(id: Long, pageIndex: Int) {}
     override suspend fun deleteArchive(id: Long) {}
-    override suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile> = emptyList()
+    override suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile> = scanResult
     override suspend fun scanArchiveEntries(archivePath: String): List<ArchiveFile> = emptyList()
     override suspend fun getImageEntries(filePath: String): List<String> = emptyList()
     override suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> = emptyList()
