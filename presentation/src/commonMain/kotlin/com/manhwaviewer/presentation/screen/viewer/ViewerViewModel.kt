@@ -678,7 +678,7 @@ class ViewerViewModel(
         }
         viewModelScope.launch {
             updateLastReadIndexUseCase(archive.id, page)
-            loadArchive(nextVol.archiveId, startPage = 0)
+            loadArchive(nextVol.archiveId, startPage = -1)
         }
     }
 
@@ -699,7 +699,7 @@ class ViewerViewModel(
         }
         viewModelScope.launch {
             updateLastReadIndexUseCase(archive.id, page)
-            loadArchive(prevVol.archiveId, startPage = 0)
+            loadArchive(prevVol.archiveId, startPage = -1)
         }
     }
 
