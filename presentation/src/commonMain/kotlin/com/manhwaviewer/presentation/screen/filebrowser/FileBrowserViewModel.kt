@@ -98,6 +98,7 @@ class FileBrowserViewModel(
                 val pageIndex = entries.indexOf(archive.fileName).coerceAtLeast(0)
                 archive.copy(
                     filePath = parentPath,
+                    fileName = parentPath.substringAfterLast('/'),
                     type = ArchiveType.FOLDER,
                     totalPages = entries.size,
                     lastReadIndex = pageIndex,
