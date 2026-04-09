@@ -1,7 +1,6 @@
 package com.manhwaviewer.presentation.util
 
 import androidx.compose.ui.graphics.ImageBitmap
-
 expect fun ByteArray.toImageBitmap(): ImageBitmap
 
 expect suspend fun getImageDimensions(bytes: ByteArray): Pair<Int, Int>
