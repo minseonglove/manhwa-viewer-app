@@ -36,7 +36,12 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
     override suspend fun upsertArchive(archive: ArchiveFile): Long {
         val existing = dao.getByFilePath(archive.filePath)
         val entity = if (existing != null) {
-            archive.toEntity().copy(id = existing.id, addedAt = existing.addedAt)
+            archive.toEntity().copy(
+                id = existing.id,
+                addedAt = existing.addedAt,
+                lastReadIndex = existing.lastReadIndex,
+                lastReadAt = existing.lastReadAt,
+            )
         } else {
             archive.toEntity()
         }

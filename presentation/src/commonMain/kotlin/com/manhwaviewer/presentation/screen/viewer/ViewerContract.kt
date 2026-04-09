@@ -63,7 +63,8 @@ data class ViewerState(
     val isSelectedTranslationSheetVisible: Boolean = false,
     val isSelectedTranslating: Boolean = false,
     val selectedBottomTab: BottomPanelTab = BottomPanelTab.VIEW,
-    // 다음 권
+    // 이전 권 / 다음 권
+    val previousVolume: PreviousVolumeInfo? = null,
     val nextVolume: NextVolumeInfo? = null,
     val isLastPage: Boolean = false,
 ) {
@@ -97,9 +98,17 @@ sealed interface ViewerIntent {
     data class ToggleOcrBlockSelection(val blockIndex: Int) : ViewerIntent
     data class SetBottomTab(val tab: BottomPanelTab) : ViewerIntent
     data object NavigateToNextVolume : ViewerIntent
+    data object NavigateToPreviousVolume : ViewerIntent
 }
 
 data class NextVolumeInfo(
+    val archiveId: Long,
+    val fileName: String,
+    val filePath: String,
+    val firstEntryName: String? = null,
+)
+
+data class PreviousVolumeInfo(
     val archiveId: Long,
     val fileName: String,
     val filePath: String,

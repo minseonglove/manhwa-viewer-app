@@ -97,8 +97,10 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import coil3.compose.AsyncImage
+import manhwa_viewer.presentation.generated.resources.ic_chevron_left
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.next_volume
+import manhwa_viewer.presentation.generated.resources.previous_volume
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -134,7 +136,8 @@ fun ViewerBottomPanel(
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
     selectedTab: BottomPanelTab,
-    isLastPage: Boolean,
+    previousVolumeName: String?,
+    previousVolumeThumbnailModel: Any?,
     nextVolumeName: String?,
     nextVolumeThumbnailModel: Any?,
     onPageChange: (Int) -> Unit,
@@ -144,6 +147,7 @@ fun ViewerBottomPanel(
     onSetAutoProcessMode: (AutoProcessMode) -> Unit,
     onRetryAutoProcess: () -> Unit,
     onTabSelected: (BottomPanelTab) -> Unit,
+    onNavigateToPreviousVolume: () -> Unit,
     onNavigateToNextVolume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -173,10 +177,12 @@ fun ViewerBottomPanel(
             currentPage = currentPage,
             totalPages = totalPages,
             isDoublePage = isDoublePage,
-            isLastPage = isLastPage,
+            previousVolumeName = previousVolumeName,
+            previousVolumeThumbnailModel = previousVolumeThumbnailModel,
             nextVolumeName = nextVolumeName,
             nextVolumeThumbnailModel = nextVolumeThumbnailModel,
             onPageChange = onPageChange,
+            onNavigateToPreviousVolume = onNavigateToPreviousVolume,
             onNavigateToNextVolume = onNavigateToNextVolume,
         )
 
@@ -254,10 +260,12 @@ private fun ProgressSlider(
     currentPage: Int,
     totalPages: Int,
     isDoublePage: Boolean,
-    isLastPage: Boolean,
+    previousVolumeName: String?,
+    previousVolumeThumbnailModel: Any?,
     nextVolumeName: String?,
     nextVolumeThumbnailModel: Any?,
     onPageChange: (Int) -> Unit,
+    onNavigateToPreviousVolume: () -> Unit,
     onNavigateToNextVolume: () -> Unit,
 ) {
     if (totalPages <= 1) return
@@ -269,7 +277,18 @@ private fun ProgressSlider(
         "${currentPage + 1}"
     }
 
-    val showNextVolume = isLastPage && nextVolumeName != null
+    // 이전 권 / 다음 권 힌트 행
+    if (previousVolumeName != null || nextVolumeName != null) {
+        VolumeHintRow(
+            previousVolumeName = previousVolumeName,
+            previousVolumeThumbnailModel = previousVolumeThumbnailModel,
+            onNavigateToPreviousVolume = onNavigateToPreviousVolume,
+            nextVolumeName = nextVolumeName,
+            nextVolumeThumbnailModel = nextVolumeThumbnailModel,
+            onNavigateToNextVolume = onNavigateToNextVolume,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+    }
 
     val range = 0f..(pagerPageCount - 1).coerceAtLeast(1).toFloat()
 
@@ -305,14 +324,6 @@ private fun ProgressSlider(
             },
             modifier = Modifier.weight(1f).height(32.dp),
         )
-
-        if (showNextVolume) {
-            NextVolumeHint(
-                name = nextVolumeName,
-                thumbnailModel = nextVolumeThumbnailModel,
-                onClick = onNavigateToNextVolume,
-            )
-        }
     }
 
     Row(
@@ -320,15 +331,99 @@ private fun ProgressSlider(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(text = pageLabel, color = T2, style = MaterialTheme.typography.labelSmall)
-        if (!showNextVolume) {
-            Text(text = "$totalPages", color = T2, style = MaterialTheme.typography.labelSmall)
-        }
+        Text(text = "$totalPages", color = T2, style = MaterialTheme.typography.labelSmall)
     }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Next Volume Hint
+// Volume Hint Row (이전 권 / 다음 권)
 // ══════════════════════════════════════════════════════════════════
+
+@Composable
+private fun VolumeHintRow(
+    previousVolumeName: String?,
+    previousVolumeThumbnailModel: Any?,
+    onNavigateToPreviousVolume: () -> Unit,
+    nextVolumeName: String?,
+    nextVolumeThumbnailModel: Any?,
+    onNavigateToNextVolume: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (previousVolumeName != null) {
+            PreviousVolumeHint(
+                name = previousVolumeName,
+                thumbnailModel = previousVolumeThumbnailModel,
+                onClick = onNavigateToPreviousVolume,
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+        if (nextVolumeName != null) {
+            NextVolumeHint(
+                name = nextVolumeName,
+                thumbnailModel = nextVolumeThumbnailModel,
+                onClick = onNavigateToNextVolume,
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PreviousVolumeHint(
+    name: String,
+    thumbnailModel: Any?,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(end = 4.dp),
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_chevron_left),
+            contentDescription = null,
+            tint = MangaLensColors.textTertiary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(modifier = Modifier.width(2.dp))
+        if (thumbnailModel != null) {
+            AsyncImage(
+                model = thumbnailModel,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+        }
+        Column(modifier = Modifier.widthIn(max = 80.dp)) {
+            Text(
+                text = stringResource(Res.string.previous_volume),
+                color = MangaLensColors.textTertiary,
+                style = MaterialTheme.typography.labelSmall,
+                lineHeight = MaterialTheme.typography.labelSmall.fontSize,
+            )
+            Text(
+                text = name,
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.basicMarquee(),
+                lineHeight = MaterialTheme.typography.labelSmall.fontSize * 1.3,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -343,28 +438,10 @@ private fun NextVolumeHint(
             .clickable(onClick = onClick)
             .padding(start = 4.dp),
     ) {
-        // 구분선
-        Box(
-            modifier = Modifier
-                .width(0.5.dp)
-                .height(20.dp)
-                .background(Color.White.copy(alpha = 0.18f)),
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        // 썸네일
-        if (thumbnailModel != null) {
-            AsyncImage(
-                model = thumbnailModel,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-        }
-        // 텍스트
-        Column(modifier = Modifier.widthIn(max = 80.dp)) {
+        Column(
+            modifier = Modifier.widthIn(max = 80.dp),
+            horizontalAlignment = Alignment.End,
+        ) {
             Text(
                 text = stringResource(Res.string.next_volume),
                 color = MangaLensColors.textTertiary,
@@ -381,12 +458,23 @@ private fun NextVolumeHint(
                 lineHeight = MaterialTheme.typography.labelSmall.fontSize * 1.3,
             )
         }
+        if (thumbnailModel != null) {
+            Spacer(modifier = Modifier.width(5.dp))
+            AsyncImage(
+                model = thumbnailModel,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+        }
         Spacer(modifier = Modifier.width(2.dp))
         Icon(
             painter = painterResource(Res.drawable.ic_chevron_right),
             contentDescription = null,
             tint = MangaLensColors.textTertiary,
-            modifier = Modifier.size(10.dp),
+            modifier = Modifier.size(16.dp),
         )
     }
 }

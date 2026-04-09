@@ -14,6 +14,7 @@ import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.GetNextArchiveUseCase
+import com.manhwaviewer.domain.usecase.GetPreviousArchiveUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
 import com.manhwaviewer.domain.entity.TextBlock
@@ -62,6 +63,7 @@ class ViewerViewModel(
     private val getPageOcrCacheUseCase: GetPageOcrCacheUseCase,
     private val savePageOcrCacheUseCase: SavePageOcrCacheUseCase,
     private val getNextArchiveUseCase: GetNextArchiveUseCase,
+    private val getPreviousArchiveUseCase: GetPreviousArchiveUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
@@ -169,6 +171,7 @@ class ViewerViewModel(
             is ViewerIntent.RetryAutoProcess -> handleRetryAutoProcess()
             is ViewerIntent.SetBottomTab -> updateState { copy(selectedBottomTab = intent.tab) }
             is ViewerIntent.NavigateToNextVolume -> navigateToNextVolume()
+            is ViewerIntent.NavigateToPreviousVolume -> navigateToPreviousVolume()
             is ViewerIntent.ToggleOcrBlockSelection -> {
                 val idx = intent.blockIndex
                 val newSet = if (idx in currentState.selectedOcrBlockIndices)
@@ -280,6 +283,8 @@ class ViewerViewModel(
             } else {
                 loadCachedTranslation(initialPage)
             }
+            loadPreviousVolume()
+            loadNextVolume()
         }
     }
 
@@ -610,12 +615,11 @@ class ViewerViewModel(
             // 번역 안함 모드: 번역+OCR 캐시를 한 번에 조회 후 원자적 갱신
             loadCachesForNoneMode(newPage)
         }
-        if (isLast && currentState.nextVolume == null && nextVolumeJob?.isActive != true) {
-            loadNextVolume()
-        }
+        // 이전 권/다음 권은 loadArchive에서 즉시 로드
     }
 
     private var nextVolumeJob: Job? = null
+    private var previousVolumeJob: Job? = null
 
     private fun loadNextVolume() {
         nextVolumeJob?.cancel()
@@ -637,11 +641,31 @@ class ViewerViewModel(
         }
     }
 
+    private fun loadPreviousVolume() {
+        previousVolumeJob?.cancel()
+        previousVolumeJob = viewModelScope.launch {
+            val filePath = currentState.filePath.ifEmpty { return@launch }
+            val prevArchive = getPreviousArchiveUseCase(filePath) ?: return@launch
+            val archiveId = upsertArchiveUseCase(prevArchive)
+            val entries = getImageEntriesUseCase(prevArchive.filePath)
+            updateState {
+                copy(
+                    previousVolume = PreviousVolumeInfo(
+                        archiveId = archiveId,
+                        fileName = prevArchive.fileName,
+                        filePath = prevArchive.filePath,
+                        firstEntryName = entries.firstOrNull(),
+                    )
+                )
+            }
+        }
+    }
+
     private fun navigateToNextVolume() {
         val nextVol = currentState.nextVolume ?: return
-        saveProgress()
+        val archive = currentState.archive ?: return
+        val page = currentState.currentPage
         cancelAllAutoJobs()
-        nextVolumeJob?.cancel()
         val pref = currentState.preference
         val processMode = currentState.autoProcessMode
         val tab = currentState.selectedBottomTab
@@ -652,7 +676,31 @@ class ViewerViewModel(
                 selectedBottomTab = tab,
             )
         }
-        loadArchive(nextVol.archiveId, startPage = 0)
+        viewModelScope.launch {
+            updateLastReadIndexUseCase(archive.id, page)
+            loadArchive(nextVol.archiveId, startPage = 0)
+        }
+    }
+
+    private fun navigateToPreviousVolume() {
+        val prevVol = currentState.previousVolume ?: return
+        val archive = currentState.archive ?: return
+        val page = currentState.currentPage
+        cancelAllAutoJobs()
+        val pref = currentState.preference
+        val processMode = currentState.autoProcessMode
+        val tab = currentState.selectedBottomTab
+        updateState {
+            ViewerState(
+                preference = pref,
+                autoProcessMode = processMode,
+                selectedBottomTab = tab,
+            )
+        }
+        viewModelScope.launch {
+            updateLastReadIndexUseCase(archive.id, page)
+            loadArchive(prevVol.archiveId, startPage = 0)
+        }
     }
 
     private data class TranslationCacheData(
@@ -778,6 +826,8 @@ class ViewerViewModel(
         autoTranslateJob?.cancel()
         pageChangeDebounceJob?.cancel()
         selectedTranslateJob?.cancel()
+        previousVolumeJob?.cancel()
+        nextVolumeJob?.cancel()
     }
 
     private fun ViewerState.resetPageOcrStateKeepingCache() = copy(

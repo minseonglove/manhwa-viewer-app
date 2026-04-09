@@ -429,7 +429,10 @@ fun ViewerScreen(
                 hasCachedTranslation = state.autoTranslationBlocks.isNotEmpty() || state.cachedBlocks.isNotEmpty(),
                 hasCachedOcr = state.autoOcrBlocks.isNotEmpty(),
                 selectedTab = state.selectedBottomTab,
-                isLastPage = state.isLastPage,
+                previousVolumeName = state.previousVolume?.fileName,
+                previousVolumeThumbnailModel = state.previousVolume?.let { pv ->
+                    pv.firstEntryName?.let { ViewerPageModel(archivePath = pv.filePath, entryNames = listOf(it)) }
+                },
                 nextVolumeName = state.nextVolume?.fileName,
                 nextVolumeThumbnailModel = state.nextVolume?.let { nv ->
                     nv.firstEntryName?.let { ViewerPageModel(archivePath = nv.filePath, entryNames = listOf(it)) }
@@ -443,6 +446,7 @@ fun ViewerScreen(
                 onSetAutoProcessMode = { viewModel.onIntent(ViewerIntent.SetAutoProcessMode(it)) },
                 onRetryAutoProcess = { viewModel.onIntent(ViewerIntent.RetryAutoProcess) },
                 onTabSelected = { viewModel.onIntent(ViewerIntent.SetBottomTab(it)) },
+                onNavigateToPreviousVolume = { viewModel.onIntent(ViewerIntent.NavigateToPreviousVolume) },
                 onNavigateToNextVolume = { viewModel.onIntent(ViewerIntent.NavigateToNextVolume) },
             )
         }

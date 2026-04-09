@@ -90,5 +90,6 @@
     <string name="reading_direction_ltr">왼쪽 → 오른쪽 (LTR)</string>
     <string name="reading_direction_rtl">오른쪽 → 왼쪽 (RTL)</string>
     <string name="next_volume">다음 권</string>
+    <string name="previous_volume">이전 권</string>
     <string name="loading_next_volume">다음 권 이동 중…</string>
 </resources>

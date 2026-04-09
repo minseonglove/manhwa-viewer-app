@@ -45,6 +45,7 @@ import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetPageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.GetNextArchiveUseCase
+import com.manhwaviewer.domain.usecase.GetPreviousArchiveUseCase
 import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
@@ -123,6 +124,7 @@ val appModule = module {
     factory { GetPageOcrCacheUseCase(get()) }
     factory { SavePageOcrCacheUseCase(get()) }
     factory { GetNextArchiveUseCase(get()) }
+    factory { GetPreviousArchiveUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
