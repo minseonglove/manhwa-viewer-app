@@ -35,6 +35,9 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToSettings = {
                     navController.navigate(Route.SETTINGS)
                 },
+                onNavigateToSearch = {
+                    // TODO: 검색 화면 구현 후 네비게이션 연결
+                },
                 onNavigateToFiles = {
                     navController.navigate(Route.FILE_BROWSER)
                 },

@@ -19,12 +19,14 @@ sealed interface HomeIntent {
     data object NavigateToImages : HomeIntent
     data object NavigateToVault : HomeIntent
     data object NavigateToSettings : HomeIntent
+    data object NavigateToSearch : HomeIntent
     data class OpenArchive(val archiveId: Long) : HomeIntent
 }
 
 sealed interface HomeSideEffect {
     data class NavigateToViewer(val archiveId: Long) : HomeSideEffect
     data object NavigateToSettings : HomeSideEffect
+    data object NavigateToSearch : HomeSideEffect
     data object NavigateToFiles : HomeSideEffect
     data object NavigateToRecent : HomeSideEffect
     data object NavigateToImages : HomeSideEffect

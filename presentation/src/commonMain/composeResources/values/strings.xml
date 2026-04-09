@@ -95,6 +95,7 @@
 
     <!-- 홈 화면 -->
     <string name="app_name">MangaLens</string>
+    <string name="home_search">검색</string>
     <string name="home_settings">설정</string>
     <string name="home_continue_reading">이어서 보기</string>
     <string name="home_shortcut_files">파일</string>

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,6 +60,7 @@ import manhwa_viewer.presentation.generated.resources.home_recent_empty_subtitle
 import manhwa_viewer.presentation.generated.resources.home_recent_empty_title
 import manhwa_viewer.presentation.generated.resources.home_recent_title
 import manhwa_viewer.presentation.generated.resources.home_recent_view_all
+import manhwa_viewer.presentation.generated.resources.home_search
 import manhwa_viewer.presentation.generated.resources.home_settings
 import manhwa_viewer.presentation.generated.resources.home_shortcut_files
 import manhwa_viewer.presentation.generated.resources.home_shortcut_files_sub
@@ -68,6 +70,7 @@ import manhwa_viewer.presentation.generated.resources.home_shortcut_vault
 import manhwa_viewer.presentation.generated.resources.home_shortcut_vault_sub
 import manhwa_viewer.presentation.generated.resources.ic_app_logo
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
+import manhwa_viewer.presentation.generated.resources.ic_search
 import manhwa_viewer.presentation.generated.resources.ic_folder_home
 import manhwa_viewer.presentation.generated.resources.ic_history_clock
 import manhwa_viewer.presentation.generated.resources.ic_image_home
@@ -82,6 +85,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onNavigateToViewer: (archiveId: Long) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSearch: () -> Unit,
     onNavigateToFiles: () -> Unit,
     onNavigateToRecent: () -> Unit,
     onNavigateToImages: () -> Unit,
@@ -95,6 +99,7 @@ fun HomeScreen(
             when (effect) {
                 is HomeSideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId)
                 is HomeSideEffect.NavigateToSettings -> onNavigateToSettings()
+                is HomeSideEffect.NavigateToSearch -> onNavigateToSearch()
                 is HomeSideEffect.NavigateToFiles -> onNavigateToFiles()
                 is HomeSideEffect.NavigateToRecent -> onNavigateToRecent()
                 is HomeSideEffect.NavigateToImages -> onNavigateToImages()
@@ -105,32 +110,47 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_app_logo),
-                            contentDescription = null,
-                            tint = MangaLensColors.primary,
-                        )
-                        Text(stringResource(Res.string.app_name))
-                    }
-                },
-                actions = {
-                    IconButton(
-                        modifier = Modifier.size(32.dp),
-                        onClick = { viewModel.onIntent(HomeIntent.NavigateToSettings) },
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_settings),
-                            contentDescription = stringResource(Res.string.home_settings),
-                        )
-                    }
-                },
-            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_app_logo),
+                                contentDescription = null,
+                                tint = MangaLensColors.primary,
+                            )
+                            Text(stringResource(Res.string.app_name))
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            modifier = Modifier.size(32.dp),
+                            onClick = { viewModel.onIntent(HomeIntent.NavigateToSearch) },
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_search),
+                                contentDescription = stringResource(Res.string.home_search),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(
+                            modifier = Modifier.size(32.dp),
+                            onClick = { viewModel.onIntent(HomeIntent.NavigateToSettings) },
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_settings),
+                                contentDescription = stringResource(Res.string.home_settings),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    },
+                )
+                HorizontalDivider(color = MangaLensColors.separatorLight)
+            }
         },
     ) { paddingValues ->
         BoxWithConstraints(
@@ -209,11 +229,11 @@ private fun ContinueReadingHeroCard(
     val cardBg = MangaLensColors.surface1
 
     Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp)
-            .height(cardHeight)
-            .clickable(onClick = onClick),
+            .height(cardHeight),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
     ) {
@@ -420,14 +440,14 @@ private fun RecentArchiveItem(
 ) {
     Column(
         modifier = Modifier
-            .width(itemWidth)
-            .clickable(onClick = onClick),
+            .width(itemWidth),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(coverHeight)
                 .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onClick)
                 .background(MangaLensColors.surfaceVariant),
         ) {
             if (coverModel != null) {
