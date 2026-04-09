@@ -92,4 +92,19 @@
     <string name="next_volume">다음 권</string>
     <string name="previous_volume">이전 권</string>
     <string name="loading_next_volume">다음 권 이동 중…</string>
+
+    <!-- 홈 화면 -->
+    <string name="app_name">MangaLens</string>
+    <string name="home_settings">설정</string>
+    <string name="home_continue_reading">이어서 보기</string>
+    <string name="home_shortcut_files">파일</string>
+    <string name="home_shortcut_files_sub">내장저장공간</string>
+    <string name="home_shortcut_images">이미지</string>
+    <string name="home_shortcut_images_count">%1$d개</string>
+    <string name="home_shortcut_vault">보관함</string>
+    <string name="home_shortcut_vault_sub">개인 폴더</string>
+    <string name="home_recent_title">최근 감상</string>
+    <string name="home_recent_view_all">전체 기록</string>
+    <string name="home_recent_empty_title">아직 읽은 만화가 없어요</string>
+    <string name="home_recent_empty_subtitle">파일을 열면 여기에 기록이 남아요</string>
 </resources>

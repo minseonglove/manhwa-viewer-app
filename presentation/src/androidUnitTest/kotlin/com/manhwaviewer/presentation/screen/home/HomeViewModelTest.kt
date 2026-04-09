@@ -1,10 +1,12 @@
 package com.manhwaviewer.presentation.screen.home
 
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
-import com.manhwaviewer.domain.usecase.GetRecentArchivesCountUseCase
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
 import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
 import com.manhwaviewer.presentation.fake.FakeArchiveFileRepository
 import com.manhwaviewer.presentation.fake.FakeImageFileRepository
+import com.manhwaviewer.presentation.fake.makeArchive
 import com.manhwaviewer.presentation.fake.makeImageFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,11 +16,14 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.Instant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -34,9 +39,10 @@ class HomeViewModelTest {
         fakeArchiveRepo = FakeArchiveFileRepository()
         fakeImageRepo = FakeImageFileRepository()
         viewModel = HomeViewModel(
-            GetRecentArchivesCountUseCase(fakeArchiveRepo),
+            GetRecentArchivesUseCase(fakeArchiveRepo),
             GetDeviceImagesUseCase(fakeImageRepo),
             GetVaultFilesUseCase(fakeArchiveRepo),
+            GetImageEntriesUseCase(fakeArchiveRepo),
         )
     }
 
@@ -46,18 +52,23 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `initial state has zero counts`() = runTest {
+    fun `initial state has zero counts and empty lists`() = runTest {
         val state = viewModel.state.value
-        assertEquals(0, state.recentCount)
         assertEquals(0, state.imageCount)
         assertEquals(0, state.vaultFolderCount)
+        assertEquals(emptyList(), state.recentArchives)
+        assertNull(state.continueReading)
     }
 
     @Test
-    fun `state updates recentCount when repository emits`() = runTest {
-        fakeArchiveRepo.recentArchivesCountFlow.value = 3
+    fun `state updates recentArchives when repository emits`() = runTest {
+        val archives = listOf(
+            makeArchive(id = 1, lastReadAt = Instant.fromEpochMilliseconds(1000)),
+            makeArchive(id = 2, lastReadAt = Instant.fromEpochMilliseconds(2000)),
+        )
+        fakeArchiveRepo.recentArchivesFlow.value = archives
         advanceUntilIdle()
-        assertEquals(3, viewModel.state.value.recentCount)
+        assertEquals(2, viewModel.state.value.recentArchives.size)
     }
 
     @Test
@@ -69,9 +80,32 @@ class HomeViewModelTest {
 
     @Test
     fun `state updates vaultFolderCount when repository emits`() = runTest {
-        fakeArchiveRepo.vaultFilesFlow.value = listOf(com.manhwaviewer.presentation.fake.makeArchive(id = 10))
+        fakeArchiveRepo.vaultFilesFlow.value = listOf(makeArchive(id = 10))
         advanceUntilIdle()
         assertEquals(1, viewModel.state.value.vaultFolderCount)
+    }
+
+    @Test
+    fun `continueReading is set for unfinished archive`() = runTest {
+        val unfinished = makeArchive(
+            id = 1,
+            lastReadAt = Instant.fromEpochMilliseconds(1000),
+        ).copy(totalPages = 100, lastReadIndex = 50)
+        fakeArchiveRepo.recentArchivesFlow.value = listOf(unfinished)
+        advanceUntilIdle()
+        assertNotNull(viewModel.state.value.continueReading)
+        assertEquals(1L, viewModel.state.value.continueReading?.id)
+    }
+
+    @Test
+    fun `continueReading is null for fully read archive`() = runTest {
+        val finished = makeArchive(
+            id = 1,
+            lastReadAt = Instant.fromEpochMilliseconds(1000),
+        ).copy(totalPages = 100, lastReadIndex = 99)
+        fakeArchiveRepo.recentArchivesFlow.value = listOf(finished)
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.continueReading)
     }
 
     @Test
@@ -112,5 +146,14 @@ class HomeViewModelTest {
         advanceUntilIdle()
         val effect = viewModel.sideEffect.first()
         assertIs<HomeSideEffect.NavigateToVault>(effect)
+    }
+
+    @Test
+    fun `OpenArchive intent sends NavigateToViewer side effect`() = runTest {
+        viewModel.onIntent(HomeIntent.OpenArchive(42L))
+        advanceUntilIdle()
+        val effect = viewModel.sideEffect.first()
+        assertIs<HomeSideEffect.NavigateToViewer>(effect)
+        assertEquals(42L, effect.archiveId)
     }
 }

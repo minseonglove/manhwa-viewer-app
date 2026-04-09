@@ -127,7 +127,7 @@ val appModule = module {
     factory { GetPreviousArchiveUseCase(get()) }
 
     // ViewModels
-    viewModel { HomeViewModel(get(), get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get(), get()) }
     viewModel { FileBrowserViewModel(get(), get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
     viewModel { RecentViewModel(get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
