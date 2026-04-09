@@ -67,6 +67,7 @@ data class ViewerState(
     val previousVolume: PreviousVolumeInfo? = null,
     val nextVolume: NextVolumeInfo? = null,
     val isLastPage: Boolean = false,
+    val cacheCheckCompleted: Boolean = false,
 ) {
     val isOverlayButtonEnabled: Boolean
         get() = autoProcessStatus == AutoProcessStatus.OCR_DONE ||

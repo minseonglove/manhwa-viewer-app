@@ -54,6 +54,7 @@
     <string name="status_translate_processing">번역 중</string>
     <string name="status_translate_done">번역 완료</string>
     <string name="status_translate_failed">번역 실패</string>
+    <string name="status_untranslated">미번역</string>
 
     <!-- 뷰어: 하단 컨트롤 - 탭 -->
     <string name="tab_view">보기</string>

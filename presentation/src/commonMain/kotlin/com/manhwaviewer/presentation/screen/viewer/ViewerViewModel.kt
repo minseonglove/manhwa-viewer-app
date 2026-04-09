@@ -499,6 +499,7 @@ class ViewerViewModel(
                             cachedImageHeight = combined.imageHeight,
                             cachedOverlayColors = combined.overlayColors,
                             selectedCachedBlockIndices = emptySet(),
+                            cacheCheckCompleted = true,
                         )
                     }
                 } else {
@@ -515,6 +516,7 @@ class ViewerViewModel(
                             cachedImageHeight = cache.imageHeight,
                             cachedOverlayColors = colors,
                             selectedCachedBlockIndices = emptySet(),
+                            cacheCheckCompleted = true,
                         )
                     }
                 }
@@ -807,9 +809,13 @@ class ViewerViewModel(
                             autoOcrImageWidth = ocrCache.imageWidth,
                             autoOcrImageHeight = ocrCache.imageHeight,
                             autoProcessStatus = AutoProcessStatus.OCR_DONE,
+                            cacheCheckCompleted = true,
                         )
                     } else {
-                        withTranslation
+                        withTranslation.copy(
+                            cacheCheckCompleted = true,
+                            autoProcessStatus = AutoProcessStatus.IDLE,
+                        )
                     }
                 }
             } catch (e: CancellationException) {
@@ -837,7 +843,6 @@ class ViewerViewModel(
         cachedImageHeight = 0,
         cachedOverlayColors = emptyList(),
         selectedCachedBlockIndices = emptySet(),
-        autoProcessStatus = AutoProcessStatus.IDLE,
         autoOcrBlocks = emptyList(),
         autoOcrImageWidth = 0,
         autoOcrImageHeight = 0,

@@ -76,6 +76,7 @@ import manhwa_viewer.presentation.generated.resources.status_ocr_processing
 import manhwa_viewer.presentation.generated.resources.status_translate_done
 import manhwa_viewer.presentation.generated.resources.status_translate_failed
 import manhwa_viewer.presentation.generated.resources.status_translate_processing
+import manhwa_viewer.presentation.generated.resources.status_untranslated
 import manhwa_viewer.presentation.generated.resources.view_mode_double
 import manhwa_viewer.presentation.generated.resources.view_mode_single
 import manhwa_viewer.presentation.generated.resources.view_mode_webtoon
@@ -118,6 +119,8 @@ private val SegBg = MangaLensColors.fillSecondary
 private val SegActive = MangaLensColors.surface1
 private val PipelineGreen = MangaLensColors.emerald
 private val PipelineOrange = MangaLensColors.amber
+private val GrayText = MangaLensColors.textSecondary
+private val GrayBg = MangaLensColors.fillTertiary
 
 @Composable
 fun ViewerBottomPanel(
@@ -135,6 +138,7 @@ fun ViewerBottomPanel(
     pipelineStage: PipelineStage,
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
+    cacheCheckCompleted: Boolean,
     selectedTab: BottomPanelTab,
     previousVolumeName: String?,
     previousVolumeThumbnailModel: Any?,
@@ -229,6 +233,7 @@ fun ViewerBottomPanel(
                         pipelineStage = pipelineStage,
                         hasCachedTranslation = hasCachedTranslation,
                         hasCachedOcr = hasCachedOcr,
+                        cacheCheckCompleted = cacheCheckCompleted,
                         onSetAutoProcessMode = onSetAutoProcessMode,
                         onRetry = onRetryAutoProcess,
                     )
@@ -600,6 +605,7 @@ private fun TranslationTabContent(
     pipelineStage: PipelineStage,
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
+    cacheCheckCompleted: Boolean,
     onSetAutoProcessMode: (AutoProcessMode) -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -628,6 +634,7 @@ private fun TranslationTabContent(
                 status = autoProcessStatus,
                 hasCachedTranslation = hasCachedTranslation,
                 hasCachedOcr = hasCachedOcr,
+                cacheCheckCompleted = cacheCheckCompleted,
                 onRetry = onRetry,
             )
             if (showPipeline) {
@@ -649,6 +656,7 @@ private fun TranslationStatusChip(
     status: AutoProcessStatus,
     hasCachedTranslation: Boolean,
     hasCachedOcr: Boolean,
+    cacheCheckCompleted: Boolean,
     onRetry: () -> Unit,
 ) {
     when {
@@ -686,7 +694,11 @@ private fun TranslationStatusChip(
         status == AutoProcessStatus.OCR_DONE || hasCachedOcr -> {
             StatusChip(label = stringResource(Res.string.status_ocr_done), color = Green, bg = GreenDark)
         }
-        // idle - no chip
+        // 캐시 확인 완료 후 번역/OCR 없음 → 미번역
+        cacheCheckCompleted -> {
+            StatusChip(label = stringResource(Res.string.status_untranslated), color = GrayText, bg = GrayBg)
+        }
+        // 캐시 확인 중 → 표시 없음
     }
 }
 
