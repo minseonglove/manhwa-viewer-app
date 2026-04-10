@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -162,7 +163,8 @@ fun HomeScreen(
                 .padding(paddingValues),
         ) {
             val isLandscape = maxWidth > maxHeight
-            val heroHeight = if (isLandscape) 88.dp else 140.dp
+            val longerSide = maxOf(maxWidth, maxHeight)
+            val heroHeight = longerSide * 0.25f
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -182,7 +184,7 @@ fun HomeScreen(
                             ContinueReadingHeroCard(
                                 archive = current,
                                 coverModel = state.continueReadingCoverModel,
-                                cardHeight = heroHeight,
+                                cardMinHeight = heroHeight,
                                 onClick = {
                                     viewModel.onIntent(HomeIntent.OpenArchive(targetId))
                                 },
@@ -230,7 +232,7 @@ fun HomeScreen(
 private fun ContinueReadingHeroCard(
     archive: ArchiveFile,
     coverModel: ViewerPageModel?,
-    cardHeight: Dp,
+    cardMinHeight: Dp,
     onClick: () -> Unit,
 ) {
     val rawProgress = if (archive.totalPages > 0) {
@@ -250,15 +252,15 @@ private fun ContinueReadingHeroCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp)
-            .height(cardHeight),
+            .heightIn(min = cardMinHeight),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             if (coverModel != null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight()
+                        .height(cardMinHeight)
                         .aspectRatio(4f / 3f)
                         .align(Alignment.CenterEnd),
                 ) {
@@ -286,9 +288,8 @@ private fun ContinueReadingHeroCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .padding(horizontal = 16.dp, vertical = 18.dp)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween,
+                    .padding(horizontal = 16.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     text = stringResource(Res.string.home_continue_reading),
@@ -424,8 +425,8 @@ private fun RecentHorizontalList(
     compact: Boolean,
     onArchiveClick: (Long) -> Unit,
 ) {
-    val itemWidth = if (compact) 54.dp else 86.dp
-    val coverHeight = if (compact) 70.dp else 114.dp
+    val itemWidth = if (compact) 90.dp else 120.dp
+    val coverHeight = if (compact) 128.dp else 170.dp
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
