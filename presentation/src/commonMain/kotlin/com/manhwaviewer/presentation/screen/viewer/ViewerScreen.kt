@@ -636,8 +636,8 @@ private fun ZoomableImage(
                             }
                             if (!handled) {
                                 when {
-                                    offset.x < containerSize.width * 0.2f -> currentOnTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> currentOnTapRight()
+                                    offset.x < containerSize.width * 0.15f -> currentOnTapLeft()
+                                    offset.x > containerSize.width * 0.85f -> currentOnTapRight()
                                     else -> currentOnTapCenter()
                                 }
                             }
@@ -826,8 +826,8 @@ private fun ZoomableImage(
                             }
                             if (!handled) {
                                 when {
-                                    offset.x < containerSize.width * 0.2f -> currentOnTapLeft()
-                                    offset.x > containerSize.width * 0.8f -> currentOnTapRight()
+                                    offset.x < containerSize.width * 0.15f -> currentOnTapLeft()
+                                    offset.x > containerSize.width * 0.85f -> currentOnTapRight()
                                     else -> currentOnTapCenter()
                                 }
                             }

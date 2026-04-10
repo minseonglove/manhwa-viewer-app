@@ -1,7 +1,7 @@
 package com.manhwaviewer.domain.entity
 
 data class ViewerPreference(
-    val readingDirection: ReadingDirection = ReadingDirection.LTR,
+    val readingDirection: ReadingDirection = ReadingDirection.RTL,
     val viewMode: ViewMode = ViewMode.SINGLE_PAGE,
     val keepZoomState: Boolean = true,
     val backgroundColor: BackgroundColor = BackgroundColor.BLACK,
