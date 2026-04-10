@@ -305,13 +305,13 @@ private fun ContinueReadingHeroCard(
 
             Column(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
+                    .align(Alignment.BottomStart)
                     .padding(horizontal = 16.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     text = stringResource(Res.string.home_continue_reading),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.textPrimary,
                 )
 
