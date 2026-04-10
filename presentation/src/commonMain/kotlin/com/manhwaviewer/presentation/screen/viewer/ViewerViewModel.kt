@@ -118,7 +118,12 @@ class ViewerViewModel(
                 handlePageChange(newPage)
             }
             is ViewerIntent.ToggleControls -> updateState {
-                copy(showControls = !showControls)
+                val newShowControls = !showControls
+                copy(
+                    showControls = newShowControls,
+                    isSelectedTranslationSheetVisible = if (!newShowControls) false else isSelectedTranslationSheetVisible,
+                    selectedBlockTranslations = if (!newShowControls) emptyList() else selectedBlockTranslations,
+                )
             }
             is ViewerIntent.SaveProgress -> saveProgress()
             is ViewerIntent.ToggleGlobalOverlay -> {

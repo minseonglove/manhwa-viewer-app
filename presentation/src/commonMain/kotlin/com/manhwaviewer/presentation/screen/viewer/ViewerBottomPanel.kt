@@ -10,6 +10,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -153,14 +155,26 @@ fun ViewerBottomPanel(
     onTabSelected: (BottomPanelTab) -> Unit,
     onNavigateToPreviousVolume: () -> Unit,
     onNavigateToNextVolume: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
+    var dragOffsetPx by remember { mutableStateOf(0f) }
+    val dismissThresholdPx = with(density) { 80.dp.toPx() }
+    val animatedOffsetDp by animateDpAsState(
+        targetValue = with(density) { dragOffsetPx.toDp() },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+    )
 
     Column(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 24.dp)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .widthIn(max = 480.dp)
+            .offset(y = animatedOffsetDp)
             .clip(RoundedCornerShape(24.dp))
             .hazeEffect(
                 state = hazeState,
@@ -172,8 +186,41 @@ fun ViewerBottomPanel(
                 ),
             )
             .border(1.dp, PanelBorder, RoundedCornerShape(24.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (dragOffsetPx > dismissThresholdPx) {
+                            onDismiss()
+                        }
+                        dragOffsetPx = 0f
+                    },
+                    onDragCancel = { dragOffsetPx = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        dragOffsetPx = (dragOffsetPx + dragAmount).coerceAtLeast(0f)
+                    },
+                )
+            },
     ) {
+        // ── Handle (바텀시트 스타일) ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, bottom = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+            )
+        }
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp),
+        ) {
         // ── Progress Slider ──
         ProgressSlider(
             currentPagerPage = currentPagerPage,
@@ -193,7 +240,6 @@ fun ViewerBottomPanel(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Tab Content ──
-        val density = LocalDensity.current
         var targetHeight by remember { mutableStateOf(0.dp) }
         val animatedHeight by animateDpAsState(
             targetValue = targetHeight,
@@ -250,6 +296,7 @@ fun ViewerBottomPanel(
             selectedTab = selectedTab,
             onTabSelected = onTabSelected,
         )
+        } // inner Column (padding)
     }
 }
 

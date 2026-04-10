@@ -1,8 +1,8 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -11,7 +11,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -38,79 +36,74 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.backhandler.BackHandler
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import com.manhwaviewer.presentation.theme.MangaLensColors
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import com.manhwaviewer.domain.entity.BackgroundColor
-import com.manhwaviewer.presentation.screen.common.displayName
-import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.ImageScaleMode
+import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.ReadingDirection
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import com.manhwaviewer.domain.entity.ViewMode
-import com.manhwaviewer.domain.entity.ViewerPreference
-import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
-import coil3.compose.rememberAsyncImagePainter
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
-import manhwa_viewer.presentation.generated.resources.Res
-import manhwa_viewer.presentation.generated.resources.loading_next_volume
-import manhwa_viewer.presentation.generated.resources.page_content_description
-import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
-import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
-import org.jetbrains.compose.resources.stringResource
-import me.saket.telephoto.subsamplingimage.SubSamplingImage
-import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
-import me.saket.telephoto.zoomable.ZoomableContentLocation
-import me.saket.telephoto.zoomable.ZoomSpec
-import me.saket.telephoto.zoomable.rememberZoomableState
-import me.saket.telephoto.zoomable.EnabledZoomGestures
-import me.saket.telephoto.zoomable.zoomable
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import dev.chrisbanes.haze.HazeDefaults
+import com.manhwaviewer.presentation.screen.common.displayName
+import com.manhwaviewer.presentation.theme.MangaLensColors
+import com.manhwaviewer.presentation.util.SystemBarsVisibility
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.launch
+import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.loading_next_volume
+import manhwa_viewer.presentation.generated.resources.page_content_description
+import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
+import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
+import me.saket.telephoto.subsamplingimage.SubSamplingImage
+import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
+import me.saket.telephoto.zoomable.EnabledZoomGestures
+import me.saket.telephoto.zoomable.ZoomSpec
+import me.saket.telephoto.zoomable.ZoomableContentLocation
+import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.zoomable
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -128,6 +121,9 @@ fun ViewerScreen(
     viewModel: ViewerViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    // 이머시브 모드: 컨트롤 숨길 때 시스템 바도 함께 숨김
+    SystemBarsVisibility(visible = state.showControls)
 
     LaunchedEffect(archiveId) {
         viewModel.onIntent(ViewerIntent.LoadArchive(archiveId, startPage, sortByDate, sortAscending))
@@ -449,6 +445,7 @@ fun ViewerScreen(
                 onTabSelected = { viewModel.onIntent(ViewerIntent.SetBottomTab(it)) },
                 onNavigateToPreviousVolume = { viewModel.onIntent(ViewerIntent.NavigateToPreviousVolume) },
                 onNavigateToNextVolume = { viewModel.onIntent(ViewerIntent.NavigateToNextVolume) },
+                onDismiss = { viewModel.onIntent(ViewerIntent.ToggleControls) },
             )
         }
 
