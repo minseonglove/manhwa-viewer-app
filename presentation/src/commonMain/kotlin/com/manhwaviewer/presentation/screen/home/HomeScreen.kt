@@ -1,5 +1,6 @@
 package com.manhwaviewer.presentation.screen.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,6 +81,7 @@ import manhwa_viewer.presentation.generated.resources.ic_history_clock
 import manhwa_viewer.presentation.generated.resources.ic_image_home
 import manhwa_viewer.presentation.generated.resources.ic_lock_home
 import manhwa_viewer.presentation.generated.resources.ic_settings
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -171,35 +173,49 @@ fun HomeScreen(
                 contentPadding = PaddingValues(vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                state.continueReading?.let { archive ->
+                if (isLandscape && state.continueReading != null) {
                     item {
-                        Crossfade(
-                            targetState = archive.id,
-                            animationSpec = tween(durationMillis = 300),
-                            label = "ContinueReadingCrossfade",
-                        ) { targetId ->
-                            val current = state.continueReading
-                                ?.takeIf { it.id == targetId }
-                                ?: archive
-                            ContinueReadingHeroCard(
-                                archive = current,
-                                coverModel = state.continueReadingCoverModel,
-                                cardMinHeight = heroHeight,
-                                onClick = {
-                                    viewModel.onIntent(HomeIntent.OpenArchive(targetId))
-                                },
-                            )
+                        LandscapeHeroWithShortcuts(
+                            state = state,
+                            onOpenArchive = { viewModel.onIntent(HomeIntent.OpenArchive(it)) },
+                            onNavigateToFiles = { viewModel.onIntent(HomeIntent.NavigateToFiles) },
+                            onNavigateToImages = { viewModel.onIntent(HomeIntent.NavigateToImages) },
+                            onNavigateToVault = { viewModel.onIntent(HomeIntent.NavigateToVault) },
+                        )
+                    }
+                } else {
+                    state.continueReading?.let { archive ->
+                        item {
+                            Crossfade(
+                                targetState = archive.id,
+                                animationSpec = tween(durationMillis = 300),
+                                label = "ContinueReadingCrossfade",
+                            ) { targetId ->
+                                val current = state.continueReading
+                                    ?.takeIf { it.id == targetId }
+                                    ?: archive
+                                ContinueReadingHeroCard(
+                                    archive = current,
+                                    coverModel = state.continueReadingCoverModel,
+                                    onClick = {
+                                        viewModel.onIntent(HomeIntent.OpenArchive(targetId))
+                                    },
+                                    modifier = Modifier
+                                        .padding(horizontal = 14.dp)
+                                        .height(heroHeight),
+                                )
+                            }
                         }
                     }
-                }
 
-                item {
-                    ShortcutGrid(
-                        state = state,
-                        onNavigateToFiles = { viewModel.onIntent(HomeIntent.NavigateToFiles) },
-                        onNavigateToImages = { viewModel.onIntent(HomeIntent.NavigateToImages) },
-                        onNavigateToVault = { viewModel.onIntent(HomeIntent.NavigateToVault) },
-                    )
+                    item {
+                        ShortcutGrid(
+                            state = state,
+                            onNavigateToFiles = { viewModel.onIntent(HomeIntent.NavigateToFiles) },
+                            onNavigateToImages = { viewModel.onIntent(HomeIntent.NavigateToImages) },
+                            onNavigateToVault = { viewModel.onIntent(HomeIntent.NavigateToVault) },
+                        )
+                    }
                 }
 
                 item {
@@ -232,8 +248,8 @@ fun HomeScreen(
 private fun ContinueReadingHeroCard(
     archive: ArchiveFile,
     coverModel: ViewerPageModel?,
-    cardMinHeight: Dp,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val rawProgress = if (archive.totalPages > 0) {
         ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
@@ -249,39 +265,41 @@ private fun ContinueReadingHeroCard(
 
     Card(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .heightIn(min = cardMinHeight),
+        modifier = modifier
+            .fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (coverModel != null) {
                 Box(
-                    modifier = Modifier
-                        .height(cardMinHeight)
-                        .aspectRatio(4f / 3f)
-                        .align(Alignment.CenterEnd),
+                    modifier = Modifier.matchParentSize(),
+                    contentAlignment = Alignment.CenterEnd,
                 ) {
-                    AsyncImage(
-                        model = coverModel,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    colorStops = arrayOf(
-                                        0.0f to cardBg,
-                                        0.65f to Color.Transparent,
+                            .fillMaxHeight()
+                            .aspectRatio(4f / 3f),
+                    ) {
+                        AsyncImage(
+                            model = coverModel,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colorStops = arrayOf(
+                                            0.0f to cardBg,
+                                            0.65f to Color.Transparent,
+                                        ),
                                     ),
                                 ),
-                            ),
-                    )
+                        )
+                    }
                 }
             }
 
@@ -340,6 +358,61 @@ private fun ContinueReadingHeroCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LandscapeHeroWithShortcuts(
+    state: HomeState,
+    onOpenArchive: (Long) -> Unit,
+    onNavigateToFiles: () -> Unit,
+    onNavigateToImages: () -> Unit,
+    onNavigateToVault: () -> Unit,
+) {
+    val archive = state.continueReading ?: return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .padding(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ContinueReadingHeroCard(
+            archive = archive,
+            coverModel = state.continueReadingCoverModel,
+            onClick = { onOpenArchive(archive.id) },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
+
+        Column(
+            modifier = Modifier.width(IntrinsicSize.Max),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LandscapeHomeTile(
+                icon = Res.drawable.ic_folder_home,
+                label = stringResource(Res.string.home_shortcut_files),
+                subtitle = stringResource(Res.string.home_shortcut_files_sub),
+                iconBackgroundColor = MangaLensColors.tileBlue,
+                onClick = onNavigateToFiles,
+            )
+            LandscapeHomeTile(
+                icon = Res.drawable.ic_image_home,
+                label = stringResource(Res.string.home_shortcut_images),
+                subtitle = stringResource(Res.string.home_shortcut_images_count, state.imageCount),
+                iconBackgroundColor = MangaLensColors.tileGreen,
+                onClick = onNavigateToImages,
+            )
+            LandscapeHomeTile(
+                icon = Res.drawable.ic_lock_home,
+                label = stringResource(Res.string.home_shortcut_vault),
+                subtitle = stringResource(Res.string.home_shortcut_vault_sub),
+                iconBackgroundColor = MangaLensColors.tilePurple,
+                onClick = onNavigateToVault,
+            )
         }
     }
 }
@@ -545,6 +618,61 @@ private fun EmptyRecentState() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MangaLensColors.textTertiary,
             )
+        }
+    }
+}
+
+@Composable
+private fun LandscapeHomeTile(
+    icon: DrawableResource,
+    label: String,
+    subtitle: String,
+    iconBackgroundColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 32.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(iconBackgroundColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    tint = iconBackgroundColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MangaLensColors.textTertiary,
+                )
+            }
         }
     }
 }
