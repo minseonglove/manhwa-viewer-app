@@ -88,6 +88,7 @@ fun RecentScreen(
                                     FileItem(
                                         archive = archive,
                                         onClick = { viewModel.onIntent(RecentIntent.OpenArchive(archive)) },
+                                        coverModel = state.coverModels[archive.id],
                                         showProgress = true,
                                     )
                                 }
@@ -101,15 +102,15 @@ fun RecentScreen(
                                     FileItem(
                                         archive = archive,
                                         onClick = { viewModel.onIntent(RecentIntent.OpenArchive(archive)) },
+                                        coverModel = state.coverModels[archive.id],
                                         showProgress = true,
                                     )
                                 }
                             }
                         }
                     } else {
-                        val columns = if (isLandscape) 9 else 4
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(columns),
+                            columns = GridCells.Adaptive(minSize = 96.dp),
                             contentPadding = PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -118,6 +119,7 @@ fun RecentScreen(
                                 FileGridItem(
                                     archive = archive,
                                     onClick = { viewModel.onIntent(RecentIntent.OpenArchive(archive)) },
+                                    coverModel = state.coverModels[archive.id],
                                 )
                             }
                         }

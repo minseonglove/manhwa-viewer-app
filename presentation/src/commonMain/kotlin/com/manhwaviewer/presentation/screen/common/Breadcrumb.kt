@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
@@ -28,7 +29,7 @@ fun Breadcrumb(
     Row(
         modifier = modifier
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -36,7 +37,7 @@ fun Breadcrumb(
             contentDescription = "홈",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
-                .size(20.dp)
+                .size(16.dp)
                 .clickable(onClick = onHomeClick),
         )
 
@@ -45,15 +46,21 @@ fun Breadcrumb(
                 painter = painterResource(Res.drawable.ic_chevron_right),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(12.dp),
             )
             Text(
                 text = segment,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (index == pathSegments.lastIndex) {
-                    MaterialTheme.colorScheme.onSurface
+                style = if (index == pathSegments.lastIndex) {
+                    MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 } else {
+                    MaterialTheme.typography.labelMedium
+                },
+                color = if (index == pathSegments.lastIndex) {
                     MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 },
                 modifier = Modifier
                     .clickable { onSegmentClick(index) }

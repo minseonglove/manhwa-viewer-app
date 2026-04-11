@@ -121,6 +121,7 @@ fun FileBrowserScreen(
                                                     else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                                 }
                                             },
+                                            coverModel = state.coverModels[file.filePath],
                                         )
                                     }
                                 }
@@ -142,14 +143,14 @@ fun FileBrowserScreen(
                                                     else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                                 }
                                             },
+                                            coverModel = state.coverModels[file.filePath],
                                         )
                                     }
                                 }
                             }
                         } else {
-                            val columns = if (isLandscape) 9 else 4
                             LazyVerticalGrid(
-                                columns = GridCells.Fixed(columns),
+                                columns = GridCells.Adaptive(minSize = 96.dp),
                                 contentPadding = PaddingValues(16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -165,6 +166,7 @@ fun FileBrowserScreen(
                                                 else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                             }
                                         },
+                                        coverModel = state.coverModels[file.filePath],
                                     )
                                 }
                             }

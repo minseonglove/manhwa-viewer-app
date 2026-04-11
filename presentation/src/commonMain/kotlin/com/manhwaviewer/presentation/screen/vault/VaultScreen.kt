@@ -104,6 +104,8 @@ fun VaultScreen(
                                         FileItem(
                                             archive = file,
                                             onClick = { viewModel.onIntent(VaultIntent.OpenFile(file)) },
+                                            coverModel = state.coverModels[file.id],
+                                            showLockBadge = true,
                                         )
                                     }
                                 }
@@ -113,7 +115,11 @@ fun VaultScreen(
                                         .fillMaxHeight()
                                         .padding(16.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = MangaLensColors.tilePurple.copy(alpha = 0.08f),
+                                        containerColor = MangaLensColors.tilePurple.copy(alpha = 0.15f),
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        0.5.dp,
+                                        MangaLensColors.tilePurple.copy(alpha = 0.2f),
                                     ),
                                 ) {
                                     Column(
@@ -178,14 +184,14 @@ fun VaultScreen(
                                     FileItem(
                                         archive = file,
                                         onClick = { viewModel.onIntent(VaultIntent.OpenFile(file)) },
+                                        coverModel = state.coverModels[file.id],
                                     )
                                 }
                             }
                         }
                     } else {
-                        val columns = if (isLandscape) 9 else 4
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(columns),
+                            columns = GridCells.Adaptive(minSize = 96.dp),
                             contentPadding = PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -194,6 +200,8 @@ fun VaultScreen(
                                 FileGridItem(
                                     archive = file,
                                     onClick = { viewModel.onIntent(VaultIntent.OpenFile(file)) },
+                                    coverModel = state.coverModels[file.id],
+                                    showLockBadge = true,
                                 )
                             }
                         }

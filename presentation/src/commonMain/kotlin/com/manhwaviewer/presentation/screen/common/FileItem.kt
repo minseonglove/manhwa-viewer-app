@@ -1,5 +1,6 @@
 package com.manhwaviewer.presentation.screen.common
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,22 +20,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_archive
-import manhwa_viewer.presentation.generated.resources.ic_check_badge
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
-import manhwa_viewer.presentation.generated.resources.ic_folder
-import manhwa_viewer.presentation.generated.resources.ic_folder_open
+import manhwa_viewer.presentation.generated.resources.ic_file_folder
 import manhwa_viewer.presentation.generated.resources.ic_image_gallery
+import manhwa_viewer.presentation.generated.resources.ic_lock
 import org.jetbrains.compose.resources.painterResource
 
 fun ArchiveFile.displayName(): String = when (type) {
@@ -46,7 +47,9 @@ fun ArchiveFile.displayName(): String = when (type) {
 fun FileItem(
     archive: ArchiveFile,
     onClick: () -> Unit,
+    coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
+    showLockBadge: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -54,38 +57,34 @@ fun FileItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(vertical = 11.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (archive.type == ArchiveType.IMAGE) {
-                AsyncImage(
-                    model = archive.filePath,
-                    contentDescription = archive.fileName,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
-                FileIcon(archive)
+            // Icon area (48x48) with optional lock badge
+            Box {
+                FileIconArea(archive, coverModel)
+                if (showLockBadge) {
+                    LockBadge(modifier = Modifier.align(Alignment.BottomEnd))
+                }
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = archive.displayName(),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                    ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val subtitle = buildFileSubtitle(archive)
                     Text(
-                        text = subtitle,
+                        text = buildFileSubtitle(archive),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -99,22 +98,27 @@ fun FileItem(
                         )
                         Text(
                             text = "${(progress * 100).toInt()}%",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
             }
 
-            Icon(
-                painter = painterResource(Res.drawable.ic_chevron_right),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(14.dp),
-            )
+            // Trailing icon: only folders get chevron
+            if (archive.type == ArchiveType.FOLDER) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(start = 62.dp),
+        )
     }
 }
 
@@ -130,62 +134,61 @@ private fun buildFileSubtitle(archive: ArchiveFile): String {
 }
 
 @Composable
-private fun FileIcon(archive: ArchiveFile) {
-    val hasImage = archive.hasImages
-    val bgColor = if (hasImage) {
-        MangaLensColors.primary.copy(alpha = 0.1f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
-    }
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(10.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(10.dp)),
-        ) {
-            androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                drawRect(bgColor)
-            }
+private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?) {
+    when {
+        // Archive with cover thumbnail
+        archive.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) && coverModel != null -> {
+            AsyncImage(
+                model = coverModel,
+                contentDescription = archive.fileName,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+            )
         }
-
-        val iconRes = when (archive.type) {
-            ArchiveType.FOLDER -> {
-                if (hasImage) Res.drawable.ic_folder_open
-                else Res.drawable.ic_folder
-            }
-            ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR -> Res.drawable.ic_archive
-            ArchiveType.IMAGE -> Res.drawable.ic_image_gallery
+        // Image file
+        archive.type == ArchiveType.IMAGE -> {
+            AsyncImage(
+                model = archive.filePath,
+                contentDescription = archive.fileName,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+            )
         }
-
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = if (hasImage) MangaLensColors.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-
-        if (archive.type in listOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) && hasImage) {
+        // Folder
+        archive.type == ArchiveType.FOLDER -> {
             Box(
                 modifier = Modifier
-                    .size(12.dp)
-                    .align(Alignment.BottomEnd)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MangaLensColors.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                    drawRect(MangaLensColors.primary)
-                }
                 Icon(
-                    painter = painterResource(Res.drawable.ic_check_badge),
+                    painter = painterResource(Res.drawable.ic_file_folder),
                     contentDescription = null,
-                    tint = MangaLensColors.onPrimary,
-                    modifier = Modifier.size(8.dp),
+                    tint = MangaLensColors.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+        // Archive without cover
+        else -> {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x24787880)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_archive),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -193,9 +196,29 @@ private fun FileIcon(archive: ArchiveFile) {
 }
 
 @Composable
+private fun LockBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(20.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MangaLensColors.tilePurple),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_lock),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(12.dp),
+        )
+    }
+}
+
+@Composable
 fun FileGridItem(
     archive: ArchiveFile,
     onClick: () -> Unit,
+    coverModel: ViewerPageModel? = null,
+    showLockBadge: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -204,47 +227,74 @@ fun FileGridItem(
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (archive.type == ArchiveType.IMAGE) {
-            AsyncImage(
-                model = archive.filePath,
-                contentDescription = archive.fileName,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            val hasImage = archive.hasImages
-            val bgColor = if (hasImage) {
-                MangaLensColors.primary.copy(alpha = 0.1f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            }
-            val iconRes = when (archive.type) {
-                ArchiveType.FOLDER -> {
-                    if (hasImage) Res.drawable.ic_folder_open
-                    else Res.drawable.ic_folder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                // Archive with cover
+                archive.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) && coverModel != null -> {
+                    AsyncImage(
+                        model = coverModel,
+                        contentDescription = archive.fileName,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    ArchiveTypeBadge(archive.type, Modifier.align(Alignment.BottomEnd))
                 }
-                ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR -> Res.drawable.ic_archive
-                ArchiveType.IMAGE -> Res.drawable.ic_image_gallery
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                    drawRect(bgColor)
+                // Image file
+                archive.type == ArchiveType.IMAGE -> {
+                    AsyncImage(
+                        model = archive.filePath,
+                        contentDescription = archive.fileName,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
                 }
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = if (hasImage) MangaLensColors.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(32.dp),
-                )
+                // Folder
+                archive.type == ArchiveType.FOLDER -> {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(MangaLensColors.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_file_folder),
+                            contentDescription = null,
+                            tint = MangaLensColors.primary,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
+                // Archive without cover
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color(0x24787880)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_archive),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                    ArchiveTypeBadge(archive.type, Modifier.align(Alignment.BottomEnd))
+                }
+            }
+
+            if (showLockBadge) {
+                LockBadge(modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp))
             }
         }
 
@@ -253,8 +303,31 @@ fun FileGridItem(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun ArchiveTypeBadge(type: ArchiveType, modifier: Modifier = Modifier) {
+    if (type !in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR)) return
+    val label = when (type) {
+        ArchiveType.CBZ -> "CBZ"
+        ArchiveType.CBR -> "CBR"
+        else -> "ZIP"
+    }
+    Box(
+        modifier = modifier
+            .padding(4.dp)
+            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    ) {
+        Text(
+            text = label,
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
         )
     }
 }
