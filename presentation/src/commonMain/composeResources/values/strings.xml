@@ -94,6 +94,15 @@
     <string name="previous_volume">이전 권</string>
     <string name="loading_next_volume">다음 권 이동 중…</string>
 
+    <!-- 파일 아이템 서브타이틀 -->
+    <string name="file_type_folder">폴더</string>
+    <string name="file_type_folder_with_images">폴더 · 이미지 포함</string>
+    <string name="file_type_zip">ZIP</string>
+    <string name="file_type_cbz">CBZ</string>
+    <string name="file_type_cbr">CBR</string>
+    <string name="file_type_image">이미지</string>
+    <string name="file_type_has_images">이미지 포함</string>
+
     <!-- 홈 화면 -->
     <string name="app_name">MangaLens</string>
     <string name="home_search">검색</string>

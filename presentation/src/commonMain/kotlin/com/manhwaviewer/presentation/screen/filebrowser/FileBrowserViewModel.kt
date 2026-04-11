@@ -95,6 +95,18 @@ class FileBrowserViewModel(
     }
 
     private fun loadCoverModels(files: List<ArchiveFile>) {
+        val insideArchive = currentState.insideArchivePath
+        if (insideArchive != null) {
+            // 아카이브 내부 — 각 항목이 이미지 엔트리이므로 직접 ViewerPageModel 생성
+            val models = files.associate { file ->
+                "${file.filePath}/${file.fileName}" to ViewerPageModel(
+                    archivePath = file.filePath,
+                    entryNames = listOf(file.fileName),
+                )
+            }
+            updateState { copy(coverModels = models) }
+            return
+        }
         val archiveFiles = files.filter { it.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) }
         if (archiveFiles.isEmpty()) return
         coverLoadJob = viewModelScope.launch {
@@ -116,7 +128,14 @@ class FileBrowserViewModel(
                         }
                     }
                 }.mapNotNull { it.await() }.toMap()
-                updateState { copy(coverModels = results) }
+                updateState {
+                    copy(
+                        coverModels = results,
+                        files = this.files.map { file ->
+                            if (file.filePath in results) file.copy(hasImages = true) else file
+                        },
+                    )
+                }
             }
         }
     }

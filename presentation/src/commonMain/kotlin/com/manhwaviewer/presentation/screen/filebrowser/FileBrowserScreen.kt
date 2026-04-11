@@ -103,6 +103,11 @@ fun FileBrowserScreen(
                         },
                         modifier = Modifier.fillMaxSize(),
                     ) { _ ->
+                        val isInsideArchive = state.insideArchivePath != null
+                        fun coverModelFor(file: com.manhwaviewer.domain.entity.ArchiveFile) =
+                            if (isInsideArchive) state.coverModels["${file.filePath}/${file.fileName}"]
+                            else state.coverModels[file.filePath]
+
                         if (state.sortState.viewMode == ListViewMode.LIST) {
                             val columns = if (isLandscape) 2 else 1
                             if (columns == 1) {
@@ -121,7 +126,8 @@ fun FileBrowserScreen(
                                                     else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                                 }
                                             },
-                                            coverModel = state.coverModels[file.filePath],
+                                            coverModel = coverModelFor(file),
+                                            insideArchive = isInsideArchive,
                                         )
                                     }
                                 }
@@ -143,7 +149,8 @@ fun FileBrowserScreen(
                                                     else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                                 }
                                             },
-                                            coverModel = state.coverModels[file.filePath],
+                                            coverModel = coverModelFor(file),
+                                            insideArchive = isInsideArchive,
                                         )
                                     }
                                 }
@@ -166,7 +173,7 @@ fun FileBrowserScreen(
                                                 else -> viewModel.onIntent(FileBrowserIntent.OpenFile(file))
                                             }
                                         },
-                                        coverModel = state.coverModels[file.filePath],
+                                        coverModel = coverModelFor(file),
                                     )
                                 }
                             }

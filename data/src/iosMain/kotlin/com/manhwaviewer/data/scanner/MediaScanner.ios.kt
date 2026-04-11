@@ -63,7 +63,7 @@ actual class MediaScanner {
                                 else -> ArchiveType.ZIP
                             },
                             addedAt = getFileModifiedAt(fullPath),
-                            hasImages = true,
+                            hasImages = false,
                         )
                     )
                 }

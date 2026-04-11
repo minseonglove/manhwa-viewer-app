@@ -50,7 +50,7 @@ actual class MediaScanner(private val context: Context) {
                                 else -> ArchiveType.ZIP
                             },
                             addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = true,
+                            hasImages = false,
                         )
                     )
                 }
@@ -61,7 +61,7 @@ actual class MediaScanner(private val context: Context) {
                             fileName = file.name,
                             type = ArchiveType.IMAGE,
                             addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = true,
+                            hasImages = false,
                         )
                     )
                 }

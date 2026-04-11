@@ -31,12 +31,20 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.file_type_cbr
+import manhwa_viewer.presentation.generated.resources.file_type_cbz
+import manhwa_viewer.presentation.generated.resources.file_type_folder
+import manhwa_viewer.presentation.generated.resources.file_type_folder_with_images
+import manhwa_viewer.presentation.generated.resources.file_type_has_images
+import manhwa_viewer.presentation.generated.resources.file_type_image
+import manhwa_viewer.presentation.generated.resources.file_type_zip
 import manhwa_viewer.presentation.generated.resources.ic_archive
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_file_folder
 import manhwa_viewer.presentation.generated.resources.ic_image_gallery
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 fun ArchiveFile.displayName(): String = when (type) {
     ArchiveType.FOLDER -> filePath.trimEnd('/').substringAfterLast('/')
@@ -50,6 +58,7 @@ fun FileItem(
     coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
     showLockBadge: Boolean = false,
+    insideArchive: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -84,7 +93,7 @@ fun FileItem(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = buildFileSubtitle(archive),
+                        text = fileSubtitle(archive, insideArchive),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -122,15 +131,29 @@ fun FileItem(
     }
 }
 
-private fun buildFileSubtitle(archive: ArchiveFile): String {
-    val typeName = when (archive.type) {
-        ArchiveType.FOLDER -> "폴더"
-        ArchiveType.ZIP -> "ZIP"
-        ArchiveType.CBZ -> "CBZ"
-        ArchiveType.CBR -> "CBR"
-        ArchiveType.IMAGE -> "이미지"
+@Composable
+private fun fileSubtitle(archive: ArchiveFile, insideArchive: Boolean = false): String {
+    if (insideArchive) return stringResource(Res.string.file_type_image)
+    return when (archive.type) {
+        ArchiveType.FOLDER -> if (archive.hasImages) {
+            stringResource(Res.string.file_type_folder_with_images)
+        } else {
+            stringResource(Res.string.file_type_folder)
+        }
+        ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR -> {
+            val typeName = when (archive.type) {
+                ArchiveType.CBZ -> stringResource(Res.string.file_type_cbz)
+                ArchiveType.CBR -> stringResource(Res.string.file_type_cbr)
+                else -> stringResource(Res.string.file_type_zip)
+            }
+            if (archive.hasImages) {
+                "$typeName · ${stringResource(Res.string.file_type_has_images)}"
+            } else {
+                typeName
+            }
+        }
+        ArchiveType.IMAGE -> stringResource(Res.string.file_type_image)
     }
-    return if (archive.hasImages) "$typeName · 이미지 포함" else typeName
 }
 
 @Composable
