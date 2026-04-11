@@ -2,21 +2,57 @@ package com.manhwaviewer.presentation.screen.recent
 
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
+import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
+import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 class RecentViewModel(
     getRecentArchivesUseCase: GetRecentArchivesUseCase,
+    private val getImageEntriesUseCase: GetImageEntriesUseCase,
 ) : MviViewModel<RecentState, RecentIntent, RecentSideEffect>(RecentState()) {
 
     init {
         viewModelScope.launch {
             getRecentArchivesUseCase().collect { archives ->
-                updateState { copy(archives = sortArchives(archives), isLoading = false) }
+                val sorted = sortArchives(archives)
+                updateState { copy(archives = sorted, isLoading = false) }
+                loadCoverModels(sorted)
             }
+        }
+    }
+
+    private suspend fun loadCoverModels(archives: List<ArchiveFile>) {
+        val currentModels = state.value.coverModels
+        val targets = archives.filter {
+            it.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR, ArchiveType.FOLDER) && it.id !in currentModels
+        }
+        if (targets.isEmpty()) return
+        supervisorScope {
+            val newResults = targets.map { archive ->
+                async {
+                    try {
+                        val entries = getImageEntriesUseCase(archive.filePath)
+                        if (entries.isNotEmpty()) {
+                            archive.id to ViewerPageModel(
+                                archivePath = archive.filePath,
+                                entryNames = listOf(entries.first()),
+                            )
+                        } else {
+                            null
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }.mapNotNull { it.await() }.toMap()
+            updateState { copy(coverModels = currentModels + newResults) }
         }
     }
 

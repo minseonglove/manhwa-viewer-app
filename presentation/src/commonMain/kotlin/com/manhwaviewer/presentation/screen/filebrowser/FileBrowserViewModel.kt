@@ -10,11 +10,15 @@ import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
+import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 
 class FileBrowserViewModel(
@@ -27,6 +31,7 @@ class FileBrowserViewModel(
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
 
     private val archiveExtensions = setOf("zip", "cbz", "cbr")
+    private var coverLoadJob: Job? = null
 
     init {
         navigateToFolder(defaultScanPath)
@@ -60,8 +65,9 @@ class FileBrowserViewModel(
     }
 
     private fun navigateToFolder(path: String, direction: NavigationDirection = NavigationDirection.FORWARD) {
+        coverLoadJob?.cancel()
         viewModelScope.launch {
-            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction) }
+            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction, coverModels = emptyMap()) }
             try {
                 val ext = path.substringAfterLast('.').lowercase()
                 val isArchive = ext in archiveExtensions
@@ -69,19 +75,48 @@ class FileBrowserViewModel(
                     if (isArchive) scanArchiveEntriesUseCase(path)
                     else scanLocalFilesUseCase(path)
                 }
+                val sorted = sortFiles(files)
                 updateState {
                     copy(
-                        files = sortFiles(files),
+                        files = sorted,
                         pathSegments = buildPathSegments(path).map { it.first },
                         insideArchivePath = if (isArchive) path else null,
                         isLoading = false,
                     )
                 }
+                loadCoverModels(sorted)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 updateState { copy(files = emptyList(), isLoading = false) }
+            }
+        }
+    }
+
+    private fun loadCoverModels(files: List<ArchiveFile>) {
+        val archiveFiles = files.filter { it.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) }
+        if (archiveFiles.isEmpty()) return
+        coverLoadJob = viewModelScope.launch {
+            supervisorScope {
+                val results = archiveFiles.map { archive ->
+                    async(ioDispatcher) {
+                        try {
+                            val entries = getImageEntriesUseCase(archive.filePath)
+                            if (entries.isNotEmpty()) {
+                                archive.filePath to ViewerPageModel(
+                                    archivePath = archive.filePath,
+                                    entryNames = listOf(entries.first()),
+                                )
+                            } else {
+                                null
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }.mapNotNull { it.await() }.toMap()
+                updateState { copy(coverModels = results) }
             }
         }
     }

@@ -2,23 +2,59 @@ package com.manhwaviewer.presentation.screen.vault
 
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
+import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
+import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 class VaultViewModel(
     getVaultFilesUseCase: GetVaultFilesUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
+    private val getImageEntriesUseCase: GetImageEntriesUseCase,
 ) : MviViewModel<VaultState, VaultIntent, VaultSideEffect>(VaultState()) {
 
     init {
         viewModelScope.launch {
             getVaultFilesUseCase().collect { files ->
-                updateState { copy(files = sortFiles(files), isLoading = false) }
+                val sorted = sortFiles(files)
+                updateState { copy(files = sorted, isLoading = false) }
+                loadCoverModels(sorted)
             }
+        }
+    }
+
+    private suspend fun loadCoverModels(files: List<ArchiveFile>) {
+        val currentModels = state.value.coverModels
+        val targets = files.filter {
+            it.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR, ArchiveType.FOLDER) && it.id !in currentModels
+        }
+        if (targets.isEmpty()) return
+        supervisorScope {
+            val newResults = targets.map { archive ->
+                async {
+                    try {
+                        val entries = getImageEntriesUseCase(archive.filePath)
+                        if (entries.isNotEmpty()) {
+                            archive.id to ViewerPageModel(
+                                archivePath = archive.filePath,
+                                entryNames = listOf(entries.first()),
+                            )
+                        } else {
+                            null
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }.mapNotNull { it.await() }.toMap()
+            updateState { copy(coverModels = currentModels + newResults) }
         }
     }
 

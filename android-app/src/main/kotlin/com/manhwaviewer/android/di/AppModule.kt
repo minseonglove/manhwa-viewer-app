@@ -129,9 +129,9 @@ val appModule = module {
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get(), get()) }
     viewModel { FileBrowserViewModel(get(), get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
-    viewModel { RecentViewModel(get()) }
+    viewModel { RecentViewModel(get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
-    viewModel { VaultViewModel(get(), get()) }
+    viewModel { VaultViewModel(get(), get(), get()) }
     viewModelOf(::ViewerViewModel)
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
 }
