@@ -137,6 +137,15 @@ class TextDetectionRepositoryImpl(
 
     private fun now(): Long = Clock.System.now().toEpochMilliseconds()
 
+    /**
+     * 실제 의미 있는 일본어/한자 문자가 1개 이상 포함되어 있는지 확인한다.
+     * CJK 구두점(・, ー, 。 등)만으로 이루어진 텍스트는 false를 반환한다.
+     *
+     * - Hiragana letters: U+3041–U+3096 (ぁ–ゖ, 구두점/기호 제외)
+     * - Katakana letters: U+30A1–U+30FA (ァ–ヺ, ・ー 등 구두점 제외)
+     * - CJK Unified Ideographs: U+4E00–U+9FFF
+     * - CJK Extension A: U+3400–U+4DBF
+     */
     private fun String.containsCjkOrKana(): Boolean =
-        any { it in '\u3040'..'\u309F' || it in '\u30A0'..'\u30FF' || it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF' }
+        any { it in '\u3041'..'\u3096' || it in '\u30A1'..'\u30FA' || it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF' }
 }
