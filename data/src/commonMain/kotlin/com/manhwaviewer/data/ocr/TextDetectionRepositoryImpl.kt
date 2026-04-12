@@ -20,6 +20,7 @@ class TextDetectionRepositoryImpl(
 
     companion object {
         private const val HORIZONTAL_RATIO = 2.0f
+        private const val AMBIGUOUS_RATIO = 1.5f
         private const val MAX_CONCURRENT_OCR = 3
         private const val OVERLAP_IOU_THRESHOLD = 0.3f
     }
@@ -70,11 +71,17 @@ class TextDetectionRepositoryImpl(
                 TextBlock(r.x, r.y, r.width, r.height, r.text)
             }
 
-            // 3. YOLO 검출 영역 중 세로 영역만 필터링
-            val verticalRegions = allRegions.filter { region ->
-                val isHorizontal = region.height > 0 &&
+            // 3. YOLO 검출 영역을 방향성별로 분류
+            //    - ratio >= 2.0: 가로 확정 → 제외
+            //    - ratio 1.5~2.0: 애매 → MLKit 겹치면 MLKit 우선, 아니면 MangaOCR
+            //    - ratio < 1.5: 세로/정사각형 → YOLO 우선
+            val (horizontalRegions, nonHorizontalRegions) = allRegions.partition { region ->
+                region.height > 0 &&
                     region.width.toFloat() / region.height >= HORIZONTAL_RATIO
-                !isHorizontal
+            }
+            val (ambiguousRegions, verticalRegions) = nonHorizontalRegions.partition { region ->
+                region.height > 0 &&
+                    region.width.toFloat() / region.height >= AMBIGUOUS_RATIO
             }
 
             // 4. 플랫폼(MLKit) 결과 중 YOLO 세로 영역과 겹치는 것 제거 (YOLO 우선)
@@ -82,16 +89,22 @@ class TextDetectionRepositoryImpl(
                 verticalRegions.none { region -> iou(region, pb) > OVERLAP_IOU_THRESHOLD }
             }
 
+            // 5. 애매 영역 중 MLKit과 겹치지 않는 것만 MangaOCR로 처리
+            val ambiguousOcrTargets = ambiguousRegions.filter { region ->
+                platformBlocks.none { pb -> iou(region, pb) > OVERLAP_IOU_THRESHOLD }
+            }
+
+            val ocrTargets = verticalRegions + ambiguousOcrTargets
             val overlappingCount = platformBlocks.size - filteredPlatformBlocks.size
-            println("PageOCR | Vertical OCR targets: ${verticalRegions.size} (skipped ${allRegions.size - verticalRegions.size} horizontal)")
+            println("PageOCR | OCR targets: ${ocrTargets.size} vertical(${verticalRegions.size}) + ambiguous(${ambiguousOcrTargets.size}/${ambiguousRegions.size}) (skipped ${horizontalRegions.size} horizontal)")
             if (overlappingCount > 0) {
-                println("PageOCR | Removed $overlappingCount platform result(s) overlapping with YOLO regions")
+                println("PageOCR | Removed $overlappingCount platform result(s) overlapping with YOLO vertical regions")
             }
 
             // 5. 세로 영역만 MangaOCR로 인식
             onStageChanged?.invoke(DetectionStage.RECOGNIZING)
 
-            val verticalResults = verticalRegions.mapIndexed { i, region ->
+            val verticalResults = ocrTargets.mapIndexed { i, region ->
                 async {
                     ocrSemaphore.withPermit {
                         val ocrStart = now()
