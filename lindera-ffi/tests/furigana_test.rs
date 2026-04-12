@@ -234,3 +234,135 @@ fn test_reading_is_hiragana_not_katakana() {
     assert_eq!(readings, "とうきょう", "東京 reading should be とうきょう");
     teardown();
 }
+
+// === IPADIC misanalysis correction tests ===
+
+#[test]
+fn test_correction_kane_ga() {
+    setup();
+    let tokens = tokenize("金がない");
+    let kane = tokens
+        .iter()
+        .find(|t| t["surface"].as_str().unwrap() == "金");
+    assert!(kane.is_some(), "Should find 金 token");
+    assert_eq!(
+        kane.unwrap()["reading"].as_str().unwrap(),
+        "かね",
+        "金 before が should read かね, not きむ"
+    );
+    teardown();
+}
+
+#[test]
+fn test_correction_kane_wa() {
+    setup();
+    let tokens = tokenize("金は大事だ");
+    let kane = tokens
+        .iter()
+        .find(|t| t["surface"].as_str().unwrap() == "金");
+    assert!(kane.is_some(), "Should find 金 token");
+    let reading = kane.unwrap()["reading"].as_str().unwrap();
+    assert!(
+        reading == "かね" || reading == "きん",
+        "金 should read かね or きん, not きむ (got: {})",
+        reading
+    );
+    teardown();
+}
+
+#[test]
+fn test_correction_compound_kinyoubi_unaffected() {
+    setup();
+    let tokens = tokenize("金曜日");
+    let reading: String = tokens
+        .iter()
+        .map(|t| t["reading"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        reading, "きんようび",
+        "金曜日 compound should remain きんようび"
+    );
+    teardown();
+}
+
+#[test]
+fn test_correction_zen_ga() {
+    setup();
+    let tokens = tokenize("全が悪い");
+    let zen = tokens
+        .iter()
+        .find(|t| t["surface"].as_str().unwrap() == "全");
+    if let Some(token) = zen {
+        assert_eq!(
+            token["reading"].as_str().unwrap(),
+            "ぜん",
+            "全 should read ぜん, not ちょん"
+        );
+    }
+    teardown();
+}
+
+#[test]
+fn test_correction_compound_zenzen_unaffected() {
+    setup();
+    let tokens = tokenize("全然大丈夫");
+    let reading: String = tokens
+        .iter()
+        .map(|t| t["reading"].as_str().unwrap())
+        .collect();
+    assert!(
+        reading.starts_with("ぜんぜん"),
+        "全然 compound should start with ぜんぜん (got: {})",
+        reading
+    );
+    teardown();
+}
+
+#[test]
+fn test_correction_ato_ga_nai() {
+    setup();
+    let tokens = tokenize("後がない");
+    let ato = tokens
+        .iter()
+        .find(|t| t["surface"].as_str().unwrap() == "後");
+    if let Some(token) = ato {
+        assert_eq!(
+            token["reading"].as_str().unwrap(),
+            "あと",
+            "後 standalone should read あと, not ご"
+        );
+    }
+    teardown();
+}
+
+#[test]
+fn test_correction_compound_kouhai_unaffected() {
+    setup();
+    let tokens = tokenize("後輩");
+    let reading: String = tokens
+        .iter()
+        .map(|t| t["reading"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        reading, "こうはい",
+        "後輩 compound should remain こうはい"
+    );
+    teardown();
+}
+
+#[test]
+fn test_correction_manga_dialogue_with_kane() {
+    setup();
+    let tokens = tokenize("金を稼ぐ");
+    let kane = tokens
+        .iter()
+        .find(|t| t["surface"].as_str().unwrap() == "金");
+    assert!(kane.is_some(), "Should find 金 token");
+    let reading = kane.unwrap()["reading"].as_str().unwrap();
+    assert!(
+        reading == "かね" || reading == "きん",
+        "金を稼ぐ: 金 should read かね or きん, not きむ (got: {})",
+        reading
+    );
+    teardown();
+}

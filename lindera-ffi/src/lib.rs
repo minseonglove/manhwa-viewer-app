@@ -81,6 +81,84 @@ fn has_kanji(text: &str) -> bool {
     })
 }
 
+/// IPADIC misanalysis correction table.
+///
+/// IPADIC's Viterbi algorithm sometimes prefers Korean/Chinese person-name (人名)
+/// readings over common-noun readings for everyday kanji. This is caused by
+/// lower connection costs between person-name context IDs and particles
+/// (が, は, を, etc.).
+///
+/// This function detects misanalyzed tokens by checking POS tags and overrides
+/// the reading with the standard Japanese common-noun reading.
+///
+/// ## Correction Categories
+///
+/// ### Category 1: Korean Surname → Common Noun (confirmed IPADIC bugs)
+///
+/// | Surface | Bug Reading      | Correct Reading | Trigger          |
+/// |---------|------------------|-----------------|------------------|
+/// | 金      | キム (Kim)       | カネ (money)    | 金が → きむが    |
+/// | 全      | チョン (Jeon)    | ゼン (all)      | 全が → ちょんが  |
+/// | 朴      | ボク (Park)      | ホウ (magnolia) | 朴が → ぼくが    |
+///
+/// ### Category 2: Korean reading safety net (reading-specific)
+///
+/// | Surface | Korean Reading       | Correct Reading      |
+/// |---------|----------------------|----------------------|
+/// | 白      | ペク/パク (Baek)     | シロ (white)         |
+/// | 南      | ナム (Nam)           | ミナミ (south)       |
+/// | 林      | イム/リム (Lim)      | ハヤシ (forest)      |
+/// | 文      | ムン (Moon)          | ブン (writing)       |
+/// | 河      | ハ (Ha)              | カワ (river)         |
+/// | 玉      | オク (Ok)            | タマ (ball/gem)      |
+/// | 権      | クォン/クオン (Kwon) | ケン (authority)     |
+/// | 宋      | ソン (Song)          | ソウ (Song dynasty)  |
+///
+/// ### Category 3: Standalone reading corrections (POS-independent)
+///
+/// | Surface | Wrong Reading | Correct Reading | Note                              |
+/// |---------|---------------|-----------------|-----------------------------------|
+/// | 後      | ゴ            | アト            | Compounds (後輩,後悔) unaffected  |
+fn correct_misanalyzed_reading(surface: &str, details: &[&str], reading: &str) -> Option<&'static str> {
+    // Check person-name POS: 名詞,固有名詞,人名,(姓|名)
+    let is_person_name = details.len() > 3
+        && details[0] == "名詞"
+        && details[1] == "固有名詞"
+        && details[2] == "人名";
+
+    if is_person_name {
+        return match surface {
+            // --- Category 1: Confirmed IPADIC bugs — always correct ---
+            // 金: person-name キム(7374) vs common キン(6317)/カネ(6576)
+            "金" => Some("カネ"),
+            // 全: person-name チョン(9875) vs common ゼン(9524)
+            "全" => Some("ゼン"),
+            // 朴: person-name ボク(7344) vs common ホウ(6288)
+            "朴" => Some("ホウ"),
+
+            // --- Category 2: Korean reading safety — correct only specific readings ---
+            "白" if reading == "ペク" || reading == "パク" => Some("シロ"),
+            "南" if reading == "ナム" => Some("ミナミ"),
+            "林" if reading == "イム" || reading == "リム" => Some("ハヤシ"),
+            "文" if reading == "ムン" => Some("ブン"),
+            "河" if reading == "ハ" => Some("カワ"),
+            "玉" if reading == "オク" => Some("タマ"),
+            "権" if reading == "クォン" || reading == "クオン" => Some("ケン"),
+            "宋" if reading == "ソン" => Some("ソウ"),
+
+            _ => None,
+        };
+    }
+
+    // --- Category 3: Standalone reading corrections ---
+    // 後 with ゴ → アト (compounds like 後輩/後悔 are single tokens, unaffected)
+    if surface == "後" && reading == "ゴ" {
+        return Some("アト");
+    }
+
+    None
+}
+
 fn katakana_to_hiragana(text: &str) -> String {
     text.chars()
         .map(|c| {
@@ -146,7 +224,9 @@ pub extern "C" fn lindera_tokenize(text: *const c_char) -> *mut c_char {
             // [4]=活用型, [5]=活用形, [6]=原形, [7]=読み, [8]=発音
             let details = token.details();
             let reading = if details.len() > 7 {
-                katakana_to_hiragana(details[7])
+                let raw_reading = details[7];
+                let corrected = correct_misanalyzed_reading(&surface, &details, raw_reading);
+                katakana_to_hiragana(corrected.unwrap_or(raw_reading))
             } else {
                 surface.clone()
             };
