@@ -23,6 +23,10 @@ kotlin {
                     defFile = file("src/nativeInterop/cinterop/onnxruntime.def")
                     compilerOpts("-I${project.rootDir}/libs/onnxruntime/include")
                 }
+                create("lindera") {
+                    defFile = file("src/nativeInterop/cinterop/lindera.def")
+                    compilerOpts("-I${project.rootDir}/libs/lindera")
+                }
             }
         }
     }
