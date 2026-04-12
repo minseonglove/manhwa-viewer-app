@@ -1,7 +1,6 @@
 package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,15 +9,19 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -110,7 +113,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private val BoundingBoxColor = MangaLensColors.emerald
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ViewerScreen(
     archiveId: Long,
@@ -178,7 +181,95 @@ fun ViewerScreen(
     }
 
     val hazeState = rememberHazeState()
+    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val scaffoldSheetState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            skipHiddenState = false,
+        ),
+    )
 
+    // ViewModel → 시트: visible 변경 시 show/hide
+    LaunchedEffect(state.isSelectedTranslationSheetVisible) {
+        if (state.isSelectedTranslationSheetVisible) {
+            scaffoldSheetState.bottomSheetState.expand()
+        } else {
+            scaffoldSheetState.bottomSheetState.hide()
+        }
+    }
+
+    // 시트 → ViewModel: 드래그로 숨겨지면 ViewModel에 알림
+    // PartiallyExpanded(peek=0dp)도 Hidden과 동일하게 취급
+    LaunchedEffect(Unit) {
+        snapshotFlow { scaffoldSheetState.bottomSheetState.currentValue }
+            .collect { value ->
+                if (value != SheetValue.Expanded && state.isSelectedTranslationSheetVisible) {
+                    viewModel.onIntent(ViewerIntent.DismissSelectedTranslation)
+                }
+            }
+    }
+
+    BottomSheetScaffold(
+        scaffoldState = scaffoldSheetState,
+        sheetShape = sheetShape,
+        sheetContainerColor = Color.Transparent,
+        sheetTonalElevation = 0.dp,
+        sheetShadowElevation = 0.dp,
+        sheetPeekHeight = 0.dp,
+        sheetDragHandle = {
+            Column(
+                modifier = Modifier
+                    .clip(sheetShape)
+                    .hazeEffect(
+                        state = hazeState,
+                        style = HazeStyle(
+                            backgroundColor = MangaLensColors.surface1,
+                            tints = listOf(HazeTint(MangaLensColors.surfaceGlass)),
+                            blurRadius = 28.dp,
+                            noiseFactor = 0.12f,
+                        ),
+                    ),
+            ) {
+                // 드래그 핸들
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp, bottom = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(36.dp)
+                            .height(5.dp)
+                            .background(MangaLensColors.fillSecondary, RoundedCornerShape(3.dp)),
+                    )
+                }
+
+                // "번역 결과" 타이틀
+                Text(
+                    text = stringResource(Res.string.viewer_translation_result_title),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp),
+                )
+
+                // 타이틀 하단 separator
+                HorizontalDivider(
+                    color = MangaLensColors.separator,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        },
+        sheetContent = {
+            SelectedTranslationSheetContent(
+                translations = state.selectedBlockTranslations,
+                furiganaMap = state.selectedBlockFurigana,
+                isTranslating = state.isSelectedTranslating,
+                hazeState = hazeState,
+            )
+        },
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -450,39 +541,7 @@ fun ViewerScreen(
             )
         }
 
-        // 바텀시트 표시 중 뒤로가기 → 바텀시트만 닫기
-        BackHandler(enabled = state.isSelectedTranslationSheetVisible) {
-            viewModel.onIntent(ViewerIntent.DismissSelectedTranslation)
-        }
-
-        // 선택 번역 바텀시트 외부 터치 감지 (dismiss) — 바텀시트보다 먼저 배치
-        if (state.isSelectedTranslationSheetVisible) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures {
-                            viewModel.onIntent(ViewerIntent.DismissSelectedTranslation)
-                        }
-                    },
-            )
-        }
-
-        // 선택 번역 바텀시트
-        AnimatedVisibility(
-            visible = state.isSelectedTranslationSheetVisible,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            SelectedTranslationBottomSheet(
-                translations = state.selectedBlockTranslations,
-                furiganaMap = state.selectedBlockFurigana,
-                isTranslating = state.isSelectedTranslating,
-                onDismiss = { viewModel.onIntent(ViewerIntent.DismissSelectedTranslation) },
-                hazeState = hazeState,
-            )
-        }
+    }
     }
 }
 
@@ -1107,42 +1166,19 @@ private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
 }
 
 
-// ── 선택 번역 바텀시트 ──────────────────────────────────────────
+// ── 선택 번역 바텀시트 콘텐츠 ──────────────────────────────────────────
 
 @Composable
-private fun SelectedTranslationBottomSheet(
+private fun SelectedTranslationSheetContent(
     translations: List<Pair<String, String>>,
     furiganaMap: Map<Int, List<FuriganaToken>>,
     isTranslating: Boolean,
-    onDismiss: () -> Unit,
     hazeState: HazeState,
 ) {
-    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-    val density = LocalDensity.current
-    val dismissThreshold = with(density) { 80.dp.toPx() }
-    var dragOffsetY by remember { mutableStateOf(0f) }
-    val animatedOffsetY by animateFloatAsState(targetValue = dragOffsetY)
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 340.dp)
-            .graphicsLayer { translationY = animatedOffsetY }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, dragAmount ->
-                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                    },
-                    onDragEnd = {
-                        if (dragOffsetY > dismissThreshold) {
-                            onDismiss()
-                        }
-                        dragOffsetY = 0f
-                    },
-                    onDragCancel = { dragOffsetY = 0f },
-                )
-            }
-            .clip(sheetShape)
+            .fillMaxHeight(0.5f)
             .hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
@@ -1151,41 +1187,8 @@ private fun SelectedTranslationBottomSheet(
                     blurRadius = 28.dp,
                     noiseFactor = 0.12f,
                 ),
-            )
-            .border(0.5.dp, MangaLensColors.separator, sheetShape)
-            .pointerInput(Unit) { detectTapGestures { /* 터치 소비 — 외부 dismiss 방지 */ } }
-            .windowInsetsPadding(WindowInsets.navigationBars),
+            ),
     ) {
-        // 드래그 핸들
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp, bottom = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(36.dp)
-                    .height(5.dp)
-                    .background(MangaLensColors.fillSecondary, RoundedCornerShape(3.dp)),
-            )
-        }
-
-        // "번역 결과" 타이틀
-        Text(
-            text = stringResource(Res.string.viewer_translation_result_title),
-            color = Color.White,
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp),
-        )
-
-        // 타이틀 하단 separator
-        HorizontalDivider(
-            color = MangaLensColors.separator,
-            thickness = 0.5.dp,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-
         if (isTranslating) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
@@ -1200,13 +1203,15 @@ private fun SelectedTranslationBottomSheet(
                     .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
             ) {
                 translations.forEachIndexed { index, (original, translated) ->
-                    Column(modifier = Modifier.padding(vertical = 11.dp)) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 11.dp),
+                    ) {
                         val tokens = furiganaMap[index]
                         if (!tokens.isNullOrEmpty()) {
                             FuriganaText(
                                 tokens = tokens,
+                                baseStyle = MaterialTheme.typography.titleLarge,
                                 baseColor = MangaLensColors.textSecondary,
-                                baseFontSize = 12.sp,
                                 rubyColor = MangaLensColors.textSecondary.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(bottom = 4.dp),
                             )
@@ -1214,7 +1219,7 @@ private fun SelectedTranslationBottomSheet(
                             Text(
                                 text = original,
                                 color = MangaLensColors.textSecondary,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.titleLarge,
                                 lineHeight = 18.sp,
                                 modifier = Modifier.padding(bottom = 4.dp),
                             )
@@ -1222,7 +1227,7 @@ private fun SelectedTranslationBottomSheet(
                         Text(
                             text = translated,
                             color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             lineHeight = 22.sp,
                         )
                     }
