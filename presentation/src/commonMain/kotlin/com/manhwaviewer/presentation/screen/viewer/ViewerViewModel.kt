@@ -229,14 +229,7 @@ class ViewerViewModel(
             }
             // 후리가나 분석 (비동기 — UI 먼저 표시)
             viewModelScope.launch {
-                val furiganaMap = mutableMapOf<Int, List<FuriganaToken>>()
-                cachedPairs.forEachIndexed { i, (original, _) ->
-                    furiganaMap[i] = try {
-                        analyzeFuriganaUseCase(original)
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                }
+                val furiganaMap = analyzeFuriganaForPairs(cachedPairs)
                 updateState { copy(selectedBlockFurigana = furiganaMap) }
             }
             return
@@ -257,14 +250,7 @@ class ViewerViewModel(
                     )
                 }
                 // 후리가나 분석 (비동기 — 번역 결과 표시 후 루비 추가)
-                val furiganaMap = mutableMapOf<Int, List<FuriganaToken>>()
-                allPairs.forEachIndexed { i, (original, _) ->
-                    furiganaMap[i] = try {
-                        analyzeFuriganaUseCase(original)
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                }
+                val furiganaMap = analyzeFuriganaForPairs(allPairs)
                 updateState { copy(selectedBlockFurigana = furiganaMap) }
             } catch (e: CancellationException) {
                 throw e
@@ -277,6 +263,20 @@ class ViewerViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun analyzeFuriganaForPairs(pairs: List<Pair<String, String>>): Map<Int, List<FuriganaToken>> {
+        val map = mutableMapOf<Int, List<FuriganaToken>>()
+        pairs.forEachIndexed { i, (original, _) ->
+            map[i] = try {
+                analyzeFuriganaUseCase(original)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        return map
     }
 
     // ── 오버레이 ON 시 번역 트리거 ──────────────────────────────────

@@ -1,3 +1,8 @@
+//! Integration tests for lindera-ffi FFI functions.
+//!
+//! IMPORTANT: These tests use a global static TOKENIZER and must be run
+//! with `cargo test -- --test-threads=1` to avoid race conditions.
+
 use std::ffi::{CStr, CString};
 
 use lindera_ffi::{lindera_destroy, lindera_free, lindera_init, lindera_tokenize};

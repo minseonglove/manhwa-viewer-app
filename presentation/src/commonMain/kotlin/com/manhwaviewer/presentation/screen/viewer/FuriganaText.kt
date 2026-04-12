@@ -3,6 +3,8 @@ package com.manhwaviewer.presentation.screen.viewer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,11 +55,7 @@ fun FuriganaText(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = "",
-                        fontSize = rubyFontSize,
-                        lineHeight = (rubyFontSize.value + 2).sp,
-                    )
+                    Spacer(modifier = Modifier.height((rubyFontSize.value + 2).dp))
                     Text(
                         text = token.surface,
                         color = baseColor,

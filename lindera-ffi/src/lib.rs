@@ -50,7 +50,7 @@ pub extern "C" fn lindera_init() -> i32 {
     };
     let segmenter = Segmenter::new(Mode::Normal, dictionary, None);
     let tokenizer = Tokenizer::new(segmenter);
-    let mut guard = TOKENIZER.lock().unwrap();
+    let mut guard = TOKENIZER.lock().unwrap_or_else(|e| e.into_inner());
     *guard = Some(tokenizer);
     1
 }
@@ -70,7 +70,7 @@ pub extern "C" fn lindera_tokenize(text: *const c_char) -> *mut c_char {
         Err(_) => return ptr::null_mut(),
     };
 
-    let guard = TOKENIZER.lock().unwrap();
+    let guard = TOKENIZER.lock().unwrap_or_else(|e| e.into_inner());
     let tokenizer = match guard.as_ref() {
         Some(t) => t,
         None => return ptr::null_mut(),
@@ -125,7 +125,7 @@ pub extern "C" fn lindera_free(ptr: *mut c_char) {
 /// Destroy the tokenizer and release resources.
 #[no_mangle]
 pub extern "C" fn lindera_destroy() {
-    let mut guard = TOKENIZER.lock().unwrap();
+    let mut guard = TOKENIZER.lock().unwrap_or_else(|e| e.into_inner());
     *guard = None;
 }
 

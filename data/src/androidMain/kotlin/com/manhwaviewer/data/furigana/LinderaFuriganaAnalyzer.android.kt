@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 
 actual class LinderaFuriganaAnalyzer actual constructor() : FuriganaAnalyzer {
 
+    @Volatile
     private var initialized = false
 
     init {
@@ -21,9 +22,8 @@ actual class LinderaFuriganaAnalyzer actual constructor() : FuriganaAnalyzer {
 
     private external fun nativeInit(): Int
     private external fun nativeTokenize(text: String): String?
-    private external fun nativeDestroy()
 
-    override suspend fun analyze(text: String): List<FuriganaToken> {
+    actual override suspend fun analyze(text: String): List<FuriganaToken> {
         if (!initialized || text.isBlank()) return emptyList()
         return withContext(Dispatchers.IO) {
             val json = nativeTokenize(text) ?: return@withContext emptyList()
