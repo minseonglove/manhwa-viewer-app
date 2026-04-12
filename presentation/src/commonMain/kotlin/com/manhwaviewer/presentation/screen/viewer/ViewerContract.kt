@@ -2,6 +2,7 @@ package com.manhwaviewer.presentation.screen.viewer
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import androidx.compose.ui.graphics.Color
+import com.manhwaviewer.domain.entity.FuriganaToken
 import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.TranslationBlock
 import androidx.compose.ui.geometry.Offset
@@ -60,6 +61,7 @@ data class ViewerState(
     val autoTranslationOverlayColors: List<Color> = emptyList(),
     // 선택 번역 바텀시트
     val selectedBlockTranslations: List<Pair<String, String>> = emptyList(),
+    val selectedBlockFurigana: Map<Int, List<FuriganaToken>> = emptyMap(),
     val isSelectedTranslationSheetVisible: Boolean = false,
     val isSelectedTranslating: Boolean = false,
     val selectedBottomTab: BottomPanelTab = BottomPanelTab.VIEW,

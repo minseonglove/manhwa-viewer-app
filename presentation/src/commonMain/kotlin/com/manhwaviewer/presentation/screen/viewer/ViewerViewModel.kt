@@ -2,6 +2,8 @@ package com.manhwaviewer.presentation.screen.viewer
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
+import com.manhwaviewer.domain.entity.FuriganaToken
+import com.manhwaviewer.domain.usecase.AnalyzeFuriganaUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
@@ -65,6 +67,7 @@ class ViewerViewModel(
     private val getNextArchiveUseCase: GetNextArchiveUseCase,
     private val getPreviousArchiveUseCase: GetPreviousArchiveUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
+    private val analyzeFuriganaUseCase: AnalyzeFuriganaUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var cacheJob: Job? = null
@@ -123,6 +126,7 @@ class ViewerViewModel(
                     showControls = newShowControls,
                     isSelectedTranslationSheetVisible = if (!newShowControls) false else isSelectedTranslationSheetVisible,
                     selectedBlockTranslations = if (!newShowControls) emptyList() else selectedBlockTranslations,
+                    selectedBlockFurigana = if (!newShowControls) emptyMap() else selectedBlockFurigana,
                 )
             }
             is ViewerIntent.SaveProgress -> saveProgress()
@@ -138,7 +142,11 @@ class ViewerViewModel(
             }
             is ViewerIntent.TranslateSelectedBlocks -> translateSelectedBlocks()
             is ViewerIntent.DismissSelectedTranslation -> updateState {
-                copy(isSelectedTranslationSheetVisible = false, selectedBlockTranslations = emptyList())
+                copy(
+                    isSelectedTranslationSheetVisible = false,
+                    selectedBlockTranslations = emptyList(),
+                    selectedBlockFurigana = emptyMap(),
+                )
             }
             is ViewerIntent.SetImageScaleMode -> {
                 viewModelScope.launch {
@@ -219,6 +227,18 @@ class ViewerViewModel(
                     isSelectedTranslationSheetVisible = true,
                 )
             }
+            // 후리가나 분석 (비동기 — UI 먼저 표시)
+            viewModelScope.launch {
+                val furiganaMap = mutableMapOf<Int, List<FuriganaToken>>()
+                cachedPairs.forEachIndexed { i, (original, _) ->
+                    furiganaMap[i] = try {
+                        analyzeFuriganaUseCase(original)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                }
+                updateState { copy(selectedBlockFurigana = furiganaMap) }
+            }
             return
         }
 
@@ -229,12 +249,23 @@ class ViewerViewModel(
             try {
                 val results = translateTextUseCase(ocrTexts)
                 val ocrPairs = ocrTexts.zip(results.map { it.translatedText })
+                val allPairs = cachedPairs + ocrPairs
                 updateState {
                     copy(
-                        selectedBlockTranslations = cachedPairs + ocrPairs,
+                        selectedBlockTranslations = allPairs,
                         isSelectedTranslating = false,
                     )
                 }
+                // 후리가나 분석 (비동기 — 번역 결과 표시 후 루비 추가)
+                val furiganaMap = mutableMapOf<Int, List<FuriganaToken>>()
+                allPairs.forEachIndexed { i, (original, _) ->
+                    furiganaMap[i] = try {
+                        analyzeFuriganaUseCase(original)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                }
+                updateState { copy(selectedBlockFurigana = furiganaMap) }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -858,6 +889,7 @@ class ViewerViewModel(
         autoTranslationOverlayColors = emptyList(),
         isSelectedTranslationSheetVisible = false,
         selectedBlockTranslations = emptyList(),
+        selectedBlockFurigana = emptyMap(),
         isSelectedTranslating = false,
     )
 
@@ -893,6 +925,7 @@ class ViewerViewModel(
         // 선택 번역 상태 리셋
         isSelectedTranslationSheetVisible = false,
         selectedBlockTranslations = emptyList(),
+        selectedBlockFurigana = emptyMap(),
         isSelectedTranslating = false,
     )
 
