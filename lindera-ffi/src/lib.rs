@@ -1,13 +1,68 @@
 use std::ffi::{CStr, CString};
+use std::io::Cursor;
 use std::os::raw::c_char;
 use std::ptr;
 use std::sync::Mutex;
 
-use lindera::dictionary::load_dictionary;
 use lindera::mode::Mode;
 use lindera::segmenter::Segmenter;
 use lindera::tokenizer::Tokenizer;
+use lindera_dictionary::dictionary::Dictionary;
+use lindera_dictionary::dictionary::character_definition::CharacterDefinition;
+use lindera_dictionary::dictionary::connection_cost_matrix::ConnectionCostMatrix;
+use lindera_dictionary::dictionary::metadata::Metadata;
+use lindera_dictionary::dictionary::prefix_dictionary::PrefixDictionary;
+use lindera_dictionary::dictionary::unknown_dictionary::UnknownDictionary;
 use serde::Serialize;
+
+// Embed zstd-compressed IPADIC dictionary files (compressed at build time by build.rs)
+static CHAR_DEF_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/char_def.bin.zst"));
+static MATRIX_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/matrix.mtx.zst"));
+static DA_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/dict.da.zst"));
+static VALS_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/dict.vals.zst"));
+static WORDS_IDX_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/dict.wordsidx.zst"));
+static WORDS_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/dict.words.zst"));
+static UNK_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/unk.bin.zst"));
+static METADATA_ZST: &[u8] = include_bytes!(concat!(env!("IPADIC_ZSTD_DIR"), "/metadata.json.zst"));
+
+/// Decompress a zstd-compressed byte slice.
+fn decompress(data: &[u8]) -> Vec<u8> {
+    zstd::decode_all(Cursor::new(data)).expect("Failed to decompress zstd data")
+}
+
+/// Load the IPADIC dictionary from zstd-compressed embedded data.
+fn load_compressed_dictionary() -> Result<Dictionary, String> {
+    let metadata_bytes = decompress(METADATA_ZST);
+    let metadata = Metadata::load(&metadata_bytes).map_err(|e| format!("metadata: {e}"))?;
+
+    let da_bytes = decompress(DA_ZST);
+    let vals_bytes = decompress(VALS_ZST);
+    let words_idx_bytes = decompress(WORDS_IDX_ZST);
+    let words_bytes = decompress(WORDS_ZST);
+    let prefix_dictionary =
+        PrefixDictionary::load(da_bytes, vals_bytes, words_idx_bytes, words_bytes, true)
+            .map_err(|e| format!("prefix_dict: {e}"))?;
+
+    let matrix_bytes = decompress(MATRIX_ZST);
+    let connection_cost_matrix =
+        ConnectionCostMatrix::load(matrix_bytes).map_err(|e| format!("matrix: {e}"))?;
+
+    let char_def_bytes = decompress(CHAR_DEF_ZST);
+    let character_definition =
+        CharacterDefinition::load(&char_def_bytes).map_err(|e| format!("char_def: {e}"))?;
+
+    let unk_bytes = decompress(UNK_ZST);
+    let unknown_dictionary =
+        UnknownDictionary::load(&unk_bytes).map_err(|e| format!("unk: {e}"))?;
+
+    Ok(Dictionary {
+        prefix_dictionary,
+        connection_cost_matrix,
+        character_definition,
+        unknown_dictionary,
+        metadata,
+    })
+}
 
 #[derive(Serialize)]
 struct FuriganaToken {
@@ -41,10 +96,11 @@ fn katakana_to_hiragana(text: &str) -> String {
 static TOKENIZER: Mutex<Option<Tokenizer>> = Mutex::new(None);
 
 /// Initialize the Lindera tokenizer with the embedded IPADIC dictionary.
+/// The dictionary is stored zstd-compressed and decompressed at runtime.
 /// Returns 1 on success, 0 on failure.
 #[no_mangle]
 pub extern "C" fn lindera_init() -> i32 {
-    let dictionary = match load_dictionary("embedded://ipadic") {
+    let dictionary = match load_compressed_dictionary() {
         Ok(d) => d,
         Err(_) => return 0,
     };
