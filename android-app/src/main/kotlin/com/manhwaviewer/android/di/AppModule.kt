@@ -17,18 +17,21 @@ import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
+import com.manhwaviewer.data.furigana.LinderaFuriganaAnalyzer
 import com.manhwaviewer.data.translation.PapagoTranslationService
 import com.manhwaviewer.data.repository.PageTranslationCacheRepositoryImpl
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
 import com.manhwaviewer.domain.repository.PageTranslationCacheRepository
 import com.manhwaviewer.domain.repository.CacheRepository
+import com.manhwaviewer.domain.repository.FuriganaAnalyzer
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.OcrRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
 import com.manhwaviewer.domain.repository.TranslationRepository
 import com.manhwaviewer.domain.repository.ViewerPreferenceRepository
 import com.manhwaviewer.domain.usecase.ClearCacheUseCase
+import com.manhwaviewer.domain.usecase.AnalyzeFuriganaUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetCacheSizeUseCase
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
@@ -95,6 +98,7 @@ val appModule = module {
     single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
     single<TranslationRepository> { TranslationRepositoryImpl(get(), get()) }
     single<PageTranslationCacheRepository> { PageTranslationCacheRepositoryImpl(get()) }
+    single<FuriganaAnalyzer> { LinderaFuriganaAnalyzer() }
 
     // UseCases
     factory { GetRecentArchivesUseCase(get()) }
@@ -121,6 +125,7 @@ val appModule = module {
     factory { SavePageOcrCacheUseCase(get()) }
     factory { GetNextArchiveUseCase(get()) }
     factory { GetPreviousArchiveUseCase(get()) }
+    factory { AnalyzeFuriganaUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get(), get()) }
