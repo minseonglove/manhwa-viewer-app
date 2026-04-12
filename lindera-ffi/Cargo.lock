@@ -863,6 +863,7 @@ dependencies = [
 name = "lindera-ffi"
 version = "0.1.0"
 dependencies = [
+ "jni",
  "lindera",
  "serde",
  "serde_json",

@@ -60,3 +60,4 @@ DerivedData/
 .DS_Store
 Thumbs.db
 /.omc/
+lindera-ffi/target/
