@@ -73,6 +73,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.manhwaviewer.domain.entity.BackgroundColor
+import com.manhwaviewer.domain.entity.FuriganaToken
 import com.manhwaviewer.domain.entity.ImageScaleMode
 import com.manhwaviewer.domain.entity.OcrBlock
 import com.manhwaviewer.domain.entity.ReadingDirection
@@ -476,6 +477,7 @@ fun ViewerScreen(
         ) {
             SelectedTranslationBottomSheet(
                 translations = state.selectedBlockTranslations,
+                furiganaMap = state.selectedBlockFurigana,
                 isTranslating = state.isSelectedTranslating,
                 onDismiss = { viewModel.onIntent(ViewerIntent.DismissSelectedTranslation) },
                 hazeState = hazeState,
@@ -1110,6 +1112,7 @@ private fun ImageScaleMode.toContentScale(): ContentScale = when (this) {
 @Composable
 private fun SelectedTranslationBottomSheet(
     translations: List<Pair<String, String>>,
+    furiganaMap: Map<Int, List<FuriganaToken>>,
     isTranslating: Boolean,
     onDismiss: () -> Unit,
     hazeState: HazeState,
@@ -1198,13 +1201,24 @@ private fun SelectedTranslationBottomSheet(
             ) {
                 translations.forEachIndexed { index, (original, translated) ->
                     Column(modifier = Modifier.padding(vertical = 11.dp)) {
-                        Text(
-                            text = original,
-                            color = MangaLensColors.textSecondary,
-                            style = MaterialTheme.typography.labelMedium,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
+                        val tokens = furiganaMap[index]
+                        if (!tokens.isNullOrEmpty()) {
+                            FuriganaText(
+                                tokens = tokens,
+                                baseColor = MangaLensColors.textSecondary,
+                                baseFontSize = 12.sp,
+                                rubyColor = MangaLensColors.textSecondary.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                        } else {
+                            Text(
+                                text = original,
+                                color = MangaLensColors.textSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                        }
                         Text(
                             text = translated,
                             color = Color.White,
