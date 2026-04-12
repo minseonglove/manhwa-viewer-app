@@ -16,32 +16,12 @@ class TextDetectorComparisonTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun comparesCtdVsYoloVsYoloMlKit() = runTest {
+    fun comparesYoloVsYoloMlKit() = runTest {
         val imageBytes = InstrumentationRegistry.getInstrumentation()
             .context.assets.open(TEST_IMAGE).readBytes()
         val fileName = TEST_IMAGE.substringAfterLast("/")
 
-        val mangaOcr = AndroidMangaOcrEngine(context)
-        val paddleOcr = AndroidPaddleOcrRecognizer(context)
-        val mlKit = MlKitTextRecognizer()
-
-        // === 1. CTD pipeline (기존) ===
-        val ctdPipeline = TextDetectionRepositoryImpl(
-            CtdTextDetector(context),
-            verticalOcr = mangaOcr,
-            horizontalOcr = paddleOcr,
-        )
-        val ctdStart = System.currentTimeMillis()
-        val ctdBlocks = ctdPipeline.detectAndRecognize(imageBytes)
-        val ctdElapsed = System.currentTimeMillis() - ctdStart
-
-        Log.d(TAG, "=== CTD Pipeline ($fileName) ===")
-        Log.d(TAG, "Time: ${ctdElapsed}ms | Blocks: ${ctdBlocks.size}")
-        ctdBlocks.forEachIndexed { i, b ->
-            Log.d(TAG, "  [$i] (${b.x},${b.y} ${b.width}x${b.height}) \"${b.text}\"")
-        }
-
-        // === 2. YOLO pipeline (YOLO만) ===
+        // === 1. YOLO pipeline ===
         val yoloPipeline = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
@@ -57,12 +37,12 @@ class TextDetectorComparisonTest {
             Log.d(TAG, "  [$i] (${b.x},${b.y} ${b.width}x${b.height}) \"${b.text}\"")
         }
 
-        // === 3. YOLO + MLKit hybrid pipeline ===
+        // === 2. YOLO + MLKit hybrid pipeline ===
         val hybridPipeline = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
             horizontalOcr = AndroidPaddleOcrRecognizer(context),
-            platformRecognizer = mlKit,
+            platformRecognizer = MlKitTextRecognizer(),
         )
         val hybridStart = System.currentTimeMillis()
         val hybridBlocks = hybridPipeline.detectAndRecognize(imageBytes)
@@ -76,12 +56,10 @@ class TextDetectorComparisonTest {
 
         // === 비교 요약 ===
         Log.d(TAG, "=== COMPARISON SUMMARY ($fileName) ===")
-        Log.d(TAG, "CTD:          ${ctdElapsed}ms, ${ctdBlocks.size} blocks")
         Log.d(TAG, "YOLO:         ${yoloElapsed}ms, ${yoloBlocks.size} blocks")
         Log.d(TAG, "YOLO+MLKit:   ${hybridElapsed}ms, ${hybridBlocks.size} blocks")
         Log.d(TAG, "===================================")
 
-        assertTrue("CTD should detect blocks", ctdBlocks.isNotEmpty())
         assertTrue("YOLO should detect blocks", yoloBlocks.isNotEmpty())
         assertTrue("YOLO+MLKit should detect blocks", hybridBlocks.isNotEmpty())
     }

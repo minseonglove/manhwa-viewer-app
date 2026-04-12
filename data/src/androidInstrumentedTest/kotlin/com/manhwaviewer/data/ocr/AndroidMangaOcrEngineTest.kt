@@ -52,77 +52,27 @@ class AndroidMangaOcrEngineTest {
     }
 
     @Test
-    fun detectsAndRecognizesWithCtd_02() = runTest {
+    fun detectsAndRecognizesWithYolo_02() = runTest {
         runPageOcr("test/05.png")
     }
 
     @Test
-    fun detectsAndRecognizesWithCtd_01() = runTest {
+    fun detectsAndRecognizesWithYolo_01() = runTest {
         runPageOcr("test/06.png")
     }
 
     @Test
-    fun detectsAndRecognizesWithCtd_03() = runTest {
+    fun detectsAndRecognizesWithYolo_03() = runTest {
         runPageOcr("test/07.png")
-    }
-
-    @Test
-    fun comparesMangaOcrVsPaddleOcrOn06() = runTest {
-        val imageBytes = InstrumentationRegistry.getInstrumentation()
-            .context.assets.open("test/06.png").readBytes()
-        Log.d(TAG, "[06.png COMPARE] Image loaded: ${imageBytes.size} bytes")
-
-        // === MangaOCR (CTD + MangaOCR for both)
-        val mangaOcrEngine = AndroidMangaOcrEngine(context)
-        val mangaRepo = TextDetectionRepositoryImpl(
-            CtdTextDetector(context),
-            verticalOcr = mangaOcrEngine,
-            horizontalOcr = mangaOcrEngine,
-        )
-        val mangaStart = System.currentTimeMillis()
-        val mangaBlocks = mangaRepo.detectAndRecognize(imageBytes)
-        val mangaElapsed = System.currentTimeMillis() - mangaStart
-
-        Log.d(TAG, "=== MangaOCR (CTD + MangaOCR) ===")
-        Log.d(TAG, "Total time: ${mangaElapsed}ms | Blocks: ${mangaBlocks.size}")
-        mangaBlocks.forEachIndexed { i, block ->
-            Log.d(TAG, "  [$i] (${block.x},${block.y} ${block.width}x${block.height}) \"${block.text}\"")
-        }
-
-        // === Hybrid: CTD 검출 → 가로는 PaddleOCR, 세로는 MangaOCR ===
-        val paddleRepo = TextDetectionRepositoryImpl(
-            CtdTextDetector(context),
-            verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
-        )
-        val paddleStart = System.currentTimeMillis()
-        val paddleBlocks = paddleRepo.detectAndRecognize(imageBytes)
-        val paddleElapsed = System.currentTimeMillis() - paddleStart
-
-        Log.d(TAG, "=== Hybrid: CTD+MangaOCR(세로) + PaddleOCR(가로) ===")
-        Log.d(TAG, "Total time: ${paddleElapsed}ms | Blocks: ${paddleBlocks.size}")
-        paddleBlocks.forEachIndexed { i, block ->
-            Log.d(TAG, "  [$i] (${block.x},${block.y} ${block.width}x${block.height}) \"${block.text}\"")
-        }
-
-        // === 비교 요약 ===
-        Log.d(TAG, "=== COMPARISON SUMMARY (06.png) ===")
-        Log.d(TAG, "Old (CTD+MangaOCR+MLKit): ${mangaElapsed}ms, ${mangaBlocks.size} blocks")
-        Log.d(TAG, "New (CTD+MangaOCR+PaddleOCR): ${paddleElapsed}ms, ${paddleBlocks.size} blocks")
-        Log.d(TAG, "Speed diff: ${mangaElapsed - paddleElapsed}ms (positive = new faster)")
-        Log.d(TAG, "===================================")
-
-        assertTrue("MangaOCR should detect at least one block", mangaBlocks.isNotEmpty())
-        assertTrue("PaddleOCR should detect at least one block", paddleBlocks.isNotEmpty())
     }
 
     private suspend fun runPageOcr(assetPath: String) {
         val fileName = assetPath.substringAfterLast("/")
         val imageBytes = InstrumentationRegistry.getInstrumentation()
             .context.assets.open(assetPath).readBytes()
-        Log.d(TAG, "[$fileName CTD+OCR] Image loaded: ${imageBytes.size} bytes")
+        Log.d(TAG, "[$fileName YOLO+OCR] Image loaded: ${imageBytes.size} bytes")
 
-        val detector = CtdTextDetector(context)
+        val detector = YoloTextDetector(context)
         val repo = TextDetectionRepositoryImpl(
             detector,
             verticalOcr = AndroidMangaOcrEngine(context),
@@ -133,7 +83,7 @@ class AndroidMangaOcrEngineTest {
         val blocks = repo.detectAndRecognize(imageBytes)
         val elapsed = System.currentTimeMillis() - startTime
 
-        Log.d(TAG, "=== CTD Page OCR ($fileName) ===")
+        Log.d(TAG, "=== YOLO Page OCR ($fileName) ===")
         Log.d(TAG, "Detected ${blocks.size} text blocks in ${elapsed}ms")
         blocks.forEachIndexed { i, block ->
             Log.d(TAG, "  [$i] (${block.x},${block.y} ${block.width}x${block.height}) \"${block.text}\"")
