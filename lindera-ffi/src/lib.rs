@@ -128,3 +128,53 @@ pub extern "C" fn lindera_destroy() {
     let mut guard = TOKENIZER.lock().unwrap();
     *guard = None;
 }
+
+#[cfg(feature = "android")]
+mod android {
+    use super::*;
+    use jni::JNIEnv;
+    use jni::objects::{JObject, JString};
+    use jni::sys::{jint, jstring};
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_manhwaviewer_data_furigana_LinderaFuriganaAnalyzer_nativeInit(
+        _env: JNIEnv,
+        _obj: JObject,
+    ) -> jint {
+        lindera_init()
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_manhwaviewer_data_furigana_LinderaFuriganaAnalyzer_nativeTokenize(
+        mut env: JNIEnv,
+        _obj: JObject,
+        text: JString,
+    ) -> jstring {
+        let input: String = match env.get_string(&text) {
+            Ok(s) => s.into(),
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let c_text = match CString::new(input) {
+            Ok(c) => c,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let result = lindera_tokenize(c_text.as_ptr());
+        if result.is_null() {
+            return std::ptr::null_mut();
+        }
+        let json_str = unsafe { CStr::from_ptr(result) };
+        let output = env
+            .new_string(json_str.to_str().unwrap_or("[]"))
+            .unwrap_or_else(|_| env.new_string("[]").unwrap());
+        unsafe { lindera_free(result) };
+        output.into_raw()
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_manhwaviewer_data_furigana_LinderaFuriganaAnalyzer_nativeDestroy(
+        _env: JNIEnv,
+        _obj: JObject,
+    ) {
+        lindera_destroy();
+    }
+}
