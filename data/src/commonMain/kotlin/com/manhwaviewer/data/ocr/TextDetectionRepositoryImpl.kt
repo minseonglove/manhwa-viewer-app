@@ -15,7 +15,6 @@ import kotlinx.datetime.Clock
 class TextDetectionRepositoryImpl(
     private val textDetector: TextDetector,
     private val verticalOcr: MangaOcrEngine,
-    private val horizontalOcr: MangaOcrEngine,
     private val platformRecognizer: PlatformTextRecognizer? = null,
 ) : TextDetectionRepository {
 

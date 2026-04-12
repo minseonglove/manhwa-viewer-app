@@ -6,7 +6,6 @@ import com.manhwaviewer.data.cache.AndroidCacheRepository
 import com.manhwaviewer.data.db.getDatabaseBuilder
 import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
-import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
 import com.manhwaviewer.data.ocr.ManagedOcrEngine
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.YoloTextDetector
@@ -63,7 +62,6 @@ import com.manhwaviewer.presentation.screen.viewer.ViewerViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
-import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val appModule = module {
@@ -85,14 +83,12 @@ val appModule = module {
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single<CacheRepository> { AndroidCacheRepository(androidContext()) }
-    single<MangaOcrEngine>(named("manga")) { ManagedOcrEngine { AndroidMangaOcrEngine(androidContext()) } }
-    single<MangaOcrEngine>(named("paddle")) { ManagedOcrEngine { AndroidPaddleOcrRecognizer(androidContext()) } }
-    single<OcrRepository> { OcrRepositoryImpl(get(qualifier = named("paddle"))) }
+    single<MangaOcrEngine> { ManagedOcrEngine { AndroidMangaOcrEngine(androidContext()) } }
+    single<OcrRepository> { OcrRepositoryImpl(get()) }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
             YoloTextDetector(androidContext()),
-            verticalOcr = get(qualifier = named("manga")),
-            horizontalOcr = get(qualifier = named("paddle")),
+            verticalOcr = get(),
             platformRecognizer = MlKitTextRecognizer(),
         )
     }

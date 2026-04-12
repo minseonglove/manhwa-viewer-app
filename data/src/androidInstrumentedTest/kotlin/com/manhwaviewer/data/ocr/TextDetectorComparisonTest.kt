@@ -25,7 +25,6 @@ class TextDetectorComparisonTest {
         val yoloPipeline = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
         val yoloStart = System.currentTimeMillis()
         val yoloBlocks = yoloPipeline.detectAndRecognize(imageBytes)
@@ -41,7 +40,6 @@ class TextDetectorComparisonTest {
         val hybridPipeline = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
             platformRecognizer = MlKitTextRecognizer(),
         )
         val hybridStart = System.currentTimeMillis()

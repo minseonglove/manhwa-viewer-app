@@ -76,7 +76,6 @@ class AndroidMangaOcrEngineTest {
         val repo = TextDetectionRepositoryImpl(
             detector,
             verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
 
         val startTime = System.currentTimeMillis()

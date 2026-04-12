@@ -15,7 +15,6 @@ import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.db.TranslationCacheDao
 import com.manhwaviewer.data.db.TranslationCacheEntity
 import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
-import com.manhwaviewer.data.ocr.AndroidPaddleOcrRecognizer
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.YoloTextDetector
 import com.manhwaviewer.data.translation.PapagoTranslationService
@@ -47,7 +46,6 @@ class TranslationOverlayRenderTest {
         val ocrRepo = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
 
         val ocrStart = System.currentTimeMillis()
@@ -125,7 +123,6 @@ class TranslationOverlayRenderTest {
         val ocrRepo = TextDetectionRepositoryImpl(
             YoloTextDetector(context),
             verticalOcr = AndroidMangaOcrEngine(context),
-            horizontalOcr = AndroidPaddleOcrRecognizer(context),
         )
         val translationRepo = TranslationRepositoryImpl(
             papagoService = PapagoTranslationService(
