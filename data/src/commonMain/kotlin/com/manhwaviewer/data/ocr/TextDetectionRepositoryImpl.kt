@@ -70,19 +70,25 @@ class TextDetectionRepositoryImpl(
                 TextBlock(r.x, r.y, r.width, r.height, r.text)
             }
 
-            // 3. YOLO 검출 영역 중 플랫폼 결과와 겹치지 않는 세로 영역만 OCR
+            // 3. YOLO 검출 영역 중 세로 영역만 필터링
             val verticalRegions = allRegions.filter { region ->
                 val isHorizontal = region.height > 0 &&
                     region.width.toFloat() / region.height >= HORIZONTAL_RATIO
-                if (isHorizontal) return@filter false
-
-                // 플랫폼 결과와 겹치는 영역 제외
-                platformBlocks.none { pb -> iou(region, pb) > OVERLAP_IOU_THRESHOLD }
+                !isHorizontal
             }
 
-            println("PageOCR | Vertical OCR targets: ${verticalRegions.size} (skipped ${allRegions.size - verticalRegions.size} horizontal/overlapping)")
+            // 4. 플랫폼(MLKit) 결과 중 YOLO 세로 영역과 겹치는 것 제거 (YOLO 우선)
+            val filteredPlatformBlocks = platformBlocks.filter { pb ->
+                verticalRegions.none { region -> iou(region, pb) > OVERLAP_IOU_THRESHOLD }
+            }
 
-            // 4. 세로 영역만 MangaOCR로 인식
+            val overlappingCount = platformBlocks.size - filteredPlatformBlocks.size
+            println("PageOCR | Vertical OCR targets: ${verticalRegions.size} (skipped ${allRegions.size - verticalRegions.size} horizontal)")
+            if (overlappingCount > 0) {
+                println("PageOCR | Removed $overlappingCount platform result(s) overlapping with YOLO regions")
+            }
+
+            // 5. 세로 영역만 MangaOCR로 인식
             onStageChanged?.invoke(DetectionStage.RECOGNIZING)
 
             val verticalResults = verticalRegions.mapIndexed { i, region ->
@@ -96,8 +102,8 @@ class TextDetectionRepositoryImpl(
                 }
             }
 
-            // 5. 병합, 필터, 정렬
-            val result = (platformBlocks + verticalResults.awaitAll())
+            // 6. 병합, 필터, 정렬
+            val result = (filteredPlatformBlocks + verticalResults.awaitAll())
                 .filter { it.text.containsCjkOrKana() }
                 .sortedWith(compareBy({ it.y }, { it.x }))
             println("PageOCR | Total: ${now() - totalStart}ms (${result.size} blocks)")
