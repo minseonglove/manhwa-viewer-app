@@ -21,6 +21,7 @@ kotlin {
             implementation(projects.domain)
             implementation(projects.data)
             implementation(projects.presentation)
+            implementation(libs.koin.core)
         }
     }
 }
