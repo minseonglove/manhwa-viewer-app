@@ -311,7 +311,7 @@ private fun ContinueReadingHeroCard(
             ) {
                 Text(
                     text = stringResource(Res.string.home_continue_reading),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.textPrimary,
                 )
 
@@ -347,7 +347,7 @@ private fun ContinueReadingHeroCard(
                     )
                     Text(
                         text = "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MangaLensColors.textPrimary,
                         modifier = Modifier
                             .background(
@@ -468,7 +468,7 @@ private fun RecentSectionHeader(onViewAll: () -> Unit) {
     ) {
         Text(
             text = stringResource(Res.string.home_recent_title),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
             color = MangaLensColors.textPrimary,
             modifier = Modifier.weight(1f),
         )
@@ -479,7 +479,7 @@ private fun RecentSectionHeader(onViewAll: () -> Unit) {
         ) {
             Text(
                 text = stringResource(Res.string.home_recent_view_all),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                 color = MangaLensColors.blueHi,
             )
             Icon(
@@ -571,7 +571,7 @@ private fun RecentArchiveItem(
         Spacer(Modifier.height(8.dp))
         Text(
             text = archive.fileName,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MangaLensColors.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -611,12 +611,12 @@ private fun EmptyRecentState() {
             }
             Text(
                 text = stringResource(Res.string.home_recent_empty_title),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = MangaLensColors.textSecondary,
             )
             Text(
                 text = stringResource(Res.string.home_recent_empty_subtitle),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MangaLensColors.textTertiary,
             )
         }
@@ -665,12 +665,12 @@ private fun LandscapeHomeTile(
             ) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MangaLensColors.textTertiary,
                 )
             }
