@@ -29,9 +29,10 @@ class IosCacheRepository(
         if (!fileManager.fileExistsAtPath(coilCachePath)) return 0L
 
         val contents = fileManager.contentsOfDirectoryAtPath(coilCachePath, null) ?: return 0L
+        @Suppress("UNCHECKED_CAST")
+        val contentsList = contents as List<String>
         var totalSize = 0L
-        for (i in 0 until contents.count.toInt()) {
-            val fileName = contents.objectAtIndex(i.toULong()) as String
+        for (fileName in contentsList) {
             val filePath = "$coilCachePath/$fileName"
             val attrs = fileManager.attributesOfItemAtPath(filePath, null) ?: continue
             val fileSize = attrs["NSFileSize"] as? Long ?: 0L

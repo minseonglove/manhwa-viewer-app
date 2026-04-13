@@ -61,3 +61,9 @@ DerivedData/
 Thumbs.db
 /.omc/
 lindera-ffi/target/
+
+# Native library build artifacts (regenerate via build scripts)
+libs/lindera/LinderaFFI.xcframework/
+libs/lindera/liblindera_ffi_sim.a
+libs/lindera/lindera_ffi.h
+libs/onnxruntime/

@@ -247,9 +247,18 @@ private fun SettingsClickable(
 private fun formatFileSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val kb = bytes / 1024.0
-    if (kb < 1024) return "%.1f KB".format(kb)
+    if (kb < 1024) return "${formatOneDecimal(kb)} KB"
     val mb = kb / 1024.0
-    if (mb < 1024) return "%.1f MB".format(mb)
+    if (mb < 1024) return "${formatOneDecimal(mb)} MB"
     val gb = mb / 1024.0
-    return "%.1f GB".format(gb)
+    return "${formatOneDecimal(gb)} GB"
+}
+
+private fun formatOneDecimal(value: Double): String {
+    val rounded = kotlin.math.round(value * 10) / 10.0
+    val s = rounded.toString()
+    val dotIndex = s.indexOf('.')
+    return if (dotIndex < 0) "$s.0"
+    else if (s.length - dotIndex - 1 >= 1) s.substring(0, dotIndex + 2)
+    else "${s}0"
 }

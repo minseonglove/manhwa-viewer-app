@@ -1,7 +1,17 @@
 package com.manhwaviewer.data.ocr
 
+import cnames.structs.OrtEnv
+import cnames.structs.OrtMemoryInfo
+import cnames.structs.OrtSession
+import cnames.structs.OrtSessionOptions
+import cnames.structs.OrtStatus
+import cnames.structs.OrtTensorTypeAndShapeInfo
+import cnames.structs.OrtValue
 import kotlinx.cinterop.*
 import onnxruntime.*
+import onnxruntime.ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16
+import onnxruntime.ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64
+import onnxruntime.ORT_LOGGING_LEVEL_WARNING
 import platform.CoreGraphics.*
 import platform.Foundation.*
 import platform.UIKit.UIImage
@@ -133,7 +143,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
 
     private fun runEncoder(pixelValues: ShortArray): ShortArray = memScoped {
         val size = MangaOcrConfig.IMAGE_SIZE
-        val shape = allocArrayOf(1L, 3L, size.toLong(), size.toLong())
+        val shape = cValuesOf(1L, 3L, size.toLong(), size.toLong()).getPointer(this)
         val inputTensor = createHalfTensor(pixelValues, shape, 4)
 
         val inputName = allocArrayOf("pixel_values".cstr.ptr)
@@ -156,11 +166,11 @@ class IosMangaOcrEngine : MangaOcrEngine {
     }
 
     private fun decode(encoderOutput: ShortArray): List<Int> = memScoped {
-        val encoderShape = allocArrayOf(
+        val encoderShape = cValuesOf(
             1L,
             MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(),
             MangaOcrConfig.ENCODER_HIDDEN_SIZE.toLong(),
-        )
+        ).getPointer(this)
         val encoderTensor = createHalfTensor(encoderOutput, encoderShape, 3)
 
         try {
@@ -184,7 +194,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
         encoderOrtValue: CPointer<OrtValue>,
     ): FloatArray = memScoped {
         val longIds = LongArray(seqLen) { inputIds[it].toLong() }
-        val inputIdsShape = allocArrayOf(1L, seqLen.toLong())
+        val inputIdsShape = cValuesOf(1L, seqLen.toLong()).getPointer(this)
         val inputIdsTensor = createLongTensorSlice(longIds, seqLen, inputIdsShape, 2)
 
         val inputNames = allocArrayOf(

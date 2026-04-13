@@ -6,6 +6,10 @@ import platform.Foundation.*
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
 import platform.Vision.*
+import platform.CoreGraphics.CGRectGetMinX
+import platform.CoreGraphics.CGRectGetMinY
+import platform.CoreGraphics.CGRectGetWidth
+import platform.CoreGraphics.CGRectGetHeight
 
 class VisionTextDetector : TextDetector {
 
@@ -24,10 +28,10 @@ class VisionTextDetector : TextDetector {
         return observations.mapNotNull { observation ->
             val bbox = observation.boundingBox
             // Vision bbox는 좌하단 원점 + 정규화 좌표 → 좌상단 원점 픽셀 좌표로 변환
-            val x = (bbox.origin.x * imageWidth).toInt().coerceAtLeast(0)
-            val y = ((1.0 - bbox.origin.y - bbox.size.height) * imageHeight).toInt().coerceAtLeast(0)
-            val w = (bbox.size.width * imageWidth).toInt().coerceAtMost(imageWidth - x)
-            val h = (bbox.size.height * imageHeight).toInt().coerceAtMost(imageHeight - y)
+            val x = (CGRectGetMinX(bbox) * imageWidth).toInt().coerceAtLeast(0)
+            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imageHeight).toInt().coerceAtLeast(0)
+            val w = (CGRectGetWidth(bbox) * imageWidth).toInt().coerceAtMost(imageWidth - x)
+            val h = (CGRectGetHeight(bbox) * imageHeight).toInt().coerceAtMost(imageHeight - y)
             if (w <= 0 || h <= 0) return@mapNotNull null
 
             val croppedCgImage = CGImageCreateWithImageInRect(
@@ -57,8 +61,8 @@ class VisionTextDetector : TextDetector {
         request.setRecognitionLanguages(listOf("ja"))
         request.setRecognitionLevel(VNRequestTextRecognitionLevelAccurate)
 
-        val handler = VNImageRequestHandler(cgImage, NSDictionary())
-        handler.performRequests(listOf(request), null)
+        val handler = VNImageRequestHandler(cGImage = cgImage, options = emptyMap<Any?, Any>())
+        handler.performRequests(listOf(request), error = null)
 
         return results
     }

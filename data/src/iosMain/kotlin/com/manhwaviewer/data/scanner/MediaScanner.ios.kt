@@ -6,6 +6,7 @@ import kotlinx.cinterop.BooleanVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.value
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import platform.Foundation.NSDate
@@ -27,8 +28,9 @@ actual class MediaScanner {
 
         val results = mutableListOf<ArchiveFile>()
 
-        for (i in 0 until contents.count.toInt()) {
-            val name = contents.objectAtIndex(i.toULong()) as? String ?: continue
+        @Suppress("UNCHECKED_CAST")
+        val contentsList = contents as List<String>
+        for (name in contentsList) {
             val fullPath = "$directoryPath/$name"
 
             var isDir = false
@@ -115,9 +117,10 @@ actual class MediaScanner {
     private fun countImages(folderPath: String): Int {
         val contents = NSFileManager.defaultManager.contentsOfDirectoryAtPath(folderPath, error = null)
             ?: return 0
+        @Suppress("UNCHECKED_CAST")
+        val contentsList = contents as List<String>
         var count = 0
-        for (i in 0 until contents.count.toInt()) {
-            val name = contents.objectAtIndex(i.toULong()) as? String ?: continue
+        for (name in contentsList) {
             val ext = name.substringAfterLast('.', "").lowercase()
             if (ext in imageExtensions) count++
         }

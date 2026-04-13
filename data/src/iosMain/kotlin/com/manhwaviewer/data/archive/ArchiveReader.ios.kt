@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.archive
 
+import cnames.structs.archive_entry
 import kotlinx.cinterop.*
 import libarchive.*
 import platform.Foundation.NSDate
@@ -83,13 +84,14 @@ actual class ArchiveReader actual constructor() {
                         val size = archive_entry_size(entry)
                         if (size > 0) {
                             val buf = malloc(size.toULong()) ?: break
+                            val typedBuf = buf.reinterpret<ByteVar>()
                             var totalRead = 0L
                             while (totalRead < size) {
-                                val r = archive_read_data(a, buf + totalRead, (size - totalRead).toULong())
+                                val r = archive_read_data(a, typedBuf + totalRead, (size - totalRead).toULong())
                                 if (r <= 0) break
                                 totalRead += r
                             }
-                            result = buf.readBytes(totalRead.toInt())
+                            result = typedBuf.readBytes(totalRead.toInt())
                             free(buf)
                         }
                         break
@@ -151,8 +153,8 @@ actual class ArchiveReader actual constructor() {
         val fileManager = NSFileManager.defaultManager
         val contents = fileManager.contentsOfDirectoryAtPath(folderPath, error = null) ?: return emptyList()
 
-        val imageNames = (0 until contents.count.toInt())
-            .mapNotNull { contents.objectAtIndex(it.toULong()) as? String }
+        @Suppress("UNCHECKED_CAST")
+        val imageNames = (contents as List<String>)
             .filter { isImageFile(it) }
 
         val sorted = if (sortByDate) {
@@ -172,8 +174,8 @@ actual class ArchiveReader actual constructor() {
         val fileManager = NSFileManager.defaultManager
         val contents = fileManager.contentsOfDirectoryAtPath(folderPath, error = null) ?: return emptyList()
 
-        return (0 until contents.count.toInt())
-            .mapNotNull { contents.objectAtIndex(it.toULong()) as? String }
+        @Suppress("UNCHECKED_CAST")
+        return (contents as List<String>)
             .filter { isImageFile(it) }
             .sorted()
     }

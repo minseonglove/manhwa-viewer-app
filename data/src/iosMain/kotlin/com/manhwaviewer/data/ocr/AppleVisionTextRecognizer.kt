@@ -2,6 +2,10 @@ package com.manhwaviewer.data.ocr
 
 import kotlinx.cinterop.*
 import platform.CoreGraphics.*
+import platform.CoreGraphics.CGRectGetMinX
+import platform.CoreGraphics.CGRectGetMinY
+import platform.CoreGraphics.CGRectGetWidth
+import platform.CoreGraphics.CGRectGetHeight
 import platform.Foundation.*
 import platform.UIKit.UIImage
 import platform.Vision.*
@@ -32,10 +36,10 @@ class AppleVisionTextRecognizer : PlatformTextRecognizer {
 
         return observations.mapNotNull { obs ->
             val bbox = obs.boundingBox
-            val x = (bbox.origin.x * imgW).toInt().coerceAtLeast(0)
-            val y = ((1.0 - bbox.origin.y - bbox.size.height) * imgH).toInt().coerceAtLeast(0)
-            val w = (bbox.size.width * imgW).toInt().coerceAtMost(imgW - x)
-            val h = (bbox.size.height * imgH).toInt().coerceAtMost(imgH - y)
+            val x = (CGRectGetMinX(bbox) * imgW).toInt().coerceAtLeast(0)
+            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imgH).toInt().coerceAtLeast(0)
+            val w = (CGRectGetWidth(bbox) * imgW).toInt().coerceAtMost(imgW - x)
+            val h = (CGRectGetHeight(bbox) * imgH).toInt().coerceAtMost(imgH - y)
 
             if (h <= 0 || w.toFloat() / h < WIDE_RATIO_THRESHOLD) return@mapNotNull null
 
@@ -64,8 +68,8 @@ class AppleVisionTextRecognizer : PlatformTextRecognizer {
         request.setRecognitionLanguages(listOf("ja", "en"))
         request.setRecognitionLevel(VNRequestTextRecognitionLevelAccurate)
 
-        val handler = VNImageRequestHandler(cgImage, NSDictionary())
-        handler.performRequests(listOf(request), null)
+        val handler = VNImageRequestHandler(cGImage = cgImage, options = emptyMap<Any?, Any>())
+        handler.performRequests(listOf(request), error = null)
 
         return results
     }

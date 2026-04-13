@@ -1,6 +1,2 @@
 headers = lindera_ffi.h
 headerFilter = lindera_ffi.h
-staticLibraries = liblindera_ffi.a
-libraryPaths.ios_arm64 = ../../libs/lindera/LinderaFFI.xcframework/ios-arm64
-libraryPaths.ios_x64 = ../../libs/lindera/LinderaFFI.xcframework/ios-arm64_x86_64-simulator
-libraryPaths.ios_simulator_arm64 = ../../libs/lindera/LinderaFFI.xcframework/ios-arm64_x86_64-simulator

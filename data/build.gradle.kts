@@ -7,17 +7,26 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        optIn.addAll("kotlinx.cinterop.ExperimentalForeignApi", "kotlinx.cinterop.BetaInteropApi")
+    }
     androidTarget {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
 
+    val xcfBase = "${project.rootDir}/libs/lindera/LinderaFFI.xcframework"
     listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+        val linderaLibPath = when (target.name) {
+            "iosArm64" -> "$xcfBase/ios-arm64"
+            else -> "$xcfBase/ios-arm64_x86_64-simulator"
+        }
         target.compilations.getByName("main") {
             cinterops {
                 create("libarchive") {
                     defFile = file("src/nativeInterop/cinterop/libarchive.def")
+                    compilerOpts("-I${project.rootDir}/libs/libarchive/libarchive")
                 }
                 create("onnxruntime") {
                     defFile = file("src/nativeInterop/cinterop/onnxruntime.def")
@@ -26,6 +35,7 @@ kotlin {
                 create("lindera") {
                     defFile = file("src/nativeInterop/cinterop/lindera.def")
                     compilerOpts("-I${project.rootDir}/libs/lindera")
+                    extraOpts("-libraryPath", linderaLibPath)
                 }
             }
         }

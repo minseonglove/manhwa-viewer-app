@@ -11,7 +11,7 @@ import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 class ImageGalleryViewModel(
     getDeviceImagesUseCase: GetDeviceImagesUseCase,
@@ -61,7 +61,9 @@ class ImageGalleryViewModel(
                 type = ArchiveType.FOLDER,
                 totalPages = entries.size,
                 lastReadIndex = pageIndex,
-                addedAt = Clock.System.now(),
+                addedAt = Instant.fromEpochMilliseconds(
+                    kotlin.time.Clock.System.now().toEpochMilliseconds()
+                ),
                 hasImages = true,
             )
             val id = upsertArchiveUseCase(archive)

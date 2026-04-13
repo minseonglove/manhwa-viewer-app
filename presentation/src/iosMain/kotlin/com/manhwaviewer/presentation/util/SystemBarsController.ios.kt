@@ -1,16 +1,10 @@
 package com.manhwaviewer.presentation.util
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import platform.UIKit.UIApplication
 
 @Composable
 actual fun SystemBarsVisibility(visible: Boolean) {
-    DisposableEffect(visible) {
-        UIApplication.sharedApplication.setStatusBarHidden(!visible, animated = true)
-
-        onDispose {
-            UIApplication.sharedApplication.setStatusBarHidden(false, animated = false)
-        }
-    }
+    // iOS에서는 상태바 제어가 UIViewController.prefersStatusBarHidden 으로 관리됨.
+    // ComposeUIViewController에서 직접 제어할 수 없으므로 현재는 no-op.
+    // TODO: ComposeUIViewController 래퍼에서 prefersStatusBarHidden override 구현
 }

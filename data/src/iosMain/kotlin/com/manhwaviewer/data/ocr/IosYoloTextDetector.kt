@@ -1,7 +1,15 @@
 package com.manhwaviewer.data.ocr
 
+import cnames.structs.OrtEnv
+import cnames.structs.OrtMemoryInfo
+import cnames.structs.OrtSession
+import cnames.structs.OrtSessionOptions
+import cnames.structs.OrtStatus
+import cnames.structs.OrtValue
 import kotlinx.cinterop.*
 import onnxruntime.*
+import onnxruntime.ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+import onnxruntime.ORT_LOGGING_LEVEL_WARNING
 import platform.CoreGraphics.*
 import platform.Foundation.*
 import platform.UIKit.UIImage
@@ -154,7 +162,7 @@ class IosYoloTextDetector : TextDetector {
     }
 
     private fun runInference(pixelData: FloatArray, inputSize: Int): FloatArray = memScoped {
-        val shape = allocArrayOf(1L, 3L, inputSize.toLong(), inputSize.toLong())
+        val shape = cValuesOf(1L, 3L, inputSize.toLong(), inputSize.toLong()).getPointer(this)
 
         val memInfoPtr = alloc<CPointerVar<OrtMemoryInfo>>()
         checkStatus(

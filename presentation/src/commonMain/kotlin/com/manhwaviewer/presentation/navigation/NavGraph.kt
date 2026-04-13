@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 
+import androidx.savedstate.read
 import com.manhwaviewer.presentation.screen.home.HomeScreen
 import com.manhwaviewer.presentation.screen.settings.SettingsScreen
 import com.manhwaviewer.presentation.screen.viewer.ViewerScreen
@@ -67,12 +68,13 @@ fun NavGraph(navController: NavHostController) {
                 slideOutHorizontally { it }
             },
         ) { backStackEntry ->
-            val archiveId = backStackEntry.arguments?.getLong("archiveId")
+            val args = backStackEntry.arguments
+            val archiveId = args?.read { getLong("archiveId") }
                 ?.takeIf { it > 0L }
                 ?: run { navController.popBackStack(); return@composable }
-            val startPage = backStackEntry.arguments?.getInt("startPage") ?: 0
-            val sortByDate = backStackEntry.arguments?.getBoolean("sortByDate") ?: false
-            val sortAscending = backStackEntry.arguments?.getBoolean("sortAscending") ?: true
+            val startPage = args?.read { getIntOrNull("startPage") } ?: 0
+            val sortByDate = args?.read { getBooleanOrNull("sortByDate") } ?: false
+            val sortAscending = args?.read { getBooleanOrNull("sortAscending") } ?: true
             ViewerScreen(
                 archiveId = archiveId,
                 startPage = startPage,
