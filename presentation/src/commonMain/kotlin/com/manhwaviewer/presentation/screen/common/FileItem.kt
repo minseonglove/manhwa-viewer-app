@@ -1,15 +1,24 @@
 package com.manhwaviewer.presentation.screen.common
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -17,10 +26,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +50,8 @@ import manhwa_viewer.presentation.generated.resources.file_type_has_images
 import manhwa_viewer.presentation.generated.resources.file_type_image
 import manhwa_viewer.presentation.generated.resources.file_type_zip
 import manhwa_viewer.presentation.generated.resources.ic_archive
+import manhwa_viewer.presentation.generated.resources.ic_check_off
+import manhwa_viewer.presentation.generated.resources.ic_check_on
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_file_folder
 import manhwa_viewer.presentation.generated.resources.ic_image_gallery
@@ -51,16 +64,19 @@ fun ArchiveFile.displayName(): String = when (type) {
     else -> fileName
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileItem(
     archive: ArchiveFile,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
     showFileType: Boolean = true,
     showFolderCover: Boolean = false,
     showLockBadge: Boolean = false,
     insideArchive: Boolean = false,
+    leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -68,11 +84,23 @@ fun FileItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .then(
+                    if (onLongClick != null) {
+                        Modifier.combinedClickable(
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                        )
+                    } else {
+                        Modifier.clickable(onClick = onClick)
+                    },
+                )
                 .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (leadingContent != null) {
+                leadingContent()
+            }
+
             // Icon area (48x48) with optional lock badge
             Box {
                 FileIconArea(archive, coverModel, showFolderCover)
@@ -80,6 +108,8 @@ fun FileItem(
                     LockBadge(modifier = Modifier.align(Alignment.BottomEnd))
                 }
             }
+
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -124,8 +154,10 @@ fun FileItem(
 
             // Trailing content: custom or default
             if (trailingContent != null) {
+                Spacer(modifier = Modifier.width(14.dp))
                 trailingContent()
             } else if (archive.type == ArchiveType.FOLDER) {
+                Spacer(modifier = Modifier.width(14.dp))
                 Icon(
                     painter = painterResource(Res.drawable.ic_chevron_right),
                     contentDescription = null,
@@ -257,18 +289,31 @@ private fun LockBadge(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileGridItem(
     archive: ArchiveFile,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     coverModel: ViewerPageModel? = null,
     showLockBadge: Boolean = false,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                },
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -352,6 +397,29 @@ fun FileGridItem(
             if (showLockBadge) {
                 LockBadge(modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp))
             }
+
+            // Selection checkbox (top-start)
+            val checkboxScale by animateFloatAsState(
+                targetValue = if (isSelectionMode) 1f else 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                ),
+            )
+            if (checkboxScale > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .graphicsLayer {
+                            scaleX = checkboxScale
+                            scaleY = checkboxScale
+                            alpha = checkboxScale
+                        },
+                ) {
+                    GridSelectionCheckbox(isSelected = isSelected)
+                }
+            }
         }
 
         Text(
@@ -363,6 +431,18 @@ fun FileGridItem(
             modifier = Modifier.padding(top = 4.dp),
         )
     }
+}
+
+@Composable
+private fun GridSelectionCheckbox(isSelected: Boolean) {
+    Icon(
+        painter = painterResource(
+            if (isSelected) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
+        ),
+        contentDescription = null,
+        tint = if (isSelected) Color.Unspecified else Color.White.copy(alpha = 0.5f),
+        modifier = Modifier.size(22.dp),
+    )
 }
 
 @Composable
