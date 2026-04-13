@@ -427,6 +427,7 @@ private fun ShortcutGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -436,7 +437,7 @@ private fun ShortcutGrid(
             subtitle = stringResource(Res.string.home_shortcut_files_sub),
             iconBackgroundColor = MangaLensColors.tileBlue,
             onClick = onNavigateToFiles,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         HomeTile(
             icon = Res.drawable.ic_image_home,
@@ -444,7 +445,7 @@ private fun ShortcutGrid(
             subtitle = stringResource(Res.string.home_shortcut_images_count, state.imageCount),
             iconBackgroundColor = MangaLensColors.tileGreen,
             onClick = onNavigateToImages,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         HomeTile(
             icon = Res.drawable.ic_lock_home,
@@ -452,7 +453,7 @@ private fun ShortcutGrid(
             subtitle = stringResource(Res.string.home_shortcut_vault_sub),
             iconBackgroundColor = MangaLensColors.tilePurple,
             onClick = onNavigateToVault,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
 }

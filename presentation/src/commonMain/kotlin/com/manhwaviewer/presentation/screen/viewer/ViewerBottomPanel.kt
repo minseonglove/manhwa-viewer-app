@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -844,12 +845,15 @@ private fun TranslationModeButtons(
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
     ) {
         modes.forEach { (mode, label) ->
             val isActive = mode == currentMode
             Box(
                 modifier = Modifier
+                    .fillMaxHeight()
                     .weight(1f)
                     .background(
                         color = if (isActive) MangaLensColors.blueActiveBg else MangaLensColors.fillTertiary,
@@ -865,10 +869,12 @@ private fun TranslationModeButtons(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
+                    modifier = Modifier.align(Alignment.Center),
                     text = label,
                     color = if (isActive) BlueHi else T2,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -956,6 +962,7 @@ private fun SegmentedControl(
 ) {
     Row(
         modifier = modifier
+            .height(IntrinsicSize.Min)
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .background(SegBg, RoundedCornerShape(10.dp))
             .padding(2.dp),
@@ -964,6 +971,7 @@ private fun SegmentedControl(
             val isSelected = index == selectedIndex
             Box(
                 modifier = Modifier
+                    .fillMaxHeight()
                     .then(if (fullWidth) Modifier.weight(1f) else Modifier)
                     .background(
                         color = if (isSelected) SegActive else Color.Transparent,
