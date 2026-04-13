@@ -61,13 +61,57 @@ class FileBrowserViewModel(
             FileBrowserIntent.GoBack -> goBack()
             FileBrowserIntent.GoHome -> navigateToFolder(defaultScanPath)
             is FileBrowserIntent.GoToSegment -> goToSegment(intent.index)
+            is FileBrowserIntent.EnterSelectionMode -> enterSelectionMode(intent.file)
+            is FileBrowserIntent.ToggleSelection -> toggleSelection(intent.file)
+            FileBrowserIntent.ToggleSelectAll -> toggleSelectAll()
+            FileBrowserIntent.ExitSelectionMode -> updateState {
+                copy(isSelectionMode = false, selectedFileKeys = emptySet())
+            }
+            FileBrowserIntent.MoveSelected -> { /* TODO: 선택 항목 이동 */ }
+            FileBrowserIntent.VaultSelected -> { /* TODO: 선택 항목 보관함 이동 */ }
+            FileBrowserIntent.DeleteSelected -> { /* TODO: 선택 항목 삭제 */ }
+            FileBrowserIntent.RenameSelected -> { /* TODO: 선택 항목 이름 변경 */ }
+        }
+    }
+
+    private fun fileKey(file: ArchiveFile): String = "${file.filePath}/${file.fileName}"
+
+    private fun enterSelectionMode(file: ArchiveFile) {
+        updateState {
+            copy(
+                isSelectionMode = true,
+                selectedFileKeys = setOf(fileKey(file)),
+            )
+        }
+    }
+
+    private fun toggleSelection(file: ArchiveFile) {
+        updateState {
+            val key = fileKey(file)
+            val newSelected = if (key in selectedFileKeys) {
+                selectedFileKeys - key
+            } else {
+                selectedFileKeys + key
+            }
+            copy(selectedFileKeys = newSelected)
+        }
+    }
+
+    private fun toggleSelectAll() {
+        updateState {
+            val allKeys = files.map { fileKey(it) }.toSet()
+            if (selectedFileKeys == allKeys) {
+                copy(selectedFileKeys = emptySet())
+            } else {
+                copy(selectedFileKeys = allKeys)
+            }
         }
     }
 
     private fun navigateToFolder(path: String, direction: NavigationDirection = NavigationDirection.FORWARD) {
         coverLoadJob?.cancel()
         viewModelScope.launch {
-            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction, coverModels = emptyMap()) }
+            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction, coverModels = emptyMap(), isSelectionMode = false, selectedFileKeys = emptySet()) }
             try {
                 val ext = path.substringAfterLast('.').lowercase()
                 val isArchive = ext in archiveExtensions

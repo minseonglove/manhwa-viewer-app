@@ -15,6 +15,8 @@ data class FileBrowserState(
     val navigationDirection: NavigationDirection = NavigationDirection.FORWARD,
     val insideArchivePath: String? = null,
     val coverModels: Map<String, ViewerPageModel> = emptyMap(),
+    val isSelectionMode: Boolean = false,
+    val selectedFileKeys: Set<String> = emptySet(),
 )
 
 sealed interface FileBrowserIntent {
@@ -27,6 +29,14 @@ sealed interface FileBrowserIntent {
     data object GoBack : FileBrowserIntent
     data object GoHome : FileBrowserIntent
     data class GoToSegment(val index: Int) : FileBrowserIntent
+    data class EnterSelectionMode(val file: ArchiveFile) : FileBrowserIntent
+    data class ToggleSelection(val file: ArchiveFile) : FileBrowserIntent
+    data object ToggleSelectAll : FileBrowserIntent
+    data object ExitSelectionMode : FileBrowserIntent
+    data object MoveSelected : FileBrowserIntent
+    data object VaultSelected : FileBrowserIntent
+    data object DeleteSelected : FileBrowserIntent
+    data object RenameSelected : FileBrowserIntent
 }
 
 sealed interface FileBrowserSideEffect {

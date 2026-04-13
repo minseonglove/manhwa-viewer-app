@@ -41,6 +41,7 @@ fun SubHeader(
     onToggleDirection: () -> Unit = {},
     onToggleViewMode: () -> Unit = {},
     trailingActions: (@Composable RowScope.() -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -54,7 +55,9 @@ fun SubHeader(
                 )
             },
             navigationIcon = {
-                if (onBack != null) {
+                if (leadingContent != null) {
+                    leadingContent()
+                } else if (onBack != null) {
                     Row(
                         modifier = Modifier.clickable(onClick = onBack),
                         verticalAlignment = Alignment.CenterVertically,
