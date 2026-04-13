@@ -39,7 +39,7 @@ class AndroidMangaOcrEngine(
         resized.recycle()
 
         val encoderOutput = runEncoder(pixelValues)
-        val tokenIds = greedyDecode(encoderOutput)
+        val tokenIds = decode(encoderOutput)
         return tokenizer.decode(tokenIds)
     }
 
@@ -105,7 +105,7 @@ class AndroidMangaOcrEngine(
         return output
     }
 
-    private fun greedyDecode(encoderOutput: ByteBuffer): List<Int> {
+    private fun decode(encoderOutput: ByteBuffer): List<Int> {
         val env = ortEnv!!
         val encoderShape = longArrayOf(
             1,
@@ -114,49 +114,51 @@ class AndroidMangaOcrEngine(
         )
         val encoderTensor = OnnxTensor.createTensor(env, encoderOutput, encoderShape, OnnxJavaType.FLOAT16)
 
-        val inputIds = LongArray(MangaOcrConfig.MAX_LENGTH + 1)
-        inputIds[0] = MangaOcrConfig.DECODER_START_TOKEN_ID.toLong()
-        var seqLen = 1
-
         try {
-            for (step in 0 until MangaOcrConfig.MAX_LENGTH) {
-                val inputIdsTensor = OnnxTensor.createTensor(
-                    env,
-                    LongBuffer.wrap(inputIds, 0, seqLen),
-                    longArrayOf(1, seqLen.toLong()),
-                )
-                val results = decoderSession!!.run(
-                    mapOf(
-                        "input_ids" to inputIdsTensor,
-                        "encoder_hidden_states" to encoderTensor,
-                    )
-                )
-
-                val logitsTensor = results.get(0) as OnnxTensor
-                val logitsShort = logitsTensor.shortBuffer
-                val lastPosOffset = (seqLen - 1) * MangaOcrConfig.VOCAB_SIZE
-
-                var maxIdx = 0
-                var maxVal = halfToFloat(logitsShort.get(lastPosOffset))
-                for (i in 1 until MangaOcrConfig.VOCAB_SIZE) {
-                    val v = halfToFloat(logitsShort.get(lastPosOffset + i))
-                    if (v > maxVal) {
-                        maxVal = v
-                        maxIdx = i
-                    }
-                }
-
-                results.close()
-                inputIdsTensor.close()
-
-                if (maxIdx == MangaOcrConfig.EOS_TOKEN_ID) break
-                inputIds[seqLen++] = maxIdx.toLong()
+            return beamSearchDecode(
+                beamWidth = MangaOcrConfig.BEAM_WIDTH,
+                maxLength = MangaOcrConfig.MAX_LENGTH,
+                vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+            ) { inputIds, seqLen ->
+                runDecoderStep(inputIds, seqLen, encoderTensor)
             }
         } finally {
             encoderTensor.close()
         }
+    }
 
-        return (0 until seqLen).map { inputIds[it].toInt() }
+    private fun runDecoderStep(
+        inputIds: IntArray,
+        seqLen: Int,
+        encoderTensor: OnnxTensor,
+    ): FloatArray {
+        val env = ortEnv!!
+        val longIds = LongArray(seqLen) { inputIds[it].toLong() }
+        val inputIdsTensor = OnnxTensor.createTensor(
+            env,
+            LongBuffer.wrap(longIds),
+            longArrayOf(1, seqLen.toLong()),
+        )
+        val results = decoderSession!!.run(
+            mapOf(
+                "input_ids" to inputIdsTensor,
+                "encoder_hidden_states" to encoderTensor,
+            )
+        )
+
+        val logitsTensor = results.get(0) as OnnxTensor
+        val logitsShort = logitsTensor.shortBuffer
+        val lastPosOffset = (seqLen - 1) * MangaOcrConfig.VOCAB_SIZE
+
+        val logits = FloatArray(MangaOcrConfig.VOCAB_SIZE) { i ->
+            halfToFloat(logitsShort.get(lastPosOffset + i))
+        }
+
+        results.close()
+        inputIdsTensor.close()
+        return logits
     }
 
     private fun resizeWithPadding(bitmap: Bitmap, targetSize: Int): Bitmap {

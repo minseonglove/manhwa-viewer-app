@@ -23,7 +23,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
 
         val pixelValues = decodeAndPreprocessImage(imageBytes)
         val encoderOutput = runEncoder(pixelValues)
-        val tokenIds = greedyDecode(encoderOutput)
+        val tokenIds = decode(encoderOutput)
         return tokenizer.decode(tokenIds)
     }
 
@@ -155,7 +155,7 @@ class IosMangaOcrEngine : MangaOcrEngine {
         output
     }
 
-    private fun greedyDecode(encoderOutput: ShortArray): List<Int> = memScoped {
+    private fun decode(encoderOutput: ShortArray): List<Int> = memScoped {
         val encoderShape = allocArrayOf(
             1L,
             MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(),
@@ -163,30 +163,29 @@ class IosMangaOcrEngine : MangaOcrEngine {
         )
         val encoderTensor = createHalfTensor(encoderOutput, encoderShape, 3)
 
-        val inputIds = LongArray(MangaOcrConfig.MAX_LENGTH + 1)
-        inputIds[0] = MangaOcrConfig.DECODER_START_TOKEN_ID.toLong()
-        var seqLen = 1
-
         try {
-            for (step in 0 until MangaOcrConfig.MAX_LENGTH) {
-                val maxIdx = runDecoderStep(inputIds, seqLen, encoderTensor.value!!)
-                if (maxIdx == MangaOcrConfig.EOS_TOKEN_ID) break
-                inputIds[seqLen++] = maxIdx.toLong()
+            beamSearchDecode(
+                beamWidth = MangaOcrConfig.BEAM_WIDTH,
+                maxLength = MangaOcrConfig.MAX_LENGTH,
+                vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+            ) { inputIds, seqLen ->
+                runDecoderStep(inputIds, seqLen, encoderTensor.value!!)
             }
         } finally {
             api!!.pointed.ReleaseValue!!(encoderTensor.value)
         }
-
-        (0 until seqLen).map { inputIds[it].toInt() }
     }
 
     private fun runDecoderStep(
-        inputIds: LongArray,
+        inputIds: IntArray,
         seqLen: Int,
         encoderOrtValue: CPointer<OrtValue>,
-    ): Int = memScoped {
+    ): FloatArray = memScoped {
+        val longIds = LongArray(seqLen) { inputIds[it].toLong() }
         val inputIdsShape = allocArrayOf(1L, seqLen.toLong())
-        val inputIdsTensor = createLongTensorSlice(inputIds, seqLen, inputIdsShape, 2)
+        val inputIdsTensor = createLongTensorSlice(longIds, seqLen, inputIdsShape, 2)
 
         val inputNames = allocArrayOf(
             "input_ids".cstr.ptr,
@@ -210,19 +209,13 @@ class IosMangaOcrEngine : MangaOcrEngine {
         val shortPtr = dataPtr.value!!.reinterpret<ShortVar>()
         val offset = (seqLen - 1) * MangaOcrConfig.VOCAB_SIZE
 
-        var maxIdx = 0
-        var maxVal = halfToFloat(shortPtr[offset])
-        for (i in 1 until MangaOcrConfig.VOCAB_SIZE) {
-            val v = halfToFloat(shortPtr[offset + i])
-            if (v > maxVal) {
-                maxVal = v
-                maxIdx = i
-            }
+        val logits = FloatArray(MangaOcrConfig.VOCAB_SIZE) { i ->
+            halfToFloat(shortPtr[offset + i])
         }
 
         api!!.pointed.ReleaseValue!!(inputIdsTensor.value)
         api!!.pointed.ReleaseValue!!(outputTensorPtr.value)
-        maxIdx
+        logits
     }
 
     private fun MemScope.createHalfTensor(
