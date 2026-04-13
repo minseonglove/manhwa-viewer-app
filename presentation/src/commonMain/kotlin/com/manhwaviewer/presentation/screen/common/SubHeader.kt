@@ -1,5 +1,11 @@
 package com.manhwaviewer.presentation.screen.common
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -92,13 +98,19 @@ fun SubHeader(
             )
         }
 
-        if (sortState != null) {
-            SortToolbar(
-                sortState = sortState,
-                onSortFieldChange = onSortFieldChange,
-                onToggleDirection = onToggleDirection,
-                onToggleViewMode = onToggleViewMode,
-            )
+        AnimatedVisibility(
+            visible = sortState != null,
+            enter = expandVertically() + fadeIn(animationSpec = tween(durationMillis = 150)),
+            exit = shrinkVertically() + fadeOut(animationSpec = tween(durationMillis = 150)),
+        ) {
+            if (sortState != null) {
+                SortToolbar(
+                    sortState = sortState,
+                    onSortFieldChange = onSortFieldChange,
+                    onToggleDirection = onToggleDirection,
+                    onToggleViewMode = onToggleViewMode,
+                )
+            }
         }
     }
 }
