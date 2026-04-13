@@ -1,38 +1,37 @@
 package com.manhwaviewer.data.cache
 
 import android.content.Context
+import com.manhwaviewer.data.db.PageOcrCacheDao
+import com.manhwaviewer.data.db.TranslationCacheDao
 import com.manhwaviewer.domain.repository.CacheRepository
 import java.io.File
 
 class AndroidCacheRepository(
     private val context: Context,
+    private val translationCacheDao: TranslationCacheDao,
+    private val pageOcrCacheDao: PageOcrCacheDao,
 ) : CacheRepository {
 
     override suspend fun getTranslationCacheSize(): Long {
-        val dbFile = context.getDatabasePath("manhwa_viewer.db")
-        return if (dbFile.exists()) dbFile.length() else 0L
+        val textCacheSize = translationCacheDao.getTotalDataSize()
+        val ocrCacheSize = pageOcrCacheDao.getOcrDataSize()
+        val ocrTranslationSize = pageOcrCacheDao.getTranslationDataSize()
+        return textCacheSize + ocrCacheSize + ocrTranslationSize
     }
 
     override suspend fun getImageCacheSize(): Long {
-        val cacheDir = File(context.cacheDir, "image_cache")
-        val coilCache = File(context.cacheDir, "image_loader_cache")
-        return listOf(cacheDir, coilCache)
-            .filter { it.exists() }
-            .sumOf { dir -> dir.walkTopDown().filter { it.isFile }.sumOf { it.length() } }
+        val coilCache = File(context.cacheDir, "coil_disk_cache")
+        if (!coilCache.exists()) return 0L
+        return coilCache.walkTopDown().filter { it.isFile }.sumOf { it.length() }
     }
 
     override suspend fun clearTranslationCache() {
-        // Translation cache is stored in Room DB - for now just a placeholder
-        // Full implementation will clear specific translation tables
+        translationCacheDao.clearAll()
+        pageOcrCacheDao.clearAll()
     }
 
     override suspend fun clearImageCache() {
-        val cacheDir = File(context.cacheDir, "image_cache")
-        if (cacheDir.exists()) {
-            cacheDir.deleteRecursively()
-        }
-        // Also clear Coil's disk cache
-        val coilCache = File(context.cacheDir, "image_loader_cache")
+        val coilCache = File(context.cacheDir, "coil_disk_cache")
         if (coilCache.exists()) {
             coilCache.deleteRecursively()
         }
