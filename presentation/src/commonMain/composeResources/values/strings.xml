@@ -118,4 +118,16 @@
     <string name="home_recent_view_all">전체 기록</string>
     <string name="home_recent_empty_title">아직 읽은 만화가 없어요</string>
     <string name="home_recent_empty_subtitle">파일을 열면 여기에 기록이 남아요</string>
+
+    <!-- 최근 화면 -->
+    <string name="recent_title">최근</string>
+    <string name="recent_clear_all">전체 비우기</string>
+    <string name="recent_empty">최근 읽은 항목이 없습니다</string>
+    <string name="recent_delete">삭제</string>
+    <string name="recent_cancel">취소</string>
+    <string name="recent_clear_all_title">최근 기록 전체 삭제</string>
+    <string name="recent_clear_all_description">%1$d개 기록이 모두 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.</string>
+    <string name="recent_delete_single_title">기록 삭제</string>
+    <string name="recent_delete_single_description_name">"%1$s"</string>
+    <string name="recent_delete_single_description_suffix"> 기록을 삭제합니다.\n이 작업은 되돌릴 수 없습니다.</string>
 </resources>

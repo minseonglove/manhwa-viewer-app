@@ -73,7 +73,18 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_delete
+import manhwa_viewer.presentation.generated.resources.recent_cancel
+import manhwa_viewer.presentation.generated.resources.recent_clear_all
+import manhwa_viewer.presentation.generated.resources.recent_clear_all_description
+import manhwa_viewer.presentation.generated.resources.recent_clear_all_title
+import manhwa_viewer.presentation.generated.resources.recent_delete
+import manhwa_viewer.presentation.generated.resources.recent_delete_single_description_name
+import manhwa_viewer.presentation.generated.resources.recent_delete_single_description_suffix
+import manhwa_viewer.presentation.generated.resources.recent_delete_single_title
+import manhwa_viewer.presentation.generated.resources.recent_empty
+import manhwa_viewer.presentation.generated.resources.recent_title
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -142,7 +153,7 @@ fun RecentScreen(
         },
         topBar = {
             SubHeader(
-                title = "최근",
+                title = stringResource(Res.string.recent_title),
                 onBack = onBack,
                 sortState = state.sortState,
                 onSortFieldChange = { viewModel.onIntent(RecentIntent.SetSortField(it)) },
@@ -152,7 +163,7 @@ fun RecentScreen(
                     if (state.archives.isNotEmpty()) {
                         TextButton(onClick = { viewModel.onIntent(RecentIntent.ShowClearAllConfirm) }) {
                             Text(
-                                text = "전체 비우기",
+                                text = stringResource(Res.string.recent_clear_all),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                                 color = MangaLensColors.red,
                             )
@@ -177,7 +188,7 @@ fun RecentScreen(
                     }
                     state.archives.isEmpty() -> {
                         Text(
-                            text = "최근 읽은 항목이 없습니다",
+                            text = stringResource(Res.string.recent_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.align(Alignment.Center),
@@ -282,7 +293,7 @@ private fun RecentFileItem(
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_delete),
-                    contentDescription = "삭제",
+                    contentDescription = stringResource(Res.string.recent_delete),
                     tint = MangaLensColors.red.copy(alpha = 0.7f),
                     modifier = Modifier.size(18.dp),
                 )
@@ -344,28 +355,34 @@ private fun RecentDeleteSheet(
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
+            val clearAllDescription = stringResource(Res.string.recent_clear_all_description, archiveCount)
+            val deleteSingleName = if (type is RecentBottomSheetType.DeleteSingle) {
+                stringResource(Res.string.recent_delete_single_description_name, type.archive.displayName())
+            } else ""
+            val deleteSingleSuffix = stringResource(Res.string.recent_delete_single_description_suffix)
+
             val (title, description) = when (type) {
-                is RecentBottomSheetType.ClearAll -> "최근 기록 전체 삭제" to buildAnnotatedString {
-                    append("${archiveCount}개 기록이 모두 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.")
+                is RecentBottomSheetType.ClearAll -> stringResource(Res.string.recent_clear_all_title) to buildAnnotatedString {
+                    append(clearAllDescription)
                 }
-                is RecentBottomSheetType.DeleteSingle -> "기록 삭제" to buildAnnotatedString {
+                is RecentBottomSheetType.DeleteSingle -> stringResource(Res.string.recent_delete_single_title) to buildAnnotatedString {
                     withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
-                        append("\"${type.archive.displayName()}\"")
+                        append(deleteSingleName)
                     }
-                    append(" 기록을 삭제합니다.\n이 작업은 되돌릴 수 없습니다.")
+                    append(deleteSingleSuffix)
                 }
                 RecentBottomSheetType.None -> "" to buildAnnotatedString { }
             }
 
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = Color.White,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MangaLensColors.textSecondary,
                 lineHeight = 20.sp,
             )
@@ -377,8 +394,8 @@ private fun RecentDeleteSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val confirmLabel = when (type) {
-                is RecentBottomSheetType.ClearAll -> "전체 비우기"
-                is RecentBottomSheetType.DeleteSingle -> "삭제"
+                is RecentBottomSheetType.ClearAll -> stringResource(Res.string.recent_clear_all)
+                is RecentBottomSheetType.DeleteSingle -> stringResource(Res.string.recent_delete)
                 RecentBottomSheetType.None -> ""
             }
 
@@ -412,7 +429,7 @@ private fun RecentDeleteSheet(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "취소",
+                    text = stringResource(Res.string.recent_cancel),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                     color = Color.White.copy(alpha = 0.85f),
                 )
