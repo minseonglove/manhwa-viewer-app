@@ -433,7 +433,9 @@ private fun RecentFileItem(
                 }
             }
         },
-        trailingContent = if (!isSelectionMode) {
+        trailingContent = if (isSelectionMode) {
+            {}
+        } else {
             {
                 IconButton(
                     onClick = onDelete,
@@ -447,8 +449,6 @@ private fun RecentFileItem(
                     )
                 }
             }
-        } else {
-            null
         },
         modifier = Modifier.background(
             if (isSelected) MangaLensColors.blue.copy(alpha = 0.08f) else Color.Transparent,
