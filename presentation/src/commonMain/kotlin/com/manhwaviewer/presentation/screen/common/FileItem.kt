@@ -58,6 +58,7 @@ fun FileItem(
     coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
     showFileType: Boolean = true,
+    showFolderCover: Boolean = false,
     showLockBadge: Boolean = false,
     insideArchive: Boolean = false,
     trailingContent: (@Composable () -> Unit)? = null,
@@ -74,7 +75,7 @@ fun FileItem(
         ) {
             // Icon area (48x48) with optional lock badge
             Box {
-                FileIconArea(archive, coverModel)
+                FileIconArea(archive, coverModel, showFolderCover)
                 if (showLockBadge) {
                     LockBadge(modifier = Modifier.align(Alignment.BottomEnd))
                 }
@@ -97,7 +98,7 @@ fun FileItem(
                     if (showFileType) {
                         Text(
                             text = fileSubtitle(archive, insideArchive),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -163,8 +164,19 @@ private fun fileSubtitle(archive: ArchiveFile, insideArchive: Boolean = false): 
 }
 
 @Composable
-private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?) {
+private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, showFolderCover: Boolean = false) {
     when {
+        // Folder with cover thumbnail (opt-in)
+        archive.type == ArchiveType.FOLDER && showFolderCover && coverModel != null -> {
+            AsyncImage(
+                model = coverModel,
+                contentDescription = archive.fileName,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+            )
+        }
         // Archive with cover thumbnail
         archive.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) && coverModel != null -> {
             AsyncImage(

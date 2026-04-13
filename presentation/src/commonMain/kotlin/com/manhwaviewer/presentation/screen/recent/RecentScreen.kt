@@ -274,6 +274,7 @@ private fun RecentFileItem(
         coverModel = coverModel,
         showProgress = true,
         showFileType = false,
+        showFolderCover = true,
         trailingContent = {
             IconButton(
                 onClick = onDelete,
