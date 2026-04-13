@@ -41,7 +41,6 @@ import manhwa_viewer.presentation.generated.resources.file_type_zip
 import manhwa_viewer.presentation.generated.resources.ic_archive
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_file_folder
-import manhwa_viewer.presentation.generated.resources.ic_image_gallery
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -78,10 +77,13 @@ fun FileItem(
                 }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = archive.displayName(),
-                    style = MaterialTheme.typography.bodyMedium.copy(
+                    style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
@@ -94,7 +96,7 @@ fun FileItem(
                 ) {
                     Text(
                         text = fileSubtitle(archive, insideArchive),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (showProgress && archive.totalPages > 0) {
@@ -323,7 +325,7 @@ fun FileGridItem(
 
         Text(
             text = archive.displayName(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
