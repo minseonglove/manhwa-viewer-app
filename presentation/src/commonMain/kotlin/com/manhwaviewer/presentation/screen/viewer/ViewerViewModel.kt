@@ -297,6 +297,7 @@ class ViewerViewModel(
         val page = state.currentPage
         val ocrData = PageOcrCache(
             archiveId = state.archive?.id ?: return,
+            entryName = state.imageEntries.getOrNull(page) ?: return,
             page = page,
             imageWidth = state.autoOcrImageWidth,
             imageHeight = state.autoOcrImageHeight,
@@ -499,8 +500,10 @@ class ViewerViewModel(
                     val (firstPage, secondPage) = spreadToPages(spread, currentState.totalPages)
                     val isRtl = currentState.preference.readingDirection == ReadingDirection.RTL
 
-                    val firstCache = getPageTranslationCacheUseCase(archive.id, firstPage)
-                    val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archive.id, secondPage) else null
+                    val firstEntryName = currentState.imageEntries.getOrNull(firstPage)
+                    val secondEntryName = if (secondPage != null) currentState.imageEntries.getOrNull(secondPage) else null
+                    val firstCache = if (firstEntryName != null) getPageTranslationCacheUseCase(archive.id, firstEntryName) else null
+                    val secondCache = if (secondPage != null && secondEntryName != null) getPageTranslationCacheUseCase(archive.id, secondEntryName) else null
 
                     if (firstCache == null && secondCache == null) { clearCachedBlocks(); return@launch }
                     if ((firstCache == null || firstCache.blocks.isEmpty()) &&
@@ -550,7 +553,8 @@ class ViewerViewModel(
                         )
                     }
                 } else {
-                    val cache = getPageTranslationCacheUseCase(archive.id, page)
+                    val entryName = currentState.imageEntries.getOrNull(page)
+                    val cache = if (entryName != null) getPageTranslationCacheUseCase(archive.id, entryName) else null
                     if (cache == null || cache.blocks.isEmpty()) { clearCachedBlocks(); return@launch }
 
                     val textBlocks = cache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
@@ -584,16 +588,19 @@ class ViewerViewModel(
     private suspend fun processPageOcrOnly(pageIndex: Int): PageOcrCache? {
         val archive = currentState.archive ?: return null
 
+        val entryName = currentState.imageEntries.getOrNull(pageIndex) ?: return null
+
         // OCR 캐시 확인
-        val ocrCache = getPageOcrCacheUseCase(archive.id, pageIndex)
+        val ocrCache = getPageOcrCacheUseCase(archive.id, entryName)
         if (ocrCache != null) return ocrCache
 
         // 번역 캐시에 OCR 결과가 있는 경우도 확인
-        val translationCache = getPageTranslationCacheUseCase(archive.id, pageIndex)
+        val translationCache = getPageTranslationCacheUseCase(archive.id, entryName)
         if (translationCache != null) {
             return PageOcrCache(
                 id = translationCache.id,
                 archiveId = translationCache.archiveId,
+                entryName = translationCache.entryName,
                 page = translationCache.page,
                 imageWidth = translationCache.imageWidth,
                 imageHeight = translationCache.imageHeight,
@@ -624,6 +631,7 @@ class ViewerViewModel(
         val savedId = savePageOcrCacheUseCase(
             PageOcrCache(
                 archiveId = archive.id,
+                entryName = entryName,
                 page = pageIndex,
                 imageWidth = imgW,
                 imageHeight = imgH,
@@ -635,6 +643,7 @@ class ViewerViewModel(
         return PageOcrCache(
             id = savedId,
             archiveId = archive.id,
+            entryName = entryName,
             page = pageIndex,
             imageWidth = imgW,
             imageHeight = imgH,
@@ -770,8 +779,10 @@ class ViewerViewModel(
             val (firstPage, secondPage) = spreadToPages(spread, currentState.totalPages)
             val isRtl = currentState.preference.readingDirection == ReadingDirection.RTL
 
-            val firstCache = getPageTranslationCacheUseCase(archiveId, firstPage)
-            val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archiveId, secondPage) else null
+            val firstEntryName = currentState.imageEntries.getOrNull(firstPage)
+            val secondEntryName = if (secondPage != null) currentState.imageEntries.getOrNull(secondPage) else null
+            val firstCache = if (firstEntryName != null) getPageTranslationCacheUseCase(archiveId, firstEntryName) else null
+            val secondCache = if (secondPage != null && secondEntryName != null) getPageTranslationCacheUseCase(archiveId, secondEntryName) else null
 
             if (firstCache == null && secondCache == null) return null
             if ((firstCache == null || firstCache.blocks.isEmpty()) &&
@@ -810,7 +821,8 @@ class ViewerViewModel(
             }
             return TranslationCacheData(blocks, combined.imageWidth, combined.imageHeight, combined.overlayColors)
         } else {
-            val cache = getPageTranslationCacheUseCase(archiveId, page) ?: return null
+            val entryName = currentState.imageEntries.getOrNull(page) ?: return null
+            val cache = getPageTranslationCacheUseCase(archiveId, entryName) ?: return null
             if (cache.blocks.isEmpty()) return null
 
             val textBlocks = cache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.originalText) }
@@ -829,7 +841,8 @@ class ViewerViewModel(
         cacheJob = viewModelScope.launch {
             try {
                 val translationResult = loadTranslationCacheData(archive.id, page)
-                val ocrCache = getPageOcrCacheUseCase(archive.id, page)
+                val entryName = currentState.imageEntries.getOrNull(page)
+                val ocrCache = if (entryName != null) getPageOcrCacheUseCase(archive.id, entryName) else null
 
                 updateState {
                     val withTranslation = if (translationResult != null) {
@@ -1010,14 +1023,17 @@ class ViewerViewModel(
         if (isDoublePage) {
             val spread = pageToSpread(page)
             val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
-            val firstCache = getPageTranslationCacheUseCase(archiveId, firstPage)
-            val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archiveId, secondPage) else null
+            val firstEntryName = state.imageEntries.getOrNull(firstPage)
+            val secondEntryName = if (secondPage != null) state.imageEntries.getOrNull(secondPage) else null
+            val firstCache = if (firstEntryName != null) getPageTranslationCacheUseCase(archiveId, firstEntryName) else null
+            val secondCache = if (secondPage != null && secondEntryName != null) getPageTranslationCacheUseCase(archiveId, secondEntryName) else null
             if (firstCache != null && (secondPage == null || secondCache != null)) {
                 applyAutoTranslationFromCache(firstCache, secondCache, state)
                 return true
             }
         } else {
-            val cached = getPageTranslationCacheUseCase(archiveId, page)
+            val entryName = state.imageEntries.getOrNull(page)
+            val cached = if (entryName != null) getPageTranslationCacheUseCase(archiveId, entryName) else null
             if (cached != null) {
                 applyAutoTranslationFromSingleCache(cached)
                 return true
@@ -1028,7 +1044,8 @@ class ViewerViewModel(
 
     private suspend fun runAutoOcrSinglePageInternal(archiveId: Long, page: Int): PageOcrCache? {
         // 캐시 확인
-        val cached = getPageOcrCacheUseCase(archiveId, page) ?: getTranslationCacheAsOcr(archiveId, page)
+        val entryName = currentState.imageEntries.getOrNull(page) ?: return null
+        val cached = getPageOcrCacheUseCase(archiveId, entryName) ?: getTranslationCacheAsOcr(archiveId, entryName)
         if (cached != null) return cached
 
         // 캐시 미스 — OCR 실행
@@ -1040,8 +1057,10 @@ class ViewerViewModel(
         val (firstPage, secondPage) = spreadToPages(spread, state.totalPages)
         val isRtl = state.preference.readingDirection == ReadingDirection.RTL
 
-        val firstCached = getPageOcrCacheUseCase(archiveId, firstPage) ?: getTranslationCacheAsOcr(archiveId, firstPage)
-        val secondCached = if (secondPage != null) getPageOcrCacheUseCase(archiveId, secondPage) ?: getTranslationCacheAsOcr(archiveId, secondPage) else null
+        val firstEntryName = state.imageEntries.getOrNull(firstPage)
+        val secondEntryName = if (secondPage != null) state.imageEntries.getOrNull(secondPage) else null
+        val firstCached = if (firstEntryName != null) getPageOcrCacheUseCase(archiveId, firstEntryName) ?: getTranslationCacheAsOcr(archiveId, firstEntryName) else null
+        val secondCached = if (secondPage != null && secondEntryName != null) getPageOcrCacheUseCase(archiveId, secondEntryName) ?: getTranslationCacheAsOcr(archiveId, secondEntryName) else null
 
         val firstResult = firstCached ?: processPageOcrOnly(firstPage)
         val secondResult = if (secondPage != null) secondCached ?: processPageOcrOnly(secondPage) else null
@@ -1069,14 +1088,17 @@ class ViewerViewModel(
                 if (isDoublePage) {
                     val spread = pageToSpread(page)
                     val (firstPage, secondPage) = spreadToPages(spread, currentState.totalPages)
-                    val firstCache = getPageTranslationCacheUseCase(archive.id, firstPage)
-                    val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archive.id, secondPage) else null
+                    val firstEntryName = currentState.imageEntries.getOrNull(firstPage)
+                    val secondEntryName = if (secondPage != null) currentState.imageEntries.getOrNull(secondPage) else null
+                    val firstCache = if (firstEntryName != null) getPageTranslationCacheUseCase(archive.id, firstEntryName) else null
+                    val secondCache = if (secondPage != null && secondEntryName != null) getPageTranslationCacheUseCase(archive.id, secondEntryName) else null
                     if (firstCache != null && (secondPage == null || secondCache != null)) {
                         applyAutoTranslationFromCache(firstCache, secondCache, currentState)
                         return@launch
                     }
                 } else {
-                    val cached = getPageTranslationCacheUseCase(archive.id, page)
+                    val entryName = currentState.imageEntries.getOrNull(page)
+                    val cached = if (entryName != null) getPageTranslationCacheUseCase(archive.id, entryName) else null
                     if (cached != null) {
                         applyAutoTranslationFromSingleCache(cached)
                         return@launch
@@ -1102,8 +1124,10 @@ class ViewerViewModel(
                     translateAndCachePage(archive.id, firstPage)
                     if (secondPage != null) translateAndCachePage(archive.id, secondPage)
                     // 캐시에서 다시 로드하여 합성 좌표계로 적용
-                    val firstCache = getPageTranslationCacheUseCase(archive.id, firstPage)
-                    val secondCache = if (secondPage != null) getPageTranslationCacheUseCase(archive.id, secondPage) else null
+                    val firstEntryName2 = currentState.imageEntries.getOrNull(firstPage)
+                    val secondEntryName2 = if (secondPage != null) currentState.imageEntries.getOrNull(secondPage) else null
+                    val firstCache = if (firstEntryName2 != null) getPageTranslationCacheUseCase(archive.id, firstEntryName2) else null
+                    val secondCache = if (secondPage != null && secondEntryName2 != null) getPageTranslationCacheUseCase(archive.id, secondEntryName2) else null
                     if (firstCache != null) {
                         applyAutoTranslationFromCache(firstCache, secondCache, currentState)
                     } else {
@@ -1111,7 +1135,8 @@ class ViewerViewModel(
                     }
                 } else {
                     translateAndCachePage(archive.id, page)
-                    val cached = getPageTranslationCacheUseCase(archive.id, page)
+                    val entryName2 = currentState.imageEntries.getOrNull(page)
+                    val cached = if (entryName2 != null) getPageTranslationCacheUseCase(archive.id, entryName2) else null
                     if (cached != null) {
                         applyAutoTranslationFromSingleCache(cached)
                     } else {
@@ -1128,11 +1153,12 @@ class ViewerViewModel(
 
     /** 단일 페이지에 대해 OCR 캐시 기반으로 번역 + 캐시 저장. */
     private suspend fun translateAndCachePage(archiveId: Long, pageIndex: Int) {
+        val entryName = currentState.imageEntries.getOrNull(pageIndex) ?: return
         // 이미 번역 캐시가 있으면 스킵
-        val existing = getPageTranslationCacheUseCase(archiveId, pageIndex)
+        val existing = getPageTranslationCacheUseCase(archiveId, entryName)
         if (existing != null) return
 
-        val ocrCache = getPageOcrCacheUseCase(archiveId, pageIndex) ?: return
+        val ocrCache = getPageOcrCacheUseCase(archiveId, entryName) ?: return
         if (ocrCache.blocks.isEmpty()) return
 
         val textBlocks = ocrCache.blocks.map { TextBlock(it.x, it.y, it.width, it.height, it.text) }
@@ -1359,6 +1385,7 @@ class ViewerViewModel(
         return PageOcrCache(
             id = 0,
             archiveId = state.archive?.id ?: return null,
+            entryName = state.imageEntries.getOrNull(state.currentPage) ?: return null,
             page = state.currentPage,
             imageWidth = state.autoOcrImageWidth,
             imageHeight = state.autoOcrImageHeight,
@@ -1412,6 +1439,7 @@ class ViewerViewModel(
         return PageOcrCache(
             id = 0,
             archiveId = first.archiveId,
+            entryName = first.entryName,
             page = first.page,
             imageWidth = scaledLeftW + scaledRightW,
             imageHeight = targetH,
@@ -1421,11 +1449,12 @@ class ViewerViewModel(
     }
 
     /** 번역 캐시에서 OCR 데이터만 추출. 캐시 미스 시 null. */
-    private suspend fun getTranslationCacheAsOcr(archiveId: Long, page: Int): PageOcrCache? {
-        val cache = getPageTranslationCacheUseCase(archiveId, page) ?: return null
+    private suspend fun getTranslationCacheAsOcr(archiveId: Long, entryName: String): PageOcrCache? {
+        val cache = getPageTranslationCacheUseCase(archiveId, entryName) ?: return null
         return PageOcrCache(
             id = cache.id,
             archiveId = cache.archiveId,
+            entryName = cache.entryName,
             page = cache.page,
             imageWidth = cache.imageWidth,
             imageHeight = cache.imageHeight,
@@ -1445,9 +1474,10 @@ class ViewerViewModel(
     private suspend fun processPageOcr(pageIndex: Int): PageOcrResult? {
         val state = currentState
         val archive = state.archive ?: return null
+        val entryName = state.imageEntries.getOrNull(pageIndex) ?: return null
 
         // 1. 번역 캐시 먼저 확인 (OCR + 번역 결과가 모두 있음)
-        val cached = getPageTranslationCacheUseCase(archive.id, pageIndex)
+        val cached = getPageTranslationCacheUseCase(archive.id, entryName)
         if (cached != null) {
             val ocrResults = cached.blocks.map { block ->
                 TextBlock(block.x, block.y, block.width, block.height, block.originalText)
@@ -1480,7 +1510,7 @@ class ViewerViewModel(
         }
 
         // 3. OCR 전용 캐시 확인 (자동 OCR 또는 이전 실행으로 저장된 것)
-        val ocrCache = getPageOcrCacheUseCase(archive.id, pageIndex)
+        val ocrCache = getPageOcrCacheUseCase(archive.id, entryName)
         if (ocrCache != null && ocrCache.blocks.isNotEmpty()) {
             return ocrCacheToFullResult(archive.id, pageIndex, ocrCache)
         }
@@ -1557,6 +1587,7 @@ class ViewerViewModel(
         translationResults: List<TranslationResult>,
         colors: List<Color>,
     ) {
+        val entryName = currentState.imageEntries.getOrNull(pageIndex) ?: return
         val blocks = ocrResults.zip(translationResults).mapIndexed { i, (ocr, tr) ->
             TranslationBlock(
                 x = ocr.x, y = ocr.y, width = ocr.width, height = ocr.height,
@@ -1572,7 +1603,7 @@ class ViewerViewModel(
         }
         savePageTranslationCacheUseCase(
             PageTranslationCache(
-                archiveId = archiveId, page = pageIndex,
+                archiveId = archiveId, entryName = entryName, page = pageIndex,
                 imageWidth = imgW, imageHeight = imgH,
                 blocks = blocks, createdAt = Clock.System.now().toEpochMilliseconds(),
             )

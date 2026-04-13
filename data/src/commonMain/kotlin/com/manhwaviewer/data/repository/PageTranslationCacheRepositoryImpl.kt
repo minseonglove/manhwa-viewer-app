@@ -33,9 +33,9 @@ class PageTranslationCacheRepositoryImpl(
 
     override suspend fun getCache(
         archiveId: Long,
-        page: Int,
+        entryName: String,
     ): PageTranslationCache? = withContext(Dispatchers.IO) {
-        val ocrEntity = dao.findOcrCache(archiveId, page) ?: return@withContext null
+        val ocrEntity = dao.findOcrCache(archiveId, entryName) ?: return@withContext null
         val translationEntity = dao.findTranslation(ocrEntity.id)
         val ocrBlocks: List<OcrBlockDto> = json.decodeFromString(ocrEntity.blocksJson)
 
@@ -46,6 +46,7 @@ class PageTranslationCacheRepositoryImpl(
         PageTranslationCache(
             id = ocrEntity.id,
             archiveId = ocrEntity.archiveId,
+            entryName = ocrEntity.entryName,
             page = ocrEntity.page,
             imageWidth = ocrEntity.imageWidth,
             imageHeight = ocrEntity.imageHeight,
@@ -72,6 +73,7 @@ class PageTranslationCacheRepositoryImpl(
             PageOcrCacheEntity(
                 id = cache.id,
                 archiveId = cache.archiveId,
+                entryName = cache.entryName,
                 page = cache.page,
                 imageWidth = cache.imageWidth,
                 imageHeight = cache.imageHeight,
@@ -97,13 +99,14 @@ class PageTranslationCacheRepositoryImpl(
 
     override suspend fun getOcrCache(
         archiveId: Long,
-        page: Int,
+        entryName: String,
     ): PageOcrCache? = withContext(Dispatchers.IO) {
-        val entity = dao.findOcrCache(archiveId, page) ?: return@withContext null
+        val entity = dao.findOcrCache(archiveId, entryName) ?: return@withContext null
         val blocks: List<OcrBlockDto> = json.decodeFromString(entity.blocksJson)
         PageOcrCache(
             id = entity.id,
             archiveId = entity.archiveId,
+            entryName = entity.entryName,
             page = entity.page,
             imageWidth = entity.imageWidth,
             imageHeight = entity.imageHeight,
@@ -122,6 +125,7 @@ class PageTranslationCacheRepositoryImpl(
             PageOcrCacheEntity(
                 id = cache.id,
                 archiveId = cache.archiveId,
+                entryName = cache.entryName,
                 page = cache.page,
                 imageWidth = cache.imageWidth,
                 imageHeight = cache.imageHeight,

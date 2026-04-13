@@ -12,6 +12,7 @@ data class OcrBlock(
 data class PageOcrCache(
     val id: Long = 0,
     val archiveId: Long,
+    val entryName: String,
     val page: Int,
     val imageWidth: Int,
     val imageHeight: Int,
@@ -32,6 +33,7 @@ data class TranslationBlock(
 data class PageTranslationCache(
     val id: Long = 0,
     val archiveId: Long,
+    val entryName: String,
     val page: Int,
     val imageWidth: Int,
     val imageHeight: Int,

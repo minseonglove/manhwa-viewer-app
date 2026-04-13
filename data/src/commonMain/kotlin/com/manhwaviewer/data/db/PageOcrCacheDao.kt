@@ -9,10 +9,10 @@ import androidx.room.Query
 interface PageOcrCacheDao {
     @Query(
         "SELECT * FROM page_ocr_cache " +
-            "WHERE archiveId = :archiveId AND page = :page " +
+            "WHERE archiveId = :archiveId AND entryName = :entryName " +
             "LIMIT 1"
     )
-    suspend fun findOcrCache(archiveId: Long, page: Int): PageOcrCacheEntity?
+    suspend fun findOcrCache(archiveId: Long, entryName: String): PageOcrCacheEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOcrCache(entity: PageOcrCacheEntity): Long
