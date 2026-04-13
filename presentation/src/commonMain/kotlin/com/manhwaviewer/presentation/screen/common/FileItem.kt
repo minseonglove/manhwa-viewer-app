@@ -303,7 +303,18 @@ fun FileGridItem(
                         contentScale = ContentScale.Crop,
                     )
                 }
-                // Folder
+                // Folder with cover
+                archive.type == ArchiveType.FOLDER && coverModel != null -> {
+                    AsyncImage(
+                        model = coverModel,
+                        contentDescription = archive.fileName,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                // Folder without cover
                 archive.type == ArchiveType.FOLDER -> {
                     Box(
                         modifier = Modifier
