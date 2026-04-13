@@ -100,8 +100,6 @@ import manhwa_viewer.presentation.generated.resources.loading_next_volume
 import manhwa_viewer.presentation.generated.resources.page_content_description
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
 import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
-import me.saket.telephoto.subsamplingimage.SubSamplingImage
-import me.saket.telephoto.subsamplingimage.rememberSubSamplingImageState
 import me.saket.telephoto.zoomable.EnabledZoomGestures
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.ZoomableContentLocation
@@ -616,7 +614,7 @@ private fun ZoomableImage(
 
     // SubSamplingImage는 단일 페이지에서 사용 (오버레이 유무 무관)
     // (양면 모드는 두 이미지 합성이 필요하므로 기존 Coil Fetcher 경로 유지)
-    val useSubSampling = pageModel != null && pageModel.entryNames.size == 1
+    val useSubSampling = platformSupportsSubSampling && pageModel != null && pageModel.entryNames.size == 1
 
     // subSamplingFailed 상태를 이 스코프에서 관리 (fallback 용)
     var subSamplingFailed by remember { mutableStateOf(false) }
@@ -624,11 +622,11 @@ private fun ZoomableImage(
     if (useSubSampling && !subSamplingFailed && pageModel != null) {
         // SubSamplingImage 경로: 보이는 영역만 타일 디코딩 (메모리 안전)
         val getImageBytesUseCase: GetImageBytesUseCase = koinInject()
-        var sourceResult by remember { mutableStateOf<ArchiveImageSourceResult?>(null) }
+        var sourceResult by remember { mutableStateOf<PlatformSubSamplingResult?>(null) }
 
         LaunchedEffect(pageModel) {
             try {
-                sourceResult = createArchiveImageSource(
+                sourceResult = createPlatformSubSamplingSource(
                     archivePath = pageModel.archivePath,
                     entryName = pageModel.entryNames[0],
                     getImageBytesUseCase = getImageBytesUseCase,
@@ -644,8 +642,9 @@ private fun ZoomableImage(
         var subSamplingReady by remember { mutableStateOf(false) }
         LaunchedEffect(result, imageScaleMode, containerSize) {
             if (result == null || containerSize == IntSize.Zero) return@LaunchedEffect
+            val imgSize = result.imageSize()
             val zoom = calculateBaseZoom(
-                imageScaleMode, result.imageSize.width, result.imageSize.height,
+                imageScaleMode, imgSize.width, imgSize.height,
                 containerSize.width, containerSize.height,
             )
             baseZoomFactor = zoom
@@ -707,13 +706,9 @@ private fun ZoomableImage(
                 contentAlignment = Alignment.Center,
             ) {
                 if (result != null) {
-                    val imageState = rememberSubSamplingImageState(
-                        imageSource = result.source,
+                    PlatformSubSamplingImage(
+                        source = result,
                         zoomableState = zoomableState,
-                    )
-
-                    SubSamplingImage(
-                        state = imageState,
                         contentDescription = stringResource(Res.string.page_content_description, page + 1),
                         modifier = Modifier.fillMaxSize(),
                         // baseZoom 적용 전까지 투명하게 유지하여 깜빡임 방지
