@@ -102,8 +102,40 @@ class RecentViewModel(
                         RecentBottomSheetType.ClearAll -> {
                             clearAllRecentHistoryUseCase()
                         }
+                        is RecentBottomSheetType.DeleteSelected -> {
+                            sheetType.archiveIds.forEach { id ->
+                                clearRecentHistoryUseCase(id)
+                            }
+                            updateState { copy(isSelectionMode = false, selectedArchiveIds = emptySet()) }
+                        }
                         RecentBottomSheetType.None -> Unit
                     }
+                }
+            }
+            is RecentIntent.EnterSelectionMode -> {
+                updateState {
+                    copy(
+                        isSelectionMode = true,
+                        selectedArchiveIds = setOf(intent.archive.id),
+                    )
+                }
+            }
+            is RecentIntent.ToggleSelection -> {
+                val newSet = currentState.selectedArchiveIds.toMutableSet()
+                val id = intent.archive.id
+                if (id in newSet) newSet.remove(id) else newSet.add(id)
+                if (newSet.isEmpty()) {
+                    updateState { copy(isSelectionMode = false, selectedArchiveIds = emptySet()) }
+                } else {
+                    updateState { copy(selectedArchiveIds = newSet) }
+                }
+            }
+            RecentIntent.ExitSelectionMode -> {
+                updateState { copy(isSelectionMode = false, selectedArchiveIds = emptySet()) }
+            }
+            RecentIntent.ShowDeleteSelectedConfirm -> {
+                updateState {
+                    copy(bottomSheetType = RecentBottomSheetType.DeleteSelected(selectedArchiveIds))
                 }
             }
         }

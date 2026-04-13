@@ -11,12 +11,15 @@ data class RecentState(
     val isLoading: Boolean = true,
     val coverModels: Map<Long, ViewerPageModel> = emptyMap(),
     val bottomSheetType: RecentBottomSheetType = RecentBottomSheetType.None,
+    val isSelectionMode: Boolean = false,
+    val selectedArchiveIds: Set<Long> = emptySet(),
 )
 
 sealed interface RecentBottomSheetType {
     data object None : RecentBottomSheetType
     data class DeleteSingle(val archive: ArchiveFile) : RecentBottomSheetType
     data object ClearAll : RecentBottomSheetType
+    data class DeleteSelected(val archiveIds: Set<Long>) : RecentBottomSheetType
 }
 
 sealed interface RecentIntent {
@@ -28,6 +31,10 @@ sealed interface RecentIntent {
     data object ShowClearAllConfirm : RecentIntent
     data object DismissBottomSheet : RecentIntent
     data object ConfirmAction : RecentIntent
+    data class EnterSelectionMode(val archive: ArchiveFile) : RecentIntent
+    data class ToggleSelection(val archive: ArchiveFile) : RecentIntent
+    data object ExitSelectionMode : RecentIntent
+    data object ShowDeleteSelectedConfirm : RecentIntent
 }
 
 sealed interface RecentSideEffect {
