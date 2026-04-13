@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,6 +34,7 @@ fun SubHeader(
     onSortFieldChange: (SortField) -> Unit = {},
     onToggleDirection: () -> Unit = {},
     onToggleViewMode: () -> Unit = {},
+    trailingActions: (@Composable RowScope.() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -67,13 +69,17 @@ fun SubHeader(
                 }
             },
             actions = {
-                IconButton(onClick = { /* TODO: 검색 */ }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_search),
-                        contentDescription = "검색",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
+                if (trailingActions != null) {
+                    trailingActions()
+                } else {
+                    IconButton(onClick = { /* TODO: 검색 */ }) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_search),
+                            contentDescription = "검색",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             },
         )

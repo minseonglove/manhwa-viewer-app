@@ -41,6 +41,7 @@ import manhwa_viewer.presentation.generated.resources.file_type_zip
 import manhwa_viewer.presentation.generated.resources.ic_archive
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_file_folder
+import manhwa_viewer.presentation.generated.resources.ic_image_gallery
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -56,8 +57,10 @@ fun FileItem(
     onClick: () -> Unit,
     coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
+    showFileType: Boolean = true,
     showLockBadge: Boolean = false,
     insideArchive: Boolean = false,
+    trailingContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -77,13 +80,10 @@ fun FileItem(
                 }
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = archive.displayName(),
-                    style = MaterialTheme.typography.bodyLarge.copy(
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
@@ -94,11 +94,13 @@ fun FileItem(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = fileSubtitle(archive, insideArchive),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (showFileType) {
+                        Text(
+                            text = fileSubtitle(archive, insideArchive),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (showProgress && archive.totalPages > 0) {
                         val progress = ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
                         LinearProgressIndicator(
@@ -116,8 +118,10 @@ fun FileItem(
                 }
             }
 
-            // Trailing icon: only folders get chevron
-            if (archive.type == ArchiveType.FOLDER) {
+            // Trailing content: custom or default
+            if (trailingContent != null) {
+                trailingContent()
+            } else if (archive.type == ArchiveType.FOLDER) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_chevron_right),
                     contentDescription = null,
@@ -325,7 +329,7 @@ fun FileGridItem(
 
         Text(
             text = archive.displayName(),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,

@@ -10,13 +10,24 @@ data class RecentState(
     val sortState: SortState = SortState(field = SortField.DATE, ascending = false),
     val isLoading: Boolean = true,
     val coverModels: Map<Long, ViewerPageModel> = emptyMap(),
+    val bottomSheetType: RecentBottomSheetType = RecentBottomSheetType.None,
 )
+
+sealed interface RecentBottomSheetType {
+    data object None : RecentBottomSheetType
+    data class DeleteSingle(val archive: ArchiveFile) : RecentBottomSheetType
+    data object ClearAll : RecentBottomSheetType
+}
 
 sealed interface RecentIntent {
     data class OpenArchive(val archive: ArchiveFile) : RecentIntent
     data class SetSortField(val field: SortField) : RecentIntent
     data object ToggleSortDirection : RecentIntent
     data object ToggleViewMode : RecentIntent
+    data class ShowDeleteConfirm(val archive: ArchiveFile) : RecentIntent
+    data object ShowClearAllConfirm : RecentIntent
+    data object DismissBottomSheet : RecentIntent
+    data object ConfirmAction : RecentIntent
 }
 
 sealed interface RecentSideEffect {

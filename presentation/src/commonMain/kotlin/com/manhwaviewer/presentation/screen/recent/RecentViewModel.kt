@@ -3,6 +3,8 @@ package com.manhwaviewer.presentation.screen.recent
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.ClearAllRecentHistoryUseCase
+import com.manhwaviewer.domain.usecase.ClearRecentHistoryUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
@@ -16,6 +18,8 @@ import kotlinx.coroutines.supervisorScope
 class RecentViewModel(
     getRecentArchivesUseCase: GetRecentArchivesUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
+    private val clearRecentHistoryUseCase: ClearRecentHistoryUseCase,
+    private val clearAllRecentHistoryUseCase: ClearAllRecentHistoryUseCase,
 ) : MviViewModel<RecentState, RecentIntent, RecentSideEffect>(RecentState()) {
 
     init {
@@ -76,6 +80,30 @@ class RecentViewModel(
                             viewMode = if (sortState.viewMode == ListViewMode.LIST) ListViewMode.GRID else ListViewMode.LIST,
                         ),
                     )
+                }
+            }
+            is RecentIntent.ShowDeleteConfirm -> {
+                updateState { copy(bottomSheetType = RecentBottomSheetType.DeleteSingle(intent.archive)) }
+            }
+            RecentIntent.ShowClearAllConfirm -> {
+                updateState { copy(bottomSheetType = RecentBottomSheetType.ClearAll) }
+            }
+            RecentIntent.DismissBottomSheet -> {
+                updateState { copy(bottomSheetType = RecentBottomSheetType.None) }
+            }
+            RecentIntent.ConfirmAction -> {
+                val sheetType = currentState.bottomSheetType
+                updateState { copy(bottomSheetType = RecentBottomSheetType.None) }
+                viewModelScope.launch {
+                    when (sheetType) {
+                        is RecentBottomSheetType.DeleteSingle -> {
+                            clearRecentHistoryUseCase(sheetType.archive.id)
+                        }
+                        RecentBottomSheetType.ClearAll -> {
+                            clearAllRecentHistoryUseCase()
+                        }
+                        RecentBottomSheetType.None -> Unit
+                    }
                 }
             }
         }

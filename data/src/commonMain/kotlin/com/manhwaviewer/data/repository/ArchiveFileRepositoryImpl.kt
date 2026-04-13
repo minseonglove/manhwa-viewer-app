@@ -58,6 +58,14 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
         dao.deleteById(id)
     }
 
+    override suspend fun clearRecentHistory(id: Long) {
+        dao.clearRecentHistory(id)
+    }
+
+    override suspend fun clearAllRecentHistory() {
+        dao.clearAllRecentHistory()
+    }
+
     override suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile> =
         withContext(Dispatchers.IO) {
             mediaScanner.scanDirectory(directoryPath)

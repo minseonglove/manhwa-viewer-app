@@ -12,6 +12,8 @@ interface ArchiveFileRepository {
     suspend fun upsertArchive(archive: ArchiveFile): Long
     suspend fun updateLastReadIndex(id: Long, pageIndex: Int)
     suspend fun deleteArchive(id: Long)
+    suspend fun clearRecentHistory(id: Long)
+    suspend fun clearAllRecentHistory()
     suspend fun scanLocalFiles(directoryPath: String): List<ArchiveFile>
     suspend fun scanArchiveEntries(archivePath: String): List<ArchiveFile>
     suspend fun getImageEntries(filePath: String): List<String>

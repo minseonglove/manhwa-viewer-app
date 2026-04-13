@@ -31,6 +31,12 @@ interface ArchiveFileDao {
     @Query("DELETE FROM archive_files WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("UPDATE archive_files SET lastReadAt = NULL, lastReadIndex = 0 WHERE id = :id")
+    suspend fun clearRecentHistory(id: Long)
+
+    @Query("UPDATE archive_files SET lastReadAt = NULL, lastReadIndex = 0 WHERE lastReadAt IS NOT NULL")
+    suspend fun clearAllRecentHistory()
+
     @Query("SELECT * FROM archive_files WHERE filePath LIKE :directoryPath || '%'")
     suspend fun getByDirectory(directoryPath: String): List<ArchiveFileEntity>
 }
