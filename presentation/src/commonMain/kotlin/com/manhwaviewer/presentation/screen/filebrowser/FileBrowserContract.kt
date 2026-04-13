@@ -17,6 +17,8 @@ data class FileBrowserState(
     val coverModels: Map<String, ViewerPageModel> = emptyMap(),
     val isSelectionMode: Boolean = false,
     val selectedFileKeys: Set<String> = emptySet(),
+    val showRenameDialog: Boolean = false,
+    val renameTarget: ArchiveFile? = null,
 )
 
 sealed interface FileBrowserIntent {
@@ -37,6 +39,8 @@ sealed interface FileBrowserIntent {
     data object VaultSelected : FileBrowserIntent
     data object DeleteSelected : FileBrowserIntent
     data object RenameSelected : FileBrowserIntent
+    data class ConfirmRename(val newName: String) : FileBrowserIntent
+    data object DismissRenameDialog : FileBrowserIntent
 }
 
 sealed interface FileBrowserSideEffect {

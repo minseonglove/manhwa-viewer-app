@@ -56,6 +56,7 @@ import com.manhwaviewer.domain.usecase.ClearAllRecentHistoryUseCase
 import com.manhwaviewer.domain.usecase.ClearRecentHistoryUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
+import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.screen.filebrowser.FileBrowserViewModel
 import com.manhwaviewer.presentation.screen.home.HomeViewModel
@@ -129,11 +130,12 @@ val appModule = module {
     factory { SavePageOcrCacheUseCase(get()) }
     factory { GetNextArchiveUseCase(get()) }
     factory { GetPreviousArchiveUseCase(get()) }
+    factory { RenameFileUseCase(get()) }
     factory { AnalyzeFuriganaUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get(), get()) }
-    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
+    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get<MediaScanner>().getDefaultScanPath()) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get()) }

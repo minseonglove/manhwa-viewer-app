@@ -6,6 +6,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
+import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
@@ -26,6 +27,7 @@ class FileBrowserViewModel(
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
     private val scanArchiveEntriesUseCase: ScanArchiveEntriesUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
+    private val renameFileUseCase: RenameFileUseCase,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -70,7 +72,11 @@ class FileBrowserViewModel(
             FileBrowserIntent.MoveSelected -> { /* TODO: 선택 항목 이동 */ }
             FileBrowserIntent.VaultSelected -> { /* TODO: 선택 항목 보관함 이동 */ }
             FileBrowserIntent.DeleteSelected -> { /* TODO: 선택 항목 삭제 */ }
-            FileBrowserIntent.RenameSelected -> { /* TODO: 선택 항목 이름 변경 */ }
+            FileBrowserIntent.RenameSelected -> showRenameDialog()
+            is FileBrowserIntent.ConfirmRename -> confirmRename(intent.newName)
+            FileBrowserIntent.DismissRenameDialog -> updateState {
+                copy(showRenameDialog = false, renameTarget = null)
+            }
         }
     }
 
@@ -94,6 +100,29 @@ class FileBrowserViewModel(
                 selectedFileKeys + key
             }
             copy(selectedFileKeys = newSelected)
+        }
+    }
+
+    private fun showRenameDialog() {
+        if (currentState.selectedFileKeys.size != 1) return
+        val selectedKey = currentState.selectedFileKeys.first()
+        val target = currentState.files.firstOrNull { fileKey(it) == selectedKey } ?: return
+        updateState { copy(showRenameDialog = true, renameTarget = target) }
+    }
+
+    private fun confirmRename(newName: String) {
+        val target = currentState.renameTarget ?: return
+        viewModelScope.launch {
+            val result = renameFileUseCase(target.filePath, newName)
+            result.onSuccess {
+                updateState {
+                    copy(showRenameDialog = false, renameTarget = null, isSelectionMode = false, selectedFileKeys = emptySet())
+                }
+                navigateToFolder(currentState.currentPath)
+            }
+            result.onFailure {
+                // 파일시스템 레벨 실패 — 다이얼로그 유지
+            }
         }
     }
 

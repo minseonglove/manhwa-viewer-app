@@ -75,6 +75,18 @@ actual class MediaScanner(private val context: Context) {
     actual fun getDefaultScanPath(): String =
         Environment.getExternalStorageDirectory().absolutePath
 
+    actual fun renameFile(oldPath: String, newName: String): Result<String> {
+        val oldFile = File(oldPath)
+        if (!oldFile.exists()) return Result.failure(IllegalStateException("File not found: $oldPath"))
+        val newFile = File(oldFile.parentFile, newName)
+        if (newFile.exists()) return Result.failure(IllegalStateException("File already exists: ${newFile.absolutePath}"))
+        return if (oldFile.renameTo(newFile)) {
+            Result.success(newFile.absolutePath)
+        } else {
+            Result.failure(IllegalStateException("Failed to rename file"))
+        }
+    }
+
     private fun countImages(folder: File): Int =
         folder.listFiles()?.count { it.isFile && it.extension.lowercase() in imageExtensions } ?: 0
 }

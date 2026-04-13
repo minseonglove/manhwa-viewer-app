@@ -94,6 +94,24 @@ actual class MediaScanner {
         }
     }
 
+    actual fun renameFile(oldPath: String, newName: String): Result<String> {
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(oldPath)) {
+            return Result.failure(IllegalStateException("File not found: $oldPath"))
+        }
+        val parentPath = oldPath.substringBeforeLast('/')
+        val newPath = "$parentPath/$newName"
+        if (fileManager.fileExistsAtPath(newPath)) {
+            return Result.failure(IllegalStateException("File already exists: $newPath"))
+        }
+        val success = fileManager.moveItemAtPath(oldPath, toPath = newPath, error = null)
+        return if (success) {
+            Result.success(newPath)
+        } else {
+            Result.failure(IllegalStateException("Failed to rename file"))
+        }
+    }
+
     private fun countImages(folderPath: String): Int {
         val contents = NSFileManager.defaultManager.contentsOfDirectoryAtPath(folderPath, error = null)
             ?: return 0

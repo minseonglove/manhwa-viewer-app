@@ -121,7 +121,16 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
         }
     }
 
-    override suspend fun migratePath(oldPath: String, newPath: String) {
+    override suspend fun renameFile(oldPath: String, newName: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            val result = mediaScanner.renameFile(oldPath, newName)
+            result.onSuccess { newPath ->
+                migratePath(oldPath, newPath)
+            }
+            result
+        }
+
+    override suspend fun migratePath(oldPath: String, newPath: String) = withContext(Dispatchers.IO) {
         val single = dao.getByFilePath(oldPath)
         if (single != null) {
             dao.updateFilePath(oldPath, newPath)
