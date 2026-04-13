@@ -37,6 +37,18 @@ interface ArchiveFileDao {
     @Query("UPDATE archive_files SET lastReadAt = NULL, lastReadIndex = 0 WHERE lastReadAt IS NOT NULL")
     suspend fun clearAllRecentHistory()
 
-    @Query("SELECT * FROM archive_files WHERE filePath LIKE :directoryPath || '%'")
+    @Query("SELECT * FROM archive_files WHERE filePath LIKE :directoryPath || '/%'")
     suspend fun getByDirectory(directoryPath: String): List<ArchiveFileEntity>
+
+    @Query("DELETE FROM archive_files WHERE filePath = :filePath")
+    suspend fun deleteByFilePath(filePath: String)
+
+    @Query("DELETE FROM archive_files WHERE filePath LIKE :directoryPath || '/%'")
+    suspend fun deleteByDirectory(directoryPath: String)
+
+    @Query("UPDATE archive_files SET filePath = :newPath WHERE filePath = :oldPath")
+    suspend fun updateFilePath(oldPath: String, newPath: String)
+
+    @Query("UPDATE archive_files SET filePath = :newDirectory || SUBSTR(filePath, LENGTH(:oldDirectory) + 1) WHERE filePath LIKE :oldDirectory || '/%'")
+    suspend fun updateDirectoryPath(oldDirectory: String, newDirectory: String)
 }

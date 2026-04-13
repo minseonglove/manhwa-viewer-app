@@ -19,4 +19,6 @@ interface ArchiveFileRepository {
     suspend fun getImageEntries(filePath: String): List<String>
     suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String>
     suspend fun getImageBytes(filePath: String, entryName: String): ByteArray?
+    suspend fun deleteByPath(path: String)
+    suspend fun migratePath(oldPath: String, newPath: String)
 }

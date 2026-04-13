@@ -84,7 +84,7 @@ val appModule = module {
     single { MediaScanner(androidContext()) }
 
     // Repositories
-    single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get()) }
+    single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get(), get()) }
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single<CacheRepository> { AndroidCacheRepository(androidContext(), get(), get()) }

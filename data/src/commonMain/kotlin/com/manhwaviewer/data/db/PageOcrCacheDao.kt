@@ -38,4 +38,10 @@ interface PageOcrCacheDao {
 
     @Query("DELETE FROM page_ocr_cache")
     suspend fun clearAll()
+
+    @Query("DELETE FROM page_ocr_cache WHERE archiveId IN (SELECT id FROM archive_files WHERE filePath = :filePath)")
+    suspend fun deleteOcrCacheByFilePath(filePath: String)
+
+    @Query("DELETE FROM page_ocr_cache WHERE archiveId IN (SELECT id FROM archive_files WHERE filePath LIKE :directoryPath || '/%')")
+    suspend fun deleteOcrCacheByDirectory(directoryPath: String)
 }
