@@ -29,4 +29,13 @@ interface PageOcrCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTranslation(entity: PageOcrTranslationEntity)
+
+    @Query("SELECT COALESCE(SUM(LENGTH(blocksJson)), 0) FROM page_ocr_cache")
+    suspend fun getOcrDataSize(): Long
+
+    @Query("SELECT COALESCE(SUM(LENGTH(translationsJson)), 0) FROM page_ocr_translation")
+    suspend fun getTranslationDataSize(): Long
+
+    @Query("DELETE FROM page_ocr_cache")
+    suspend fun clearAll()
 }

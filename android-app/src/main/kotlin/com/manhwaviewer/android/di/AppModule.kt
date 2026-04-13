@@ -85,7 +85,7 @@ val appModule = module {
     single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get()) }
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
-    single<CacheRepository> { AndroidCacheRepository(androidContext()) }
+    single<CacheRepository> { AndroidCacheRepository(androidContext(), get(), get()) }
     single<MangaOcrEngine> { ManagedOcrEngine { AndroidMangaOcrEngine(androidContext()) } }
     single<OcrRepository> { OcrRepositoryImpl(get()) }
     single<TextDetectionRepository> {
@@ -134,5 +134,5 @@ val appModule = module {
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get()) }
     viewModelOf(::ViewerViewModel)
-    viewModel { SettingsViewModel(get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get()) }
 }

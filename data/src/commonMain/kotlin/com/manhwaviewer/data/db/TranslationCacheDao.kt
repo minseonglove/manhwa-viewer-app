@@ -29,4 +29,7 @@ interface TranslationCacheDao {
 
     @Query("SELECT COUNT(*) FROM translation_cache")
     suspend fun getCacheCount(): Int
+
+    @Query("SELECT COALESCE(SUM(LENGTH(sourceText) + LENGTH(translatedText) + LENGTH(sourceLanguage) + LENGTH(targetLanguage) + LENGTH(engine)), 0) FROM translation_cache")
+    suspend fun getTotalDataSize(): Long
 }
