@@ -79,9 +79,20 @@ class ViewerViewModel(
         viewModelScope.launch {
             getViewerPreferenceUseCase().collect { pref ->
                 val oldMode = currentState.preference.viewMode
+                val oldDirection = currentState.preference.readingDirection
                 updateState { copy(preference = pref) }
                 // viewMode가 변경되면 좌표계가 달라지므로 오버레이 상태 초기화 + 캐시 리로드
                 if (pref.viewMode != oldMode && currentState.totalPages > 0) {
+                    cancelAllAutoJobs()
+                    updateState { resetPageOcrState() }
+                    loadCachedTranslation(currentState.currentPage)
+                    if (currentState.autoProcessMode != AutoProcessMode.NONE) {
+                        scheduleAutoProcess(currentState.currentPage)
+                    }
+                }
+                // 양면 모드에서 readingDirection 변경 시 합성 좌표계가 달라지므로 오버레이 리로드
+                else if (pref.readingDirection != oldDirection &&
+                    pref.viewMode == ViewMode.DOUBLE_PAGE && currentState.totalPages > 0) {
                     cancelAllAutoJobs()
                     updateState { resetPageOcrState() }
                     loadCachedTranslation(currentState.currentPage)
