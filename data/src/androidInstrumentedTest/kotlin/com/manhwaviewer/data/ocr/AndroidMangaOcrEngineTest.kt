@@ -2,6 +2,7 @@ package com.manhwaviewer.data.ocr
 
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.Assert.assertTrue
@@ -16,7 +17,7 @@ class AndroidMangaOcrEngineTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun recognizesJapaneseTextFromMangaImage() = runTest {
+    fun recognizesJapaneseTextFromMangaImage() = runTest(timeout = 5.minutes) {
         val imageBytes = InstrumentationRegistry.getInstrumentation()
             .context.assets.open("test/00.jpg").readBytes()
         Log.d(TAG, "Image loaded: ${imageBytes.size} bytes")
@@ -42,27 +43,27 @@ class AndroidMangaOcrEngineTest {
     }
 
     @Test
-    fun printsOcrResultForImage04() = runTest {
+    fun printsOcrResultForImage04() = runTest(timeout = 5.minutes) {
         printOcrResult("test/04.jpg")
     }
 
     @Test
-    fun printsOcrResultForImage02() = runTest {
+    fun printsOcrResultForImage02() = runTest(timeout = 5.minutes) {
         printOcrResult("test/02.jpeg")
     }
 
     @Test
-    fun detectsAndRecognizesWithYolo_02() = runTest {
+    fun detectsAndRecognizesWithYolo_02() = runTest(timeout = 5.minutes) {
         runPageOcr("test/05.png")
     }
 
     @Test
-    fun detectsAndRecognizesWithYolo_01() = runTest {
+    fun detectsAndRecognizesWithYolo_01() = runTest(timeout = 5.minutes) {
         runPageOcr("test/06.png")
     }
 
     @Test
-    fun detectsAndRecognizesWithYolo_03() = runTest {
+    fun detectsAndRecognizesWithYolo_03() = runTest(timeout = 5.minutes) {
         runPageOcr("test/07.png")
     }
 

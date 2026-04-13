@@ -12,7 +12,9 @@ class IosYoloTextDetector : TextDetector {
     companion object {
         private const val CONF_THRESHOLD = 0.3f
         private const val TEXT_CLASS_ID = 1f
-        private const val PADDING_PX = 4
+        private const val PADDING_RATIO = 0.08f
+        private const val MIN_PADDING_PX = 4
+        private const val MAX_PADDING_PX = 20
     }
 
     private var api: CPointer<OrtApi>? = null
@@ -41,10 +43,12 @@ class IosYoloTextDetector : TextDetector {
         val boxes = postProcess(outputData, transform, imageWidth, imageHeight)
 
         return boxes.mapNotNull { box ->
-            val x = (box.x - PADDING_PX).coerceAtLeast(0)
-            val y = (box.y - PADDING_PX).coerceAtLeast(0)
-            val w = (box.width + PADDING_PX * 2).coerceAtMost(imageWidth - x)
-            val h = (box.height + PADDING_PX * 2).coerceAtMost(imageHeight - y)
+            val pad = (maxOf(box.width, box.height) * PADDING_RATIO)
+                .toInt().coerceIn(MIN_PADDING_PX, MAX_PADDING_PX)
+            val x = (box.x - pad).coerceAtLeast(0)
+            val y = (box.y - pad).coerceAtLeast(0)
+            val w = (box.width + pad * 2).coerceAtMost(imageWidth - x)
+            val h = (box.height + pad * 2).coerceAtMost(imageHeight - y)
             if (w <= 0 || h <= 0) return@mapNotNull null
 
             val croppedCgImage = CGImageCreateWithImageInRect(

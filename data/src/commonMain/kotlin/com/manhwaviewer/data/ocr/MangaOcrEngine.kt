@@ -18,6 +18,8 @@ object MangaOcrConfig {
     const val ENCODER_MODEL = "mangaocr/encoder_model_fp16.onnx"
     const val DECODER_MODEL = "mangaocr/decoder_model_fp16.onnx"
     const val VOCAB_FILE = "mangaocr/vocab.txt"
+    const val BEAM_WIDTH = 3
+
     const val YOLO_MODEL = "mangaocr/manga_panel_detector_fp16.onnx"
     const val YOLO_INPUT_SIZE = 640
     const val YOLO_MAX_DETECTIONS = 300
