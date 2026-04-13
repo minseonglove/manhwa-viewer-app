@@ -57,8 +57,10 @@ fun FileItem(
     onClick: () -> Unit,
     coverModel: ViewerPageModel? = null,
     showProgress: Boolean = false,
+    showFileType: Boolean = true,
     showLockBadge: Boolean = false,
     insideArchive: Boolean = false,
+    trailingContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -92,11 +94,13 @@ fun FileItem(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = fileSubtitle(archive, insideArchive),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (showFileType) {
+                        Text(
+                            text = fileSubtitle(archive, insideArchive),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (showProgress && archive.totalPages > 0) {
                         val progress = ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
                         LinearProgressIndicator(
@@ -114,8 +118,10 @@ fun FileItem(
                 }
             }
 
-            // Trailing icon: only folders get chevron
-            if (archive.type == ArchiveType.FOLDER) {
+            // Trailing content: custom or default
+            if (trailingContent != null) {
+                trailingContent()
+            } else if (archive.type == ArchiveType.FOLDER) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_chevron_right),
                     contentDescription = null,
