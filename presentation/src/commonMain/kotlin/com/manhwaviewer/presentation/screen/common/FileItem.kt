@@ -80,7 +80,10 @@ fun FileItem(
                 }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = archive.displayName(),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -105,13 +108,13 @@ fun FileItem(
                         val progress = ((archive.lastReadIndex + 1).toFloat() / archive.totalPages).coerceIn(0f, 1f)
                         LinearProgressIndicator(
                             progress = { progress },
-                            modifier = Modifier.size(width = 60.dp, height = 4.dp)
-                                .clip(RoundedCornerShape(2.dp)),
+                            modifier = Modifier.size(width = 60.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
                             trackColor = MaterialTheme.colorScheme.outlineVariant,
                         )
                         Text(
                             text = "${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -255,6 +258,7 @@ fun FileGridItem(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(
             modifier = Modifier
@@ -329,7 +333,7 @@ fun FileGridItem(
 
         Text(
             text = archive.displayName(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
