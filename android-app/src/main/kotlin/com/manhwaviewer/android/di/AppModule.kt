@@ -134,5 +134,5 @@ val appModule = module {
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get()) }
     viewModelOf(::ViewerViewModel)
-    viewModel { SettingsViewModel(get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get()) }
 }
