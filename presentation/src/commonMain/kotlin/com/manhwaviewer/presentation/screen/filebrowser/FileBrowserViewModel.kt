@@ -114,11 +114,25 @@ class FileBrowserViewModel(
         val target = currentState.renameTarget ?: return
         viewModelScope.launch {
             val result = renameFileUseCase(target.filePath, newName)
-            result.onSuccess {
+            result.onSuccess { newPath ->
+                val oldKey = fileKey(target)
+                val renamedFile = target.copy(filePath = newPath, fileName = newName)
+                val newKey = fileKey(renamedFile)
+
                 updateState {
-                    copy(showRenameDialog = false, renameTarget = null, isSelectionMode = false, selectedFileKeys = emptySet())
+                    val updatedFiles = files.map { if (fileKey(it) == oldKey) renamedFile else it }
+                    val updatedCovers = coverModels.toMutableMap().apply {
+                        remove(oldKey)?.let { put(newKey, it) }
+                    }
+                    copy(
+                        files = updatedFiles,
+                        coverModels = updatedCovers,
+                        showRenameDialog = false,
+                        renameTarget = null,
+                        isSelectionMode = false,
+                        selectedFileKeys = emptySet(),
+                    )
                 }
-                navigateToFolder(currentState.currentPath)
             }
             result.onFailure {
                 // 파일시스템 레벨 실패 — 다이얼로그 유지
