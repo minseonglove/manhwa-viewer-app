@@ -75,7 +75,7 @@ import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.ListViewMode
-import com.manhwaviewer.presentation.screen.common.SubHeader
+import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -180,7 +180,7 @@ fun RecentScreen(
             )
         },
         topBar = {
-            SubHeader(
+            BaseTopBar(
                 title = if (state.isSelectionMode) {
                     stringResource(Res.string.recent_selection_count, state.selectedArchiveIds.size)
                 } else {
@@ -201,7 +201,10 @@ fun RecentScreen(
                             )
                         }
                     } else if (state.archives.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.onIntent(RecentIntent.ShowClearAllConfirm) }) {
+                        TextButton(
+                            onClick = { viewModel.onIntent(RecentIntent.ShowClearAllConfirm) },
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                        ) {
                             Text(
                                 text = stringResource(Res.string.recent_clear_all),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),

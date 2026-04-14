@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,10 +47,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -74,32 +73,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.GlassConfirmDialog
-import com.manhwaviewer.presentation.screen.common.GlassDialog
 import com.manhwaviewer.presentation.screen.common.ListViewMode
-import com.manhwaviewer.presentation.screen.common.SubHeader
 import com.manhwaviewer.presentation.theme.MangaLensColors
-import manhwa_viewer.presentation.generated.resources.Res
-import manhwa_viewer.presentation.generated.resources.file_selection_cancel
-import manhwa_viewer.presentation.generated.resources.file_selection_count
-import manhwa_viewer.presentation.generated.resources.file_selection_delete
-import manhwa_viewer.presentation.generated.resources.file_selection_move
-import manhwa_viewer.presentation.generated.resources.file_selection_rename
-import manhwa_viewer.presentation.generated.resources.file_selection_select_all
-import manhwa_viewer.presentation.generated.resources.file_selection_vault
-import manhwa_viewer.presentation.generated.resources.file_browser_empty
-import manhwa_viewer.presentation.generated.resources.file_browser_title
-import manhwa_viewer.presentation.generated.resources.ic_check_off
-import manhwa_viewer.presentation.generated.resources.ic_check_on
-import manhwa_viewer.presentation.generated.resources.ic_delete
-import manhwa_viewer.presentation.generated.resources.ic_folder_move
-import manhwa_viewer.presentation.generated.resources.ic_lock
-import manhwa_viewer.presentation.generated.resources.ic_name
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.file_browser_empty
+import manhwa_viewer.presentation.generated.resources.file_browser_title
+import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
+import manhwa_viewer.presentation.generated.resources.file_create_folder_title
 import manhwa_viewer.presentation.generated.resources.file_delete_confirm
 import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_highlight
 import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_suffix
@@ -107,11 +94,22 @@ import manhwa_viewer.presentation.generated.resources.file_delete_message_single
 import manhwa_viewer.presentation.generated.resources.file_delete_message_single_folder_suffix
 import manhwa_viewer.presentation.generated.resources.file_delete_message_single_highlight
 import manhwa_viewer.presentation.generated.resources.file_delete_title
-import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
-import manhwa_viewer.presentation.generated.resources.file_create_folder_title
 import manhwa_viewer.presentation.generated.resources.file_delete_warning
+import manhwa_viewer.presentation.generated.resources.file_selection_cancel
+import manhwa_viewer.presentation.generated.resources.file_selection_count
+import manhwa_viewer.presentation.generated.resources.file_selection_delete
+import manhwa_viewer.presentation.generated.resources.file_selection_move
+import manhwa_viewer.presentation.generated.resources.file_selection_rename
+import manhwa_viewer.presentation.generated.resources.file_selection_select_all
+import manhwa_viewer.presentation.generated.resources.file_selection_vault
+import manhwa_viewer.presentation.generated.resources.ic_check_off
+import manhwa_viewer.presentation.generated.resources.ic_check_on
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
+import manhwa_viewer.presentation.generated.resources.ic_delete
+import manhwa_viewer.presentation.generated.resources.ic_folder_move
 import manhwa_viewer.presentation.generated.resources.ic_hide
+import manhwa_viewer.presentation.generated.resources.ic_lock
+import manhwa_viewer.presentation.generated.resources.ic_name
 import manhwa_viewer.presentation.generated.resources.ic_plus
 import manhwa_viewer.presentation.generated.resources.vault_move_confirm
 import manhwa_viewer.presentation.generated.resources.vault_move_info_hidden
@@ -155,7 +153,7 @@ fun FileBrowserScreen(
 
     Scaffold(
         topBar = {
-            SubHeader(
+            BaseTopBar(
                 title = if (state.isSelectionMode) {
                     stringResource(Res.string.file_selection_count, state.selectedFileKeys.size)
                 } else {

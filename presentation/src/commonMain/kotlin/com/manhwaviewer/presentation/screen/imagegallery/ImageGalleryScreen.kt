@@ -29,7 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.manhwaviewer.presentation.screen.common.ListViewMode
-import com.manhwaviewer.presentation.screen.common.SubHeader
+import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -51,7 +51,7 @@ fun ImageGalleryScreen(
 
     Scaffold(
         topBar = {
-            SubHeader(
+            BaseTopBar(
                 title = "이미지",
                 onBack = onBack,
                 sortState = state.sortState,

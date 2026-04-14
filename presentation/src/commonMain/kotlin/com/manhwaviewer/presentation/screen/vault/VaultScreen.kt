@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.manhwaviewer.domain.entity.VaultFile
 import com.manhwaviewer.presentation.screen.common.ListViewMode
-import com.manhwaviewer.presentation.screen.common.SubHeader
+import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.ic_lock
@@ -62,7 +62,7 @@ fun VaultScreen(
 
     Scaffold(
         topBar = {
-            SubHeader(
+            BaseTopBar(
                 title = "보관함",
                 onBack = onBack,
                 sortState = state.sortState,
