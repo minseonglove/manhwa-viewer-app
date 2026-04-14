@@ -60,7 +60,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -75,6 +74,7 @@ import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
+import com.manhwaviewer.presentation.screen.common.GlassDialog
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SubHeader
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -93,9 +93,6 @@ import manhwa_viewer.presentation.generated.resources.ic_folder_move
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import manhwa_viewer.presentation.generated.resources.ic_name
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
@@ -132,9 +129,7 @@ fun FileBrowserScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        modifier = Modifier.hazeSource(hazeState),
         topBar = {
             SubHeader(
                 title = if (state.isSelectionMode) {
@@ -179,7 +174,8 @@ fun FileBrowserScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .hazeSource(hazeState),
         ) {
             BoxWithConstraints(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -345,7 +341,6 @@ fun FileBrowserScreen(
     // 이름 변경 다이얼로그
     val renameTarget = state.renameTarget
     if (state.showRenameDialog && renameTarget != null) {
-        BackHandler { viewModel.onIntent(FileBrowserIntent.DismissRenameDialog) }
         RenameDialog(
             initialName = renameTarget.fileName,
             siblingNames = state.files
@@ -357,7 +352,6 @@ fun FileBrowserScreen(
             onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissRenameDialog) },
         )
     }
-    } // Box
 }
 
 // ── 전체 선택 체크박스 ────────────────────────────────────────────
@@ -601,160 +595,128 @@ private fun RenameDialog(
         && value != initialName
         && siblingNames.none { it.equals(value, ignoreCase = true) }
 
-    // 전체 화면 오버레이
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.46f)),
-        contentAlignment = Alignment.Center,
+    GlassDialog(
+        hazeState = hazeState,
+        onDismiss = onDismiss,
     ) {
-        // 바깥 탭 → 닫기
-        Box(
+        // 헤더
+        Text(
+            text = stringResource(Res.string.file_selection_rename),
+            style = TextStyle(
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+            ),
+            color = MangaLensColors.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    onClick = onDismiss,
-                ),
+                .fillMaxWidth()
+                .padding(top = 20.dp, bottom = 12.dp, start = 20.dp, end = 20.dp),
         )
 
-        // 다이얼로그 카드
-        Column(
+        // 입력 필드
+        Box(
             modifier = Modifier
-                .width(270.dp)
-                .shadow(24.dp, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .hazeEffect(
-                    state = hazeState,
-                    style = HazeStyle(
-                        backgroundColor = MangaLensColors.surface1,
-                        tints = listOf(HazeTint(MangaLensColors.surfaceGlass)),
-                        blurRadius = 24.dp,
-                        noiseFactor = 0.15f,
-                    ),
-                )
-                .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(16.dp)),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 20.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.White.copy(alpha = 0.07f))
+                .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            // 헤더
-            Text(
-                text = stringResource(Res.string.file_selection_rename),
-                style = TextStyle(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.3).sp,
-                ),
-                color = MangaLensColors.onSurface,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp, bottom = 12.dp, start = 20.dp, end = 20.dp),
-            )
-
-            // 입력 필드
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 20.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White.copy(alpha = 0.07f))
-                    .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart,
+            Row(
+                modifier = Modifier.height(38.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.height(38.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    BasicTextField(
-                        value = textFieldValue,
-                        onValueChange = { textFieldValue = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester),
-                        textStyle = TextStyle(
-                            fontSize = 14.sp,
-                            color = MangaLensColors.onSurface,
-                            letterSpacing = (-0.2).sp,
-                        ),
-                        singleLine = true,
-                        cursorBrush = SolidColor(MangaLensColors.blueHi),
-                    )
+                BasicTextField(
+                    value = textFieldValue,
+                    onValueChange = { textFieldValue = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    textStyle = TextStyle(
+                        fontSize = 14.sp,
+                        color = MangaLensColors.onSurface,
+                        letterSpacing = (-0.2).sp,
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MangaLensColors.blueHi),
+                )
 
-                    if (value.isNotEmpty()) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_close_circle),
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.35f),
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable {
-                                    textFieldValue = TextFieldValue("")
-                                },
-                        )
-                    }
+                if (value.isNotEmpty()) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_close_circle),
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.35f),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable {
+                                textFieldValue = TextFieldValue("")
+                            },
+                    )
                 }
             }
+        }
 
-            // 버튼 구분선
-            HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
+        // 버튼 구분선
+        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
 
-            // 버튼 행
-            Row(
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+        // 버튼 행
+        Row(
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+        ) {
+            // 취소 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
             ) {
-                // 취소 버튼
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(onClick = onDismiss),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.file_selection_cancel),
-                        style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Normal,
-                        ),
-                        color = MangaLensColors.blueHi,
-                    )
-                }
-
-                // 버튼 세로 구분선
-                Box(
-                    modifier = Modifier
-                        .width(0.5.dp)
-                        .fillMaxHeight()
-                        .background(MangaLensColors.separator),
+                Text(
+                    text = stringResource(Res.string.file_selection_cancel),
+                    style = TextStyle(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
+                    color = MangaLensColors.blueHi,
                 )
+            }
 
-                // 이름 변경 버튼
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .then(
-                            if (isConfirmEnabled) {
-                                Modifier.clickable { onConfirm(value) }
-                            } else {
-                                Modifier
-                            },
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.file_selection_rename),
-                        style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        color = MangaLensColors.blueHi.copy(
-                            alpha = if (isConfirmEnabled) 1f else 0.35f,
-                        ),
-                    )
-                }
+            // 버튼 세로 구분선
+            Box(
+                modifier = Modifier
+                    .width(0.5.dp)
+                    .fillMaxHeight()
+                    .background(MangaLensColors.separator),
+            )
+
+            // 이름 변경 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .then(
+                        if (isConfirmEnabled) {
+                            Modifier.clickable { onConfirm(value) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.file_selection_rename),
+                    style = TextStyle(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = MangaLensColors.blueHi.copy(
+                        alpha = if (isConfirmEnabled) 1f else 0.35f,
+                    ),
+                )
             }
         }
     }
