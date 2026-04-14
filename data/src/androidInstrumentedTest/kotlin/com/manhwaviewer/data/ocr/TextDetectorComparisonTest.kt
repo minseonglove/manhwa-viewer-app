@@ -2,6 +2,9 @@ package com.manhwaviewer.data.ocr
 
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
+import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
+import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
+import com.manhwaviewer.data.ocr.inference.YoloRunner
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -23,8 +26,15 @@ class TextDetectorComparisonTest {
 
         // === 1. YOLO pipeline ===
         val yoloPipeline = TextDetectionRepositoryImpl(
-            YoloTextDetector(context),
-            verticalOcr = AndroidMangaOcrEngine(context),
+            CommonYoloTextDetector(YoloRunner(context)),
+            verticalOcr = CommonMangaOcrEngine(
+                encoder = OcrEncoderRunner(context),
+                decoder = OcrDecoderRunner(context),
+                vocabLoader = {
+                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                        .bufferedReader().readLines()
+                },
+            ),
         )
         val yoloStart = System.currentTimeMillis()
         val yoloBlocks = yoloPipeline.detectAndRecognize(imageBytes)
@@ -38,8 +48,15 @@ class TextDetectorComparisonTest {
 
         // === 2. YOLO + MLKit hybrid pipeline ===
         val hybridPipeline = TextDetectionRepositoryImpl(
-            YoloTextDetector(context),
-            verticalOcr = AndroidMangaOcrEngine(context),
+            CommonYoloTextDetector(YoloRunner(context)),
+            verticalOcr = CommonMangaOcrEngine(
+                encoder = OcrEncoderRunner(context),
+                decoder = OcrDecoderRunner(context),
+                vocabLoader = {
+                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                        .bufferedReader().readLines()
+                },
+            ),
             platformRecognizer = MlKitTextRecognizer(),
         )
         val hybridStart = System.currentTimeMillis()
