@@ -2,7 +2,10 @@ package com.manhwaviewer.data.ocr.inference
 
 import com.manhwaviewer.data.ocr.MangaOcrConfig
 import platform.CoreML.MLMultiArray
-import platform.CoreML.MLMultiArrayDataType
+import platform.CoreML.MLMultiArrayDataTypeFloat32
+import platform.CoreML.create
+import platform.CoreML.objectAtIndexedSubscript
+import platform.CoreML.setObject
 import platform.Foundation.NSNumber
 
 /**
@@ -33,15 +36,15 @@ actual class KvCacheState(
 }
 
 private fun MLMultiArray.deepCopy(): MLMultiArray {
-    val shape = (0 until this.shape.count().toInt()).map {
-        this.shape.objectAtIndex(it.toULong()) as NSNumber
+    val shape = (0 until this.shape().count().toInt()).map {
+        this.shape()[it] as NSNumber
     }
-    val copy = MLMultiArray(
+    val copy = MLMultiArray.create(
         shape = shape,
-        dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+        dataType = MLMultiArrayDataTypeFloat32,
         error = null,
     ) ?: error("Failed to create MLMultiArray copy")
-    val count = this.count.toInt()
+    val count = this.count().toInt()
     for (i in 0 until count) {
         copy.setObject(
             this.objectAtIndexedSubscript(i.toLong()),

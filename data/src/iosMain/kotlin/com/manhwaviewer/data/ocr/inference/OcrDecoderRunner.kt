@@ -1,8 +1,16 @@
 package com.manhwaviewer.data.ocr.inference
 
 import com.manhwaviewer.data.ocr.MangaOcrConfig
-import platform.CoreML.*
-import platform.Foundation.*
+import platform.CoreML.MLDictionaryFeatureProvider
+import platform.CoreML.MLModel
+import platform.CoreML.MLMultiArray
+import platform.CoreML.MLMultiArrayDataTypeFloat32
+import platform.CoreML.MLMultiArrayDataTypeInt32
+import platform.CoreML.create
+import platform.CoreML.objectAtIndexedSubscript
+import platform.CoreML.setObject
+import platform.Foundation.NSBundle
+import platform.Foundation.NSNumber
 
 actual class OcrDecoderRunner {
     private var crossAttnInitModel: MLModel? = null
@@ -25,7 +33,6 @@ actual class OcrDecoderRunner {
             listOf(1, MangaOcrConfig.ENCODER_SEQ_LENGTH, MangaOcrConfig.ENCODER_HIDDEN_SIZE),
         )
 
-        // Run cross_attn_init to compute cross-attention KV
         val featureProvider = MLDictionaryFeatureProvider(
             dictionary = mapOf("encoder_hidden_states" to encoderArray) as Map<Any?, *>,
             error = null,
@@ -36,15 +43,14 @@ actual class OcrDecoderRunner {
 
         val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
         val crossKeys = Array(numLayers) { layer ->
-            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue
+            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue()
                 ?: error("cross_key_layer$layer not found")
         }
         val crossValues = Array(numLayers) { layer ->
-            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue
+            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue()
                 ?: error("cross_value_layer$layer not found")
         }
 
-        // Self-attention KV starts with seq_len=1 (CoreML RangeDim lower_bound=1)
         val emptySelfKeys = Array(numLayers) {
             createZeroMLMultiArray(listOf(1, MangaOcrConfig.DECODER_NUM_HEADS, 1, MangaOcrConfig.DECODER_HEAD_DIM))
         }
@@ -68,11 +74,11 @@ actual class OcrDecoderRunner {
 
         val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
         val crossKeys = Array(numLayers) { layer ->
-            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue
+            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue()
                 ?: error("cross_key_layer$layer not found")
         }
         val crossValues = Array(numLayers) { layer ->
-            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue
+            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue()
                 ?: error("cross_value_layer$layer not found")
         }
 
@@ -91,9 +97,9 @@ actual class OcrDecoderRunner {
         val vocabSize = MangaOcrConfig.VOCAB_SIZE
 
         // Build input_ids [1, 1]
-        val idsArray = MLMultiArray(
+        val idsArray = MLMultiArray.create(
             shape = listOf(NSNumber(int = 1), NSNumber(int = 1)),
-            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeInt32,
+            dataType = MLMultiArrayDataTypeInt32,
             error = null,
         ) ?: error("Failed to create input_ids MLMultiArray")
         idsArray.setObject(NSNumber(int = tokenId), atIndexedSubscript = 0L)
@@ -119,19 +125,19 @@ actual class OcrDecoderRunner {
             ?: error("decoder_with_past inference failed")
 
         // Extract logits [1, 1, 6144]
-        val logitsArray = result.featureValueForName("logits")?.multiArrayValue
+        val logitsArray = result.featureValueForName("logits")?.multiArrayValue()
             ?: error("logits not found")
         val logits = FloatArray(vocabSize) {
-            logitsArray.objectAtIndexedSubscript(it.toLong()).floatValue
+            (logitsArray.objectAtIndexedSubscript(it.toLong()) as NSNumber).floatValue
         }
 
         // Extract updated self-attention KV
         val newSelfKeys = Array(numLayers) { layer ->
-            result.featureValueForName("present_self_key_layer$layer")?.multiArrayValue
+            result.featureValueForName("present_self_key_layer$layer")?.multiArrayValue()
                 ?: error("present_self_key_layer$layer not found")
         }
         val newSelfValues = Array(numLayers) { layer ->
-            result.featureValueForName("present_self_value_layer$layer")?.multiArrayValue
+            result.featureValueForName("present_self_value_layer$layer")?.multiArrayValue()
                 ?: error("present_self_value_layer$layer not found")
         }
 
@@ -155,9 +161,9 @@ actual class OcrDecoderRunner {
 
     private fun floatArrayToMLMultiArray(data: FloatArray, shape: List<Int>): MLMultiArray {
         val nsShape = shape.map { NSNumber(int = it) }
-        val array = MLMultiArray(
+        val array = MLMultiArray.create(
             shape = nsShape,
-            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+            dataType = MLMultiArrayDataTypeFloat32,
             error = null,
         ) ?: error("Failed to create MLMultiArray")
         for (i in data.indices) {
@@ -168,9 +174,9 @@ actual class OcrDecoderRunner {
 
     private fun createZeroMLMultiArray(shape: List<Int>): MLMultiArray {
         val nsShape = shape.map { NSNumber(int = it) }
-        val array = MLMultiArray(
+        val array = MLMultiArray.create(
             shape = nsShape,
-            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+            dataType = MLMultiArrayDataTypeFloat32,
             error = null,
         ) ?: error("Failed to create zero MLMultiArray")
         val count = shape.fold(1) { acc, v -> acc * v }
