@@ -40,6 +40,43 @@ object YoloPostProcessor {
         return boxes
     }
 
+    /**
+     * Non-maximum suppression to remove overlapping detections.
+     * Keeps the highest-confidence box when IoU > threshold.
+     */
+    fun nonMaxSuppression(
+        boxes: List<DetectedBox>,
+        iouThreshold: Float = 0.5f,
+    ): List<DetectedBox> {
+        if (boxes.isEmpty()) return emptyList()
+        val sorted = boxes.sortedByDescending { it.confidence }
+        val kept = mutableListOf<DetectedBox>()
+        val suppressed = BooleanArray(sorted.size)
+
+        for (i in sorted.indices) {
+            if (suppressed[i]) continue
+            kept.add(sorted[i])
+            for (j in i + 1 until sorted.size) {
+                if (suppressed[j]) continue
+                if (iou(sorted[i], sorted[j]) > iouThreshold) {
+                    suppressed[j] = true
+                }
+            }
+        }
+        return kept
+    }
+
+    private fun iou(a: DetectedBox, b: DetectedBox): Float {
+        val ix1 = maxOf(a.x, b.x)
+        val iy1 = maxOf(a.y, b.y)
+        val ix2 = minOf(a.x + a.width, b.x + b.width)
+        val iy2 = minOf(a.y + a.height, b.y + b.height)
+        val intersection = maxOf(0, ix2 - ix1) * maxOf(0, iy2 - iy1)
+        if (intersection == 0) return 0f
+        val union = a.width * a.height + b.width * b.height - intersection
+        return intersection.toFloat() / union.toFloat()
+    }
+
     fun addPadding(box: DetectedBox, imageWidth: Int, imageHeight: Int): DetectedBox {
         val pad = (maxOf(box.width, box.height) * PADDING_RATIO)
             .toInt().coerceIn(MIN_PADDING_PX, MAX_PADDING_PX)

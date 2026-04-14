@@ -52,4 +52,17 @@ class YoloPostProcessorTest {
         assertEquals(0, t.padX)
         assertEquals(140, t.padY)
     }
+
+    @Test
+    fun nonMaxSuppression_removesOverlapping() {
+        val boxes = listOf(
+            DetectedBox(10, 10, 100, 100, 0.9f, true),
+            DetectedBox(15, 15, 100, 100, 0.7f, true),  // overlaps with first
+            DetectedBox(300, 300, 50, 50, 0.8f, true),   // no overlap
+        )
+        val result = YoloPostProcessor.nonMaxSuppression(boxes)
+        assertEquals(2, result.size)
+        assertEquals(0.9f, result[0].confidence)
+        assertEquals(0.8f, result[1].confidence)
+    }
 }

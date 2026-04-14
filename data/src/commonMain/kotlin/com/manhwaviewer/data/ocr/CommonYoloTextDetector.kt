@@ -33,7 +33,7 @@ class CommonYoloTextDetector(
 
         val rawOutput = yolo.run(inputData)
 
-        val boxes = YoloPostProcessor.parseAndFilter(
+        val rawBoxes = YoloPostProcessor.parseAndFilter(
             rawOutput = rawOutput,
             scale = transform.scale,
             padX = transform.padX,
@@ -41,6 +41,7 @@ class CommonYoloTextDetector(
             originalWidth = origW,
             originalHeight = origH,
         )
+        val boxes = YoloPostProcessor.nonMaxSuppression(rawBoxes)
 
         return boxes.mapNotNull { box ->
             val padded = YoloPostProcessor.addPadding(box, origW, origH)

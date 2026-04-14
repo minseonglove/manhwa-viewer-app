@@ -46,7 +46,7 @@ val iosPlatformModule = module {
                 decoder = OcrDecoderRunner(),
                 vocabLoader = {
                     val path = NSBundle.mainBundle.pathForResource(
-                        PlatformModelPaths.VOCAB_FILE_PATH, ofType = "txt"
+                        "vocab", ofType = "txt", inDirectory = "mangaocr"
                     ) ?: error("Vocab file not found in bundle")
                     val content = NSString.stringWithContentsOfFile(path, NSUTF8StringEncoding, null)
                         ?: error("Failed to read vocab file")
