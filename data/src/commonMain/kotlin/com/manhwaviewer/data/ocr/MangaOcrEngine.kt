@@ -17,6 +17,10 @@ object MangaOcrConfig {
 
     const val BEAM_WIDTH = 3
 
+    const val DECODER_NUM_LAYERS = 2
+    const val DECODER_NUM_HEADS = 12
+    const val DECODER_HEAD_DIM = 64
+
     const val YOLO_INPUT_SIZE = 640
     const val YOLO_MAX_DETECTIONS = 300
 }

@@ -1,5 +1,7 @@
 package com.manhwaviewer.data.ocr
 
+import com.manhwaviewer.data.ocr.inference.DecoderStepResult
+import com.manhwaviewer.data.ocr.inference.KvCacheState
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -124,6 +126,96 @@ private fun logSoftmax(logits: FloatArray): FloatArray {
         result[i] -= logSumExp
     }
     return result
+}
+
+/**
+ * Beam search with KV cache. Each beam candidate carries its own KV state.
+ * Only self-attention KV is copied on beam branch; cross-attention KV is shared.
+ */
+internal fun beamSearchDecodeWithKvCache(
+    beamWidth: Int,
+    maxLength: Int,
+    vocabSize: Int,
+    startTokenId: Int,
+    eosTokenId: Int,
+    initialKvCache: KvCacheState,
+    decoderStep: (tokenId: Int, kvCache: KvCacheState) -> DecoderStepResult,
+): List<Int> {
+    data class KvBeamCandidate(
+        val tokenIds: IntArray,
+        val seqLen: Int,
+        val score: Float,
+        val kvCache: KvCacheState,
+    )
+
+    // First step: process start token
+    val firstResult = decoderStep(startTokenId, initialKvCache)
+    val firstLogProbs = logSoftmax(firstResult.logits)
+    val topIndices = topK(firstLogProbs, beamWidth)
+
+    var beams = topIndices.map { idx ->
+        val ids = IntArray(maxLength + 1)
+        ids[0] = startTokenId
+        ids[1] = idx
+        KvBeamCandidate(ids, 2, firstLogProbs[idx], firstResult.kvCache.copySelfAttn())
+    }
+
+    val completed = mutableListOf<KvBeamCandidate>()
+
+    for (step in 1 until maxLength) {
+        val candidates = mutableListOf<Triple<KvBeamCandidate, Int, Float>>()
+
+        for (beam in beams) {
+            val lastToken = beam.tokenIds[beam.seqLen - 1]
+            val result = decoderStep(lastToken, beam.kvCache)
+            val logProbs = logSoftmax(result.logits)
+            val top = topK(logProbs, beamWidth)
+
+            for (idx in top) {
+                candidates.add(Triple(
+                    KvBeamCandidate(beam.tokenIds, beam.seqLen, beam.score, result.kvCache),
+                    idx,
+                    beam.score + logProbs[idx],
+                ))
+            }
+        }
+
+        candidates.sortByDescending { it.third }
+
+        val newBeams = mutableListOf<KvBeamCandidate>()
+        for ((parent, tokenId, newScore) in candidates) {
+            if (newBeams.size >= beamWidth && completed.isNotEmpty()) break
+            if (newBeams.size >= beamWidth) continue
+
+            val newTokenIds = parent.tokenIds.copyOf()
+            newTokenIds[parent.seqLen] = tokenId
+            val candidate = KvBeamCandidate(
+                newTokenIds, parent.seqLen + 1, newScore,
+                parent.kvCache.copySelfAttn(),
+            )
+
+            if (tokenId == eosTokenId) {
+                completed.add(candidate)
+            } else {
+                newBeams.add(candidate)
+            }
+        }
+
+        // Early stopping
+        if (completed.isNotEmpty()) {
+            val bestCompletedNormScore = completed.maxOf { lengthNormalizedScore(BeamCandidate(it.tokenIds, it.seqLen, it.score)) }
+            newBeams.removeAll { lengthNormalizedScore(BeamCandidate(it.tokenIds, it.seqLen, it.score)) <= bestCompletedNormScore }
+        }
+
+        beams = newBeams
+        if (beams.isEmpty()) break
+    }
+
+    val allCandidates = completed.map { BeamCandidate(it.tokenIds, it.seqLen, it.score) } +
+        beams.map { BeamCandidate(it.tokenIds, it.seqLen, it.score) }
+    val best = allCandidates.maxByOrNull { lengthNormalizedScore(it) }
+        ?: return listOf(startTokenId)
+    return (0 until best.seqLen).map { best.tokenIds[it] }
 }
 
 /**
