@@ -26,15 +26,14 @@ actual class MediaScanner(private val context: Context) {
         dir.listFiles()?.forEach { file ->
             when {
                 file.isDirectory -> {
-                    val imageCount = countImages(file)
                     results.add(
                         ArchiveFile(
                             filePath = file.absolutePath,
                             fileName = file.name,
                             type = ArchiveType.FOLDER,
-                            totalPages = imageCount,
+                            totalPages = 0,
                             addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = imageCount > 0,
+                            hasImages = false,
                         )
                     )
                 }
@@ -97,7 +96,4 @@ actual class MediaScanner(private val context: Context) {
             Result.failure(IllegalStateException("Failed to delete file"))
         }
     }
-
-    private fun countImages(folder: File): Int =
-        folder.listFiles()?.count { it.isFile && it.extension.lowercase() in imageExtensions } ?: 0
 }

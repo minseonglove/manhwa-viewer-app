@@ -122,6 +122,7 @@ fun FileBrowserScreen(
     viewModel: FileBrowserViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val coverModels by viewModel.coverModels.collectAsState()
     val hazeState = rememberHazeState()
 
     // 선택 모드에서 뒤로가기 → 선택 모드 해제
@@ -221,8 +222,8 @@ fun FileBrowserScreen(
                         ) { _ ->
                             val isInsideArchive = state.insideArchivePath != null
                             fun coverModelFor(file: ArchiveFile) =
-                                if (isInsideArchive) state.coverModels["${file.filePath}/${file.fileName}"]
-                                else state.coverModels[file.filePath]
+                                if (isInsideArchive) coverModels["${file.filePath}/${file.fileName}"]
+                                else coverModels[file.filePath]
 
                             fun fileKey(file: ArchiveFile) = "${file.filePath}/${file.fileName}"
 

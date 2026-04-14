@@ -2,7 +2,6 @@ package com.manhwaviewer.presentation.screen.filebrowser
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.presentation.screen.common.SortState
-import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 
 enum class NavigationDirection { FORWARD, BACKWARD }
 
@@ -14,7 +13,6 @@ data class FileBrowserState(
     val isLoading: Boolean = false,
     val navigationDirection: NavigationDirection = NavigationDirection.FORWARD,
     val insideArchivePath: String? = null,
-    val coverModels: Map<String, ViewerPageModel> = emptyMap(),
     val isSelectionMode: Boolean = false,
     val selectedFileKeys: Set<String> = emptySet(),
     val showRenameDialog: Boolean = false,

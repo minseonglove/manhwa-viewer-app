@@ -19,6 +19,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -36,6 +39,8 @@ class FileBrowserViewModel(
 
     private val archiveExtensions = setOf("zip", "cbz", "cbr")
     private var coverLoadJob: Job? = null
+    private val _coverModels = MutableStateFlow<Map<String, ViewerPageModel>>(emptyMap())
+    val coverModels: StateFlow<Map<String, ViewerPageModel>> = _coverModels.asStateFlow()
 
     init {
         navigateToFolder(defaultScanPath)
@@ -46,14 +51,21 @@ class FileBrowserViewModel(
             is FileBrowserIntent.NavigateToFolder -> navigateToFolder(intent.path, NavigationDirection.FORWARD)
             is FileBrowserIntent.OpenFile -> openFile(intent.archive)
             is FileBrowserIntent.OpenArchiveEntry -> openArchiveEntry(intent.archive, intent.pageIndex)
-            is FileBrowserIntent.SetSortField -> updateState {
-                val newState = sortState.copy(field = intent.field)
-                copy(sortState = newState, files = sortFiles(files, newState.field, newState.ascending))
+            is FileBrowserIntent.SetSortField -> {
+                val newSortState = currentState.sortState.copy(field = intent.field)
+                updateState { copy(sortState = newSortState) }
+                viewModelScope.launch {
+                    val sorted = withContext(ioDispatcher) { sortFiles(currentState.files, newSortState.field, newSortState.ascending) }
+                    updateState { copy(files = sorted) }
+                }
             }
-            FileBrowserIntent.ToggleSortDirection -> updateState {
-                val newAscending = !sortState.ascending
-                val newState = sortState.copy(ascending = newAscending)
-                copy(sortState = newState, files = sortFiles(files, newState.field, newState.ascending))
+            FileBrowserIntent.ToggleSortDirection -> {
+                val newSortState = currentState.sortState.copy(ascending = !currentState.sortState.ascending)
+                updateState { copy(sortState = newSortState) }
+                viewModelScope.launch {
+                    val sorted = withContext(ioDispatcher) { sortFiles(currentState.files, newSortState.field, newSortState.ascending) }
+                    updateState { copy(files = sorted) }
+                }
             }
             FileBrowserIntent.ToggleViewMode -> updateState {
                 copy(
@@ -129,10 +141,10 @@ class FileBrowserViewModel(
                     }
                 }.mapNotNull { it.await() }.toSet()
             }
+            _coverModels.value = _coverModels.value.filterKeys { it !in deletedKeys }
             updateState {
                 copy(
                     files = files.filter { fileKey(it) !in deletedKeys },
-                    coverModels = coverModels.filterKeys { it !in deletedKeys },
                     showDeleteDialog = false,
                     deleteTargets = emptyList(),
                     isSelectionMode = false,
@@ -158,14 +170,13 @@ class FileBrowserViewModel(
                 val renamedFile = target.copy(filePath = newPath, fileName = newName)
                 val newKey = fileKey(renamedFile)
 
+                _coverModels.value = _coverModels.value.toMutableMap().apply {
+                    remove(oldKey)?.let { put(newKey, it) }
+                }
                 updateState {
                     val updatedFiles = files.map { if (fileKey(it) == oldKey) renamedFile else it }
-                    val updatedCovers = coverModels.toMutableMap().apply {
-                        remove(oldKey)?.let { put(newKey, it) }
-                    }
                     copy(
                         files = updatedFiles,
-                        coverModels = updatedCovers,
                         showRenameDialog = false,
                         renameTarget = null,
                         isSelectionMode = false,
@@ -193,15 +204,16 @@ class FileBrowserViewModel(
     private fun navigateToFolder(path: String, direction: NavigationDirection = NavigationDirection.FORWARD) {
         coverLoadJob?.cancel()
         viewModelScope.launch {
-            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction, coverModels = emptyMap(), isSelectionMode = false, selectedFileKeys = emptySet()) }
+            _coverModels.value = emptyMap()
+            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction, isSelectionMode = false, selectedFileKeys = emptySet()) }
             try {
                 val ext = path.substringAfterLast('.').lowercase()
                 val isArchive = ext in archiveExtensions
-                val files = withContext(ioDispatcher) {
-                    if (isArchive) scanArchiveEntriesUseCase(path)
+                val sorted = withContext(ioDispatcher) {
+                    val files = if (isArchive) scanArchiveEntriesUseCase(path)
                     else scanLocalFilesUseCase(path)
+                    sortFiles(files)
                 }
-                val sorted = sortFiles(files)
                 updateState {
                     copy(
                         files = sorted,
@@ -230,37 +242,45 @@ class FileBrowserViewModel(
                     entryNames = listOf(file.fileName),
                 )
             }
-            updateState { copy(coverModels = models) }
+            _coverModels.value = models
             return
         }
         val archiveFiles = files.filter { it.type in setOf(ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR) }
         if (archiveFiles.isEmpty()) return
+        val semaphore = kotlinx.coroutines.sync.Semaphore(3)
         coverLoadJob = viewModelScope.launch {
             supervisorScope {
-                val results = archiveFiles.map { archive ->
-                    async(ioDispatcher) {
-                        try {
-                            val entries = getImageEntriesUseCase(archive.filePath)
-                            if (entries.isNotEmpty()) {
-                                archive.filePath to ViewerPageModel(
-                                    archivePath = archive.filePath,
-                                    entryNames = listOf(entries.first()),
-                                )
-                            } else {
+                archiveFiles.chunked(6).forEach { batch ->
+                    val results = batch.map { archive ->
+                        async(ioDispatcher) {
+                            semaphore.acquire()
+                            try {
+                                val entries = getImageEntriesUseCase(archive.filePath)
+                                if (entries.isNotEmpty()) {
+                                    archive.filePath to ViewerPageModel(
+                                        archivePath = archive.filePath,
+                                        entryNames = listOf(entries.first()),
+                                    )
+                                } else {
+                                    null
+                                }
+                            } catch (_: Exception) {
                                 null
+                            } finally {
+                                semaphore.release()
                             }
-                        } catch (_: Exception) {
-                            null
+                        }
+                    }.mapNotNull { it.await() }.toMap()
+                    if (results.isNotEmpty()) {
+                        _coverModels.value = _coverModels.value + results
+                        updateState {
+                            copy(
+                                files = this.files.map { file ->
+                                    if (file.filePath in results) file.copy(hasImages = true) else file
+                                },
+                            )
                         }
                     }
-                }.mapNotNull { it.await() }.toMap()
-                updateState {
-                    copy(
-                        coverModels = results,
-                        files = this.files.map { file ->
-                            if (file.filePath in results) file.copy(hasImages = true) else file
-                        },
-                    )
                 }
             }
         }

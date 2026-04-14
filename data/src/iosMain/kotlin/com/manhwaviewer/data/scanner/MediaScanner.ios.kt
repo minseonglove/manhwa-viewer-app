@@ -41,15 +41,14 @@ actual class MediaScanner {
             }
 
             if (isDir) {
-                val imageCount = countImages(fullPath)
                 results.add(
                     ArchiveFile(
                         filePath = fullPath,
                         fileName = name,
                         type = ArchiveType.FOLDER,
-                        totalPages = imageCount,
+                        totalPages = 0,
                         addedAt = getFileModifiedAt(fullPath),
-                        hasImages = imageCount > 0,
+                        hasImages = false,
                     )
                 )
             } else {
@@ -127,16 +126,4 @@ actual class MediaScanner {
         }
     }
 
-    private fun countImages(folderPath: String): Int {
-        val contents = NSFileManager.defaultManager.contentsOfDirectoryAtPath(folderPath, error = null)
-            ?: return 0
-        @Suppress("UNCHECKED_CAST")
-        val contentsList = contents as List<String>
-        var count = 0
-        for (name in contentsList) {
-            val ext = name.substringAfterLast('.', "").lowercase()
-            if (ext in imageExtensions) count++
-        }
-        return count
-    }
 }
