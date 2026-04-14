@@ -65,7 +65,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -86,6 +85,8 @@ import manhwa_viewer.presentation.generated.resources.file_selection_move
 import manhwa_viewer.presentation.generated.resources.file_selection_rename
 import manhwa_viewer.presentation.generated.resources.file_selection_select_all
 import manhwa_viewer.presentation.generated.resources.file_selection_vault
+import manhwa_viewer.presentation.generated.resources.file_browser_empty
+import manhwa_viewer.presentation.generated.resources.file_browser_title
 import manhwa_viewer.presentation.generated.resources.ic_check_off
 import manhwa_viewer.presentation.generated.resources.ic_check_on
 import manhwa_viewer.presentation.generated.resources.ic_delete
@@ -135,7 +136,7 @@ fun FileBrowserScreen(
                 title = if (state.isSelectionMode) {
                     stringResource(Res.string.file_selection_count, state.selectedFileKeys.size)
                 } else {
-                    "파일"
+                    stringResource(Res.string.file_browser_title)
                 },
                 onBack = if (state.isSelectionMode) null else ({ viewModel.onIntent(FileBrowserIntent.GoBack) }),
                 pathSegments = state.pathSegments,
@@ -187,7 +188,7 @@ fun FileBrowserScreen(
                     }
                     state.files.isEmpty() -> {
                         Text(
-                            text = "파일이 없습니다",
+                            text = stringResource(Res.string.file_browser_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.align(Alignment.Center),
@@ -393,7 +394,7 @@ private fun SelectionCheckbox(
                 if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
             ),
             contentDescription = null,
-            tint = if (checked) Color.Unspecified else Color.White.copy(alpha = 0.3f),
+            tint = if (checked) Color.Unspecified else MangaLensColors.textTertiary,
             modifier = Modifier.size(24.dp),
         )
     }
@@ -602,11 +603,7 @@ private fun RenameDialog(
         // 헤더
         Text(
             text = stringResource(Res.string.file_selection_rename),
-            style = TextStyle(
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.3).sp,
-            ),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MangaLensColors.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
@@ -621,7 +618,7 @@ private fun RenameDialog(
                 .padding(bottom = 20.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color.White.copy(alpha = 0.07f))
+                .background(MangaLensColors.fillTertiary)
                 .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart,
@@ -636,10 +633,8 @@ private fun RenameDialog(
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester),
-                    textStyle = TextStyle(
-                        fontSize = 14.sp,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = MangaLensColors.onSurface,
-                        letterSpacing = (-0.2).sp,
                     ),
                     singleLine = true,
                     cursorBrush = SolidColor(MangaLensColors.blueHi),
@@ -649,7 +644,7 @@ private fun RenameDialog(
                     Icon(
                         painter = painterResource(Res.drawable.ic_close_circle),
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.35f),
+                        tint = MangaLensColors.textTertiary,
                         modifier = Modifier
                             .size(18.dp)
                             .clickable {
@@ -677,10 +672,7 @@ private fun RenameDialog(
             ) {
                 Text(
                     text = stringResource(Res.string.file_selection_cancel),
-                    style = TextStyle(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Normal,
-                    ),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                     color = MangaLensColors.blueHi,
                 )
             }
@@ -709,10 +701,7 @@ private fun RenameDialog(
             ) {
                 Text(
                     text = stringResource(Res.string.file_selection_rename),
-                    style = TextStyle(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.blueHi.copy(
                         alpha = if (isConfirmEnabled) 1f else 0.35f,
                     ),

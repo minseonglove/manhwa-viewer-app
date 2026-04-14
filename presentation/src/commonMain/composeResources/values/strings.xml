@@ -131,6 +131,10 @@
     <string name="recent_delete_single_description_name">"%1$s"</string>
     <string name="recent_delete_single_description_suffix"> 기록을 삭제합니다.\n이 작업은 되돌릴 수 없습니다.</string>
 
+    <!-- 파일 탐색 -->
+    <string name="file_browser_title">파일</string>
+    <string name="file_browser_empty">파일이 없습니다</string>
+
     <!-- 파일 탐색: 선택 모드 -->
     <string name="file_selection_count">%1$d개 선택됨</string>
     <string name="file_selection_select_all">전체</string>
