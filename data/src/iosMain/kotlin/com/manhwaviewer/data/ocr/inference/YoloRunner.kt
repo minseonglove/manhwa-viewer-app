@@ -10,7 +10,7 @@ actual class YoloRunner {
 
     actual fun initialize() {
         val modelUrl = NSBundle.mainBundle.URLForResource(
-            PlatformModelPaths.YOLO_MODEL_PATH, withExtension = "mlmodelc"
+            "yolo_detector", withExtension = "mlmodelc", subdirectory = "mangaocr"
         ) ?: error("YOLO CoreML model not found in bundle")
         model = MLModel.modelWithContentsOfURL(modelUrl, error = null)
             ?: error("Failed to load YOLO CoreML model")

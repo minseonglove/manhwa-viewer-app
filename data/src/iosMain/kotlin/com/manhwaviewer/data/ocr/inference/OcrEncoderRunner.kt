@@ -10,7 +10,7 @@ actual class OcrEncoderRunner {
 
     actual fun initialize() {
         val modelUrl = NSBundle.mainBundle.URLForResource(
-            PlatformModelPaths.ENCODER_MODEL_PATH, withExtension = "mlmodelc"
+            "encoder", withExtension = "mlmodelc", subdirectory = "mangaocr"
         ) ?: error("Encoder CoreML model not found in bundle")
         model = MLModel.modelWithContentsOfURL(modelUrl, error = null)
             ?: error("Failed to load encoder CoreML model")

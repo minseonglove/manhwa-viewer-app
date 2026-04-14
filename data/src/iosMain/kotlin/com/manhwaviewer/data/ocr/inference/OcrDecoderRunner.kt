@@ -10,7 +10,7 @@ actual class OcrDecoderRunner {
 
     actual fun initialize() {
         val modelUrl = NSBundle.mainBundle.URLForResource(
-            PlatformModelPaths.DECODER_MODEL_PATH, withExtension = "mlmodelc"
+            "decoder", withExtension = "mlmodelc", subdirectory = "mangaocr"
         ) ?: error("Decoder CoreML model not found in bundle")
         model = MLModel.modelWithContentsOfURL(modelUrl, error = null)
             ?: error("Failed to load decoder CoreML model")
