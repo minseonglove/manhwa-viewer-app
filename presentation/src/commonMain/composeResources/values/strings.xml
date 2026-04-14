@@ -134,6 +134,7 @@
     <!-- 파일 탐색 -->
     <string name="file_browser_title">파일</string>
     <string name="file_browser_empty">파일이 없습니다</string>
+    <string name="file_browser_internal_storage">내장저장공간</string>
 
     <!-- 파일 탐색: 선택 모드 -->
     <string name="file_selection_count">%1$d개 선택됨</string>

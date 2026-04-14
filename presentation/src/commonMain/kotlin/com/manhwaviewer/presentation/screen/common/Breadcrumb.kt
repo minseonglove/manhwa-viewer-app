@@ -15,9 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.file_browser_internal_storage
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_home
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun Breadcrumb(
@@ -48,8 +50,13 @@ fun Breadcrumb(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(12.dp),
             )
+            val displayName = if (segment.isEmpty()) {
+                stringResource(Res.string.file_browser_internal_storage)
+            } else {
+                segment
+            }
             Text(
-                text = segment,
+                text = displayName,
                 style = if (index == pathSegments.lastIndex) {
                     MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
