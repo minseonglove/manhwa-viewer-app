@@ -21,6 +21,11 @@ object MangaOcrConfig {
     const val BEAM_WIDTH = 1
     const val REPETITION_PENALTY = 1.2f
     const val TEMPERATURE = 0.8f
+    const val NO_REPEAT_NGRAM_SIZE = 3
+
+    const val BEAM_FALLBACK_WIDTH = 3
+    const val CONFIDENCE_GAP_THRESHOLD = 2.5f
+    const val CONFIDENCE_CONSECUTIVE_COUNT = 2
 
     const val DECODER_NUM_LAYERS = 2
     const val DECODER_NUM_HEADS = 12

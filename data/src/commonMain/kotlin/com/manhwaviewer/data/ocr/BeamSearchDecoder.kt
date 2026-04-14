@@ -57,6 +57,7 @@ internal fun beamSearchDecode(
         for (beam in beams) {
             val logits = decoderStep(beam.tokenIds, beam.seqLen)
             applyRepetitionPenalty(logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.REPETITION_PENALTY)
+            applyNgramBlocking(logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.NO_REPEAT_NGRAM_SIZE)
             applyTemperature(logits, MangaOcrConfig.TEMPERATURE)
             val logProbs = logSoftmax(logits)
             val topIndices = topK(logProbs, beamWidth)
@@ -122,6 +123,31 @@ private fun applyTemperature(logits: FloatArray, temperature: Float) {
     for (i in logits.indices) logits[i] /= temperature
 }
 
+/**
+ * Block tokens that would create a repeated n-gram.
+ * Scans the generated sequence for the current (n-1) prefix and sets logits
+ * of any token that previously followed the same prefix to -Infinity.
+ */
+private fun applyNgramBlocking(logits: FloatArray, tokenIds: IntArray, seqLen: Int, ngramSize: Int) {
+    if (ngramSize < 2 || seqLen < ngramSize - 1) return
+    val prefixStart = seqLen - (ngramSize - 1)
+    for (i in 0..seqLen - ngramSize) {
+        var match = true
+        for (j in 0 until ngramSize - 1) {
+            if (tokenIds[i + j] != tokenIds[prefixStart + j]) {
+                match = false
+                break
+            }
+        }
+        if (match) {
+            val blockedToken = tokenIds[i + ngramSize - 1]
+            if (blockedToken in logits.indices) {
+                logits[blockedToken] = Float.NEGATIVE_INFINITY
+            }
+        }
+    }
+}
+
 private fun logSoftmax(logits: FloatArray): FloatArray {
     var max = logits[0]
     for (i in 1 until logits.size) {
@@ -167,6 +193,7 @@ internal fun beamSearchDecodeWithKvCache(
     // First step: process start token
     val firstResult = decoderStep(startTokenId, initialKvCache)
     applyRepetitionPenalty(firstResult.logits, intArrayOf(startTokenId), 1, MangaOcrConfig.REPETITION_PENALTY)
+    applyNgramBlocking(firstResult.logits, intArrayOf(startTokenId), 1, MangaOcrConfig.NO_REPEAT_NGRAM_SIZE)
     applyTemperature(firstResult.logits, MangaOcrConfig.TEMPERATURE)
     val firstLogProbs = logSoftmax(firstResult.logits)
     val topIndices = topK(firstLogProbs, beamWidth)
@@ -187,6 +214,7 @@ internal fun beamSearchDecodeWithKvCache(
             val lastToken = beam.tokenIds[beam.seqLen - 1]
             val result = decoderStep(lastToken, beam.kvCache)
             applyRepetitionPenalty(result.logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.REPETITION_PENALTY)
+            applyNgramBlocking(result.logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.NO_REPEAT_NGRAM_SIZE)
             applyTemperature(result.logits, MangaOcrConfig.TEMPERATURE)
             val logProbs = logSoftmax(result.logits)
             val top = topK(logProbs, beamWidth)
@@ -239,8 +267,11 @@ internal fun beamSearchDecodeWithKvCache(
 }
 
 /**
- * Greedy decoding with KV cache. No beam branching, no KV copy.
- * Faster than beam search when beam_width=1 since it avoids copySelfAttn() and logSoftmax.
+ * Greedy decoding with KV cache and confidence monitoring.
+ * Returns null when consecutive low-confidence steps are detected,
+ * signalling that beam search should be used instead.
+ *
+ * Temperature is NOT applied here — it has no effect on argmax results.
  */
 internal fun greedyDecodeWithKvCache(
     maxLength: Int,
@@ -249,17 +280,38 @@ internal fun greedyDecodeWithKvCache(
     eosTokenId: Int,
     initialKvCache: KvCacheState,
     decoderStep: (tokenId: Int, kvCache: KvCacheState) -> DecoderStepResult,
-): List<Int> {
+): List<Int>? {
     val tokenIds = IntArray(maxLength + 1)
     tokenIds[0] = startTokenId
     var seqLen = 1
     var kvCache = initialKvCache
+    var consecutiveLowConfidence = 0
 
     for (step in 0 until maxLength) {
         val result = decoderStep(tokenIds[seqLen - 1], kvCache)
         applyRepetitionPenalty(result.logits, tokenIds, seqLen, MangaOcrConfig.REPETITION_PENALTY)
-        applyTemperature(result.logits, MangaOcrConfig.TEMPERATURE)
-        val nextToken = argmax(result.logits)
+        applyNgramBlocking(result.logits, tokenIds, seqLen, MangaOcrConfig.NO_REPEAT_NGRAM_SIZE)
+
+        // Monitor confidence: top-1 vs top-2 logit gap
+        val logits = result.logits
+        var max1 = Float.NEGATIVE_INFINITY
+        var max2 = Float.NEGATIVE_INFINITY
+        for (v in logits) {
+            if (v > max1) { max2 = max1; max1 = v }
+            else if (v > max2) { max2 = v }
+        }
+        val gap = max1 - max2
+        if (gap < MangaOcrConfig.CONFIDENCE_GAP_THRESHOLD) {
+            consecutiveLowConfidence++
+            if (consecutiveLowConfidence >= MangaOcrConfig.CONFIDENCE_CONSECUTIVE_COUNT) {
+                println("PageOCR |   Greedy confidence low (gap=${((gap * 100).toInt() / 100.0)}), fallback to beam search")
+                return null
+            }
+        } else {
+            consecutiveLowConfidence = 0
+        }
+
+        val nextToken = argmax(logits)
         tokenIds[seqLen] = nextToken
         seqLen++
         kvCache = result.kvCache

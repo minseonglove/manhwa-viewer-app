@@ -2,7 +2,7 @@ package com.manhwaviewer.data.db
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 fun ArchiveFileEntity.toDomain(): ArchiveFile = ArchiveFile(
     id = id,

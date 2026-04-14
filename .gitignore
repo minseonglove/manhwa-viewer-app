@@ -49,6 +49,8 @@ local.properties
 *.xcuserdata
 Pods/
 DerivedData/
+iosApp/Configuration/Secrets.xcconfig
+iosApp/iosApp.xcodeproj/
 
 # NDK / CMake build cache
 .cxx/

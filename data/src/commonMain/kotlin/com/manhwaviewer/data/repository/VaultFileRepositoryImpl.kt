@@ -7,7 +7,7 @@ import com.manhwaviewer.domain.entity.VaultFile
 import com.manhwaviewer.domain.repository.VaultFileRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 class VaultFileRepositoryImpl(
     private val dao: VaultFileDao,

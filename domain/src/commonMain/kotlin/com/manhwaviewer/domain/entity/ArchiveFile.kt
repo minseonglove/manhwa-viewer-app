@@ -1,6 +1,6 @@
 package com.manhwaviewer.domain.entity
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 data class ArchiveFile(
     val id: Long = 0,

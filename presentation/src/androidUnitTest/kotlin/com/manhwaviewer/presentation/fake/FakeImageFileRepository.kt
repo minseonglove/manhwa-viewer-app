@@ -4,7 +4,7 @@ import com.manhwaviewer.domain.entity.ImageFile
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class FakeImageFileRepository : ImageFileRepository {
     val allImagesFlow = MutableStateFlow<List<ImageFile>>(emptyList())

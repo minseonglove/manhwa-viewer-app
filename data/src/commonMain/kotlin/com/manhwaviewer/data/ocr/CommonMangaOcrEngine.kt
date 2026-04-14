@@ -54,6 +54,20 @@ class CommonMangaOcrEngine(
                     initialKvCache = initialKvCache,
                 ) { tokenId, kvCache ->
                     decoder.stepWithKvCache(tokenId, kvCache)
+                } ?: run {
+                    // Greedy was not confident — fallback to beam search.
+                    // Encoder output is reused; only KV cache is regenerated.
+                    val freshKvCache = decoder.beginSequence(encoderOutput)
+                    beamSearchDecodeWithKvCache(
+                        beamWidth = MangaOcrConfig.BEAM_FALLBACK_WIDTH,
+                        maxLength = MangaOcrConfig.MAX_LENGTH,
+                        vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                        startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                        eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+                        initialKvCache = freshKvCache,
+                    ) { tokenId, kvCache ->
+                        decoder.stepWithKvCache(tokenId, kvCache)
+                    }
                 }
             } else {
                 beamSearchDecodeWithKvCache(

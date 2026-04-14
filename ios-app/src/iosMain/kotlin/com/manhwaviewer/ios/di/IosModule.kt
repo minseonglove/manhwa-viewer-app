@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.manhwaviewer.ios.di
 
 import com.manhwaviewer.data.cache.IosCacheRepository
@@ -63,6 +65,10 @@ val iosPlatformModule = module {
         )
     }
 
-    // TODO: iOS 빌드 설정에서 Papago API 키 주입
-    single { PapagoTranslationService("", "") }
+    single {
+        val bundle = NSBundle.mainBundle
+        val clientId = bundle.objectForInfoDictionaryKey("PapagoClientId") as? String ?: ""
+        val clientSecret = bundle.objectForInfoDictionaryKey("PapagoClientSecret") as? String ?: ""
+        PapagoTranslationService(clientId, clientSecret)
+    }
 }

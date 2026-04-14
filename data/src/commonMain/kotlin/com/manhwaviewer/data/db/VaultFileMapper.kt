@@ -1,7 +1,7 @@
 package com.manhwaviewer.data.db
 
 import com.manhwaviewer.domain.entity.VaultFile
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 fun VaultFileEntity.toDomain(): VaultFile = VaultFile(
     id = id,

@@ -11,7 +11,7 @@ import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class ImageGalleryViewModel(
     getDeviceImagesUseCase: GetDeviceImagesUseCase,

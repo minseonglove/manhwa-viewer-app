@@ -12,7 +12,7 @@ import com.manhwaviewer.domain.repository.ImageFileRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class ImageFileRepositoryImpl(
     private val context: Context,

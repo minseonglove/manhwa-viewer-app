@@ -5,7 +5,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.repository.ArchiveFileRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class FakeArchiveFileRepository : ArchiveFileRepository {
     val recentArchives = MutableStateFlow<List<ArchiveFile>>(emptyList())

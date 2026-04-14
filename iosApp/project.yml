@@ -1,0 +1,43 @@
+name: iosApp
+options:
+  bundleIdPrefix: com.manhwaviewer
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+
+configFiles:
+  Debug: Configuration/Secrets.xcconfig
+  Release: Configuration/Secrets.xcconfig
+
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    resources:
+      - path: ../data/src/iosMain/resources/mangaocr
+        buildPhase: resources
+      - path: ../data/src/iosMain/resources/paddleocr
+        buildPhase: resources
+    dependencies:
+      - framework: ../libs/lindera/LinderaFFI.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.manhwaviewer.app
+        INFOPLIST_FILE: iosApp/Info.plist
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(SRCROOT)/../ios-app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LINKER_FLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "ComposeApp"
+          - "-larchive"
+          - "-lz"
+    preBuildScripts:
+      - name: "Build KMP Framework"
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :ios-app:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false
