@@ -14,9 +14,13 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.db.TranslationCacheDao
 import com.manhwaviewer.data.db.TranslationCacheEntity
-import com.manhwaviewer.data.ocr.AndroidMangaOcrEngine
+import com.manhwaviewer.data.ocr.CommonMangaOcrEngine
+import com.manhwaviewer.data.ocr.CommonYoloTextDetector
+import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
-import com.manhwaviewer.data.ocr.YoloTextDetector
+import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
+import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
+import com.manhwaviewer.data.ocr.inference.YoloRunner
 import com.manhwaviewer.data.translation.PapagoTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.entity.TextBlock
@@ -44,8 +48,15 @@ class TranslationOverlayRenderTest {
 
         // 2. OCR 실행 (실제 엔진)
         val ocrRepo = TextDetectionRepositoryImpl(
-            YoloTextDetector(context),
-            verticalOcr = AndroidMangaOcrEngine(context),
+            CommonYoloTextDetector(YoloRunner(context)),
+            verticalOcr = CommonMangaOcrEngine(
+                encoder = OcrEncoderRunner(context),
+                decoder = OcrDecoderRunner(context),
+                vocabLoader = {
+                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                        .bufferedReader().readLines()
+                },
+            ),
         )
 
         val ocrStart = System.currentTimeMillis()
@@ -121,8 +132,15 @@ class TranslationOverlayRenderTest {
         val testImages = listOf("test/05.png", "test/06.png", "test/07.png")
 
         val ocrRepo = TextDetectionRepositoryImpl(
-            YoloTextDetector(context),
-            verticalOcr = AndroidMangaOcrEngine(context),
+            CommonYoloTextDetector(YoloRunner(context)),
+            verticalOcr = CommonMangaOcrEngine(
+                encoder = OcrEncoderRunner(context),
+                decoder = OcrDecoderRunner(context),
+                vocabLoader = {
+                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                        .bufferedReader().readLines()
+                },
+            ),
         )
         val translationRepo = TranslationRepositoryImpl(
             papagoService = PapagoTranslationService(

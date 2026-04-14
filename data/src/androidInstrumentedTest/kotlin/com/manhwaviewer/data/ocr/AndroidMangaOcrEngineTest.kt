@@ -2,6 +2,9 @@ package com.manhwaviewer.data.ocr
 
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
+import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
+import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
+import com.manhwaviewer.data.ocr.inference.YoloRunner
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -22,7 +25,14 @@ class AndroidMangaOcrEngineTest {
             .context.assets.open("test/00.jpg").readBytes()
         Log.d(TAG, "Image loaded: ${imageBytes.size} bytes")
 
-        val engine = AndroidMangaOcrEngine(context)
+        val engine = CommonMangaOcrEngine(
+            encoder = OcrEncoderRunner(context),
+            decoder = OcrDecoderRunner(context),
+            vocabLoader = {
+                context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                    .bufferedReader().readLines()
+            },
+        )
         try {
             val startTime = System.currentTimeMillis()
             val result = engine.recognizeText(imageBytes)
@@ -73,10 +83,17 @@ class AndroidMangaOcrEngineTest {
             .context.assets.open(assetPath).readBytes()
         Log.d(TAG, "[$fileName YOLO+OCR] Image loaded: ${imageBytes.size} bytes")
 
-        val detector = YoloTextDetector(context)
+        val detector = CommonYoloTextDetector(YoloRunner(context))
         val repo = TextDetectionRepositoryImpl(
             detector,
-            verticalOcr = AndroidMangaOcrEngine(context),
+            verticalOcr = CommonMangaOcrEngine(
+                encoder = OcrEncoderRunner(context),
+                decoder = OcrDecoderRunner(context),
+                vocabLoader = {
+                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                        .bufferedReader().readLines()
+                },
+            ),
         )
 
         val startTime = System.currentTimeMillis()
@@ -99,7 +116,14 @@ class AndroidMangaOcrEngineTest {
         val fileName = assetPath.substringAfterLast("/")
         Log.d(TAG, "[$fileName] Image loaded: ${imageBytes.size} bytes")
 
-        val engine = AndroidMangaOcrEngine(context)
+        val engine = CommonMangaOcrEngine(
+            encoder = OcrEncoderRunner(context),
+            decoder = OcrDecoderRunner(context),
+            vocabLoader = {
+                context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
+                    .bufferedReader().readLines()
+            },
+        )
         try {
             val startTime = System.currentTimeMillis()
             val result = engine.recognizeText(imageBytes)
