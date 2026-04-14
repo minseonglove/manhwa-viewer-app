@@ -56,6 +56,8 @@ internal fun beamSearchDecode(
 
         for (beam in beams) {
             val logits = decoderStep(beam.tokenIds, beam.seqLen)
+            applyRepetitionPenalty(logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.REPETITION_PENALTY)
+            applyTemperature(logits, MangaOcrConfig.TEMPERATURE)
             val logProbs = logSoftmax(logits)
             val topIndices = topK(logProbs, beamWidth)
 
@@ -106,6 +108,20 @@ private fun lengthNormalizedScore(candidate: BeamCandidate): Float {
     return candidate.score / penalty
 }
 
+private fun applyRepetitionPenalty(logits: FloatArray, generatedTokenIds: IntArray, seqLen: Int, penalty: Float) {
+    for (i in 0 until seqLen) {
+        val tokenId = generatedTokenIds[i]
+        if (tokenId in logits.indices) {
+            if (logits[tokenId] > 0f) logits[tokenId] /= penalty
+            else logits[tokenId] *= penalty
+        }
+    }
+}
+
+private fun applyTemperature(logits: FloatArray, temperature: Float) {
+    for (i in logits.indices) logits[i] /= temperature
+}
+
 private fun logSoftmax(logits: FloatArray): FloatArray {
     var max = logits[0]
     for (i in 1 until logits.size) {
@@ -150,6 +166,8 @@ internal fun beamSearchDecodeWithKvCache(
 
     // First step: process start token
     val firstResult = decoderStep(startTokenId, initialKvCache)
+    applyRepetitionPenalty(firstResult.logits, intArrayOf(startTokenId), 1, MangaOcrConfig.REPETITION_PENALTY)
+    applyTemperature(firstResult.logits, MangaOcrConfig.TEMPERATURE)
     val firstLogProbs = logSoftmax(firstResult.logits)
     val topIndices = topK(firstLogProbs, beamWidth)
 
@@ -168,6 +186,8 @@ internal fun beamSearchDecodeWithKvCache(
         for (beam in beams) {
             val lastToken = beam.tokenIds[beam.seqLen - 1]
             val result = decoderStep(lastToken, beam.kvCache)
+            applyRepetitionPenalty(result.logits, beam.tokenIds, beam.seqLen, MangaOcrConfig.REPETITION_PENALTY)
+            applyTemperature(result.logits, MangaOcrConfig.TEMPERATURE)
             val logProbs = logSoftmax(result.logits)
             val top = topK(logProbs, beamWidth)
 

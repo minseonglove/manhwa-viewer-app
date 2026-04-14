@@ -1,7 +1,10 @@
 package com.manhwaviewer.data.ocr
 
+import com.manhwaviewer.data.ocr.image.PlatformImage
+
 interface MangaOcrEngine {
     suspend fun recognizeText(imageBytes: ByteArray): String
+    suspend fun recognizeText(image: PlatformImage): String
     fun close()
 }
 
@@ -16,6 +19,8 @@ object MangaOcrConfig {
     val SPECIAL_TOKEN_IDS = setOf(0, 1, 2, 3, 4)
 
     const val BEAM_WIDTH = 3
+    const val REPETITION_PENALTY = 1.2f
+    const val TEMPERATURE = 0.8f
 
     const val DECODER_NUM_LAYERS = 2
     const val DECODER_NUM_HEADS = 12
