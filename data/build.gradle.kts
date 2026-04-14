@@ -79,7 +79,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val localFile = rootProject.file("local.properties")
