@@ -45,8 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -78,7 +76,7 @@ import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
-import com.manhwaviewer.presentation.screen.common.GlassDialog
+import com.manhwaviewer.presentation.screen.common.GlassConfirmDialog
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SubHeader
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -647,9 +645,13 @@ private fun RenameDialog(
         && value != initialName
         && siblingNames.none { it.equals(value, ignoreCase = true) }
 
-    GlassDialog(
+    GlassConfirmDialog(
         hazeState = hazeState,
         onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.file_selection_rename),
+        confirmColor = MangaLensColors.blueHi,
+        confirmEnabled = isConfirmEnabled,
+        onConfirm = { onConfirm(value) },
     ) {
         // 헤더
         Text(
@@ -707,64 +709,6 @@ private fun RenameDialog(
                 }
             }
         }
-
-        // 버튼 구분선
-        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
-
-        // 버튼 행
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-        ) {
-            // 취소 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_selection_cancel),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                    color = MangaLensColors.blueHi,
-                )
-            }
-
-            // 버튼 세로 구분선
-            Box(
-                modifier = Modifier
-                    .width(0.5.dp)
-                    .fillMaxHeight()
-                    .background(MangaLensColors.separator),
-            )
-
-            // 이름 변경 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .then(
-                        if (isConfirmEnabled) {
-                            Modifier.clickable { onConfirm(value) }
-                        } else {
-                            Modifier
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_selection_rename),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MangaLensColors.blueHi.copy(
-                        alpha = if (isConfirmEnabled) 1f else 0.35f,
-                    ),
-                )
-            }
-        }
     }
 }
 
@@ -779,9 +723,12 @@ private fun DeleteConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    GlassDialog(
+    GlassConfirmDialog(
         hazeState = hazeState,
         onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.file_delete_confirm),
+        confirmColor = MangaLensColors.red,
+        onConfirm = onConfirm,
     ) {
         // 헤더 + 메시지
         Column(
@@ -830,56 +777,6 @@ private fun DeleteConfirmDialog(
                 color = MangaLensColors.textTertiary,
             )
         }
-
-        // 버튼 구분선
-        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
-
-        // 버튼 행
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-        ) {
-            // 취소 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_selection_cancel),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                    color = MangaLensColors.blueHi,
-                )
-            }
-
-            // 버튼 세로 구분선
-            Box(
-                modifier = Modifier
-                    .width(0.5.dp)
-                    .fillMaxHeight()
-                    .background(MangaLensColors.separator),
-            )
-
-            // 삭제 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .clickable(onClick = onConfirm),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_delete_confirm),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MangaLensColors.red,
-                )
-            }
-        }
     }
 }
 
@@ -913,9 +810,13 @@ private fun CreateFolderDialog(
         && !hasInvalidChars
         && siblingNames.none { it.equals(value, ignoreCase = true) }
 
-    GlassDialog(
+    GlassConfirmDialog(
         hazeState = hazeState,
         onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.file_create_folder_confirm),
+        confirmColor = MangaLensColors.blueHi,
+        confirmEnabled = isConfirmEnabled,
+        onConfirm = { onConfirm(value) },
     ) {
         // 헤더
         Text(
@@ -971,64 +872,6 @@ private fun CreateFolderDialog(
                             },
                     )
                 }
-            }
-        }
-
-        // 버튼 구분선
-        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
-
-        // 버튼 행
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-        ) {
-            // 취소 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_selection_cancel),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                    color = MangaLensColors.blueHi,
-                )
-            }
-
-            // 버튼 세로 구분선
-            Box(
-                modifier = Modifier
-                    .width(0.5.dp)
-                    .fillMaxHeight()
-                    .background(MangaLensColors.separator),
-            )
-
-            // 만들기 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 24.dp)
-                    .fillMaxHeight()
-                    .then(
-                        if (isConfirmEnabled) {
-                            Modifier.clickable { onConfirm(value) }
-                        } else {
-                            Modifier
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.file_create_folder_confirm),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MangaLensColors.blueHi.copy(
-                        alpha = if (isConfirmEnabled) 1f else 0.35f,
-                    ),
-                )
             }
         }
     }
