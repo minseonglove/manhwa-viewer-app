@@ -16,7 +16,8 @@ actual class YoloRunner(private val context: Context) {
     actual fun initialize() {
         ortEnv = OrtEnvironment.getEnvironment()
         val options = OrtSession.SessionOptions().apply {
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
+            setIntraOpNumThreads(4)
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
         }
         session = ortEnv!!.createSession(getModelPath(), options)
     }

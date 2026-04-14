@@ -21,7 +21,7 @@ class TextDetectionRepositoryImpl(
     companion object {
         private const val HORIZONTAL_RATIO = 2.0f
         private const val AMBIGUOUS_RATIO = 1.5f
-        private const val MAX_CONCURRENT_OCR = 3
+        private const val MAX_CONCURRENT_OCR = 4
         private const val OVERLAP_IOU_THRESHOLD = 0.3f
         private const val SMALL_REGION_MIN_DIM = 40
         private const val NEAR_SQUARE_LOW = 0.8f

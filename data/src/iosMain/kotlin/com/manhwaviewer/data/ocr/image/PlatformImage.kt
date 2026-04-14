@@ -106,9 +106,15 @@ actual fun cropRegion(
 
 actual fun computeBorderAverageColor(image: PlatformImage): Float {
     val cgImage = image.CGImage ?: return 1.0f
-    val w = CGImageGetWidth(cgImage).toInt()
-    val h = CGImageGetHeight(cgImage).toInt()
-    if (w == 0 || h == 0) return 1.0f
+    val origW = CGImageGetWidth(cgImage).toInt()
+    val origH = CGImageGetHeight(cgImage).toInt()
+    if (origW == 0 || origH == 0) return 1.0f
+
+    // Downsample to max 200px to avoid decoding the full image
+    val maxDim = maxOf(origW, origH)
+    val sampleScale = if (maxDim > 200) 200.0 / maxDim else 1.0
+    val w = (origW * sampleScale).toInt().coerceAtLeast(1)
+    val h = (origH * sampleScale).toInt().coerceAtLeast(1)
 
     val bytesPerPixel = 4
     val bytesPerRow = bytesPerPixel * w
