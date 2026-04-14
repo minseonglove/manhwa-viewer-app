@@ -13,9 +13,6 @@ interface ArchiveFileDao {
     @Query("SELECT COUNT(*) FROM archive_files WHERE lastReadAt IS NOT NULL")
     fun getRecentArchivesCount(): Flow<Int>
 
-@Query("SELECT * FROM archive_files WHERE type = 'FOLDER' AND hasImages = 0")
-    fun getVaultFiles(): Flow<List<ArchiveFileEntity>>
-
     @Query("SELECT * FROM archive_files WHERE id = :id")
     suspend fun getById(id: Long): ArchiveFileEntity?
 

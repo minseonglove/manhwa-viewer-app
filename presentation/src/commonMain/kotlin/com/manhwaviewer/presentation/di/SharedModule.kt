@@ -15,7 +15,8 @@ import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPreviousArchiveUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesCountUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
+import com.manhwaviewer.domain.usecase.GetVaultDirectoryFilesUseCase
+import com.manhwaviewer.domain.usecase.GetVaultTotalCountUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
@@ -49,7 +50,8 @@ val sharedModule = module {
     factory { ClearRecentHistoryUseCase(get()) }
     factory { ClearAllRecentHistoryUseCase(get()) }
     factory { GetDeviceImagesUseCase(get()) }
-    factory { GetVaultFilesUseCase(get()) }
+    factory { GetVaultDirectoryFilesUseCase(get()) }
+    factory { GetVaultTotalCountUseCase(get()) }
     factory { ScanLocalFilesUseCase(get()) }
     factory { ScanArchiveEntriesUseCase(get()) }
     factory { UpdateLastReadIndexUseCase(get()) }
@@ -80,7 +82,7 @@ val sharedModule = module {
     viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
-    viewModel { VaultViewModel(get(), get(), get()) }
+    viewModel { VaultViewModel(get()) }
     viewModelOf(::ViewerViewModel)
     viewModel { SettingsViewModel(get(), get()) }
 }

@@ -3,9 +3,10 @@ package com.manhwaviewer.presentation.screen.home
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
+import com.manhwaviewer.domain.usecase.GetVaultTotalCountUseCase
 import com.manhwaviewer.presentation.fake.FakeArchiveFileRepository
 import com.manhwaviewer.presentation.fake.FakeImageFileRepository
+import com.manhwaviewer.presentation.fake.FakeVaultFileRepository
 import com.manhwaviewer.presentation.fake.makeArchive
 import com.manhwaviewer.presentation.fake.makeImageFile
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ class HomeViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeArchiveRepo: FakeArchiveFileRepository
     private lateinit var fakeImageRepo: FakeImageFileRepository
+    private lateinit var fakeVaultRepo: FakeVaultFileRepository
     private lateinit var viewModel: HomeViewModel
 
     @BeforeTest
@@ -38,10 +40,11 @@ class HomeViewModelTest {
         Dispatchers.setMain(testDispatcher)
         fakeArchiveRepo = FakeArchiveFileRepository()
         fakeImageRepo = FakeImageFileRepository()
+        fakeVaultRepo = FakeVaultFileRepository()
         viewModel = HomeViewModel(
             GetRecentArchivesUseCase(fakeArchiveRepo),
             GetDeviceImagesUseCase(fakeImageRepo),
-            GetVaultFilesUseCase(fakeArchiveRepo),
+            GetVaultTotalCountUseCase(fakeVaultRepo),
             GetImageEntriesUseCase(fakeArchiveRepo),
         )
     }
@@ -80,9 +83,9 @@ class HomeViewModelTest {
 
     @Test
     fun `state updates vaultFolderCount when repository emits`() = runTest {
-        fakeArchiveRepo.vaultFilesFlow.value = listOf(makeArchive(id = 10))
+        fakeVaultRepo.totalCountFlow.value = 3
         advanceUntilIdle()
-        assertEquals(1, viewModel.state.value.vaultFolderCount)
+        assertEquals(3, viewModel.state.value.vaultFolderCount)
     }
 
     @Test

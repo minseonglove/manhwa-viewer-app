@@ -11,8 +11,9 @@ import androidx.room.RoomDatabaseConstructor
         TranslationCacheEntity::class,
         PageOcrCacheEntity::class,
         PageOcrTranslationEntity::class,
+        VaultFileEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @ConstructedBy(AppDatabaseConstructor::class)
@@ -20,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun archiveFileDao(): ArchiveFileDao
     abstract fun translationCacheDao(): TranslationCacheDao
     abstract fun pageOcrCacheDao(): PageOcrCacheDao
+    abstract fun vaultFileDao(): VaultFileDao
 }
 
 

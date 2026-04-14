@@ -7,7 +7,6 @@ interface ArchiveFileRepository {
     fun getRecentArchives(): Flow<List<ArchiveFile>>
     fun getRecentArchivesCount(): Flow<Int>
 
-    fun getVaultFiles(): Flow<List<ArchiveFile>>
     suspend fun getArchiveById(id: Long): ArchiveFile?
     suspend fun upsertArchive(archive: ArchiveFile): Long
     suspend fun updateLastReadIndex(id: Long, pageIndex: Int)

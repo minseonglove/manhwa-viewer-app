@@ -10,14 +10,11 @@ import kotlinx.datetime.Instant
 open class FakeArchiveFileRepository : ArchiveFileRepository {
     val recentArchivesFlow = MutableStateFlow<List<ArchiveFile>>(emptyList())
     val recentArchivesCountFlow = MutableStateFlow(0)
-    val vaultFilesFlow = MutableStateFlow<List<ArchiveFile>>(emptyList())
-
     var scannedFiles: List<ArchiveFile> = emptyList()
     var nextUpsertId: Long = 1L
 
     override fun getRecentArchives(): Flow<List<ArchiveFile>> = recentArchivesFlow
     override fun getRecentArchivesCount(): Flow<Int> = recentArchivesCountFlow
-    override fun getVaultFiles(): Flow<List<ArchiveFile>> = vaultFilesFlow
     override suspend fun getArchiveById(id: Long): ArchiveFile? = null
     override suspend fun upsertArchive(archive: ArchiveFile): Long = nextUpsertId
     override suspend fun updateLastReadIndex(id: Long, pageIndex: Int) {}

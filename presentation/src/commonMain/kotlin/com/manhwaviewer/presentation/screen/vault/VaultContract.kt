@@ -1,19 +1,19 @@
 package com.manhwaviewer.presentation.screen.vault
 
-import com.manhwaviewer.domain.entity.ArchiveFile
+import com.manhwaviewer.domain.entity.VaultFile
+import com.manhwaviewer.presentation.screen.common.SortField
 import com.manhwaviewer.presentation.screen.common.SortState
-import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 
 data class VaultState(
-    val files: List<ArchiveFile> = emptyList(),
+    val files: List<VaultFile> = emptyList(),
+    val currentPath: String = "",
     val sortState: SortState = SortState(),
     val isLoading: Boolean = true,
-    val coverModels: Map<Long, ViewerPageModel> = emptyMap(),
 )
 
 sealed interface VaultIntent {
-    data class OpenFile(val archive: ArchiveFile) : VaultIntent
-    data class SetSortField(val field: com.manhwaviewer.presentation.screen.common.SortField) : VaultIntent
+    data class OpenFile(val file: VaultFile) : VaultIntent
+    data class SetSortField(val field: SortField) : VaultIntent
     data object ToggleSortDirection : VaultIntent
     data object ToggleViewMode : VaultIntent
 }

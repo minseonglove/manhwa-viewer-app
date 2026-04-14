@@ -29,9 +29,6 @@ class ArchiveFileRepositoryImpl(
     override fun getRecentArchivesCount(): Flow<Int> =
         dao.getRecentArchivesCount()
 
-override fun getVaultFiles(): Flow<List<ArchiveFile>> =
-        dao.getVaultFiles().map { entities -> entities.map { it.toDomain() } }
-
     override suspend fun getArchiveById(id: Long): ArchiveFile? =
         dao.getById(id)?.toDomain()
 
