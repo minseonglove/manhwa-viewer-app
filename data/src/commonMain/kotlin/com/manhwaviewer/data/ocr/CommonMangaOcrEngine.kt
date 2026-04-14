@@ -33,29 +33,16 @@ class CommonMangaOcrEngine(
 
         val encoderOutput = encoder.run(pixelValues)
 
-        val tokenIds = try {
-            val initialKvCache = decoder.beginSequence(encoderOutput)
-            beamSearchDecodeWithKvCache(
-                beamWidth = MangaOcrConfig.BEAM_WIDTH,
-                maxLength = MangaOcrConfig.MAX_LENGTH,
-                vocabSize = MangaOcrConfig.VOCAB_SIZE,
-                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
-                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
-                initialKvCache = initialKvCache,
-            ) { tokenId, kvCache ->
-                decoder.stepWithKvCache(tokenId, kvCache)
-            }
-        } catch (_: UnsupportedOperationException) {
-            // Fallback for platforms without KV cache (iOS)
-            beamSearchDecode(
-                beamWidth = MangaOcrConfig.BEAM_WIDTH,
-                maxLength = MangaOcrConfig.MAX_LENGTH,
-                vocabSize = MangaOcrConfig.VOCAB_SIZE,
-                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
-                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
-            ) { inputIds, seqLen ->
-                decoder.run(inputIds, seqLen, encoderOutput)
-            }
+        val initialKvCache = decoder.beginSequence(encoderOutput)
+        val tokenIds = beamSearchDecodeWithKvCache(
+            beamWidth = MangaOcrConfig.BEAM_WIDTH,
+            maxLength = MangaOcrConfig.MAX_LENGTH,
+            vocabSize = MangaOcrConfig.VOCAB_SIZE,
+            startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+            eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+            initialKvCache = initialKvCache,
+        ) { tokenId, kvCache ->
+            decoder.stepWithKvCache(tokenId, kvCache)
         }
 
         return tokenizer!!.decode(tokenIds)

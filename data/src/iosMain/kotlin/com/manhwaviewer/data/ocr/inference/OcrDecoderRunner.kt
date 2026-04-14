@@ -1,90 +1,151 @@
 package com.manhwaviewer.data.ocr.inference
 
 import com.manhwaviewer.data.ocr.MangaOcrConfig
-import com.manhwaviewer.data.ocr.PlatformModelPaths
 import platform.CoreML.*
 import platform.Foundation.*
 
 actual class OcrDecoderRunner {
-    private var model: MLModel? = null
-    private var cachedEncoderOutput: FloatArray? = null
-    private var cachedEncArray: MLMultiArray? = null
+    private var crossAttnInitModel: MLModel? = null
+    private var decoderWithPastModel: MLModel? = null
 
     actual fun initialize() {
-        val modelUrl = NSBundle.mainBundle.URLForResource(
-            "decoder", withExtension = "mlmodelc", subdirectory = "mangaocr"
-        ) ?: error("Decoder CoreML model not found in bundle")
-        model = MLModel.modelWithContentsOfURL(modelUrl, error = null)
-            ?: error("Failed to load decoder CoreML model")
+        crossAttnInitModel = loadModel("cross_attn_init")
+        decoderWithPastModel = loadModel("decoder_with_past")
     }
 
     actual fun run(inputIds: IntArray, seqLen: Int, encoderOutput: FloatArray): FloatArray {
-        // Input IDs
-        val idsShape = listOf(1, seqLen).map { NSNumber(int = it) }
-        val idsArray = MLMultiArray(
-            shape = idsShape as List<NSNumber>,
-            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeInt32,
-            error = null,
-        ) ?: error("Failed to create input_ids MLMultiArray")
-        for (i in 0 until seqLen) {
-            idsArray.setObject(NSNumber(int = inputIds[i]), atIndexedSubscript = i.toLong())
-        }
-        // Cache encoder MLMultiArray - avoid recreating 37,824 elements each call
-        val encArray = if (cachedEncoderOutput?.contentEquals(encoderOutput) == true && cachedEncArray != null) {
-            cachedEncArray!!
-        } else {
-            val encShape = listOf(
-                1,
-                MangaOcrConfig.ENCODER_SEQ_LENGTH,
-                MangaOcrConfig.ENCODER_HIDDEN_SIZE,
-            ).map { NSNumber(int = it) }
-            val arr = MLMultiArray(
-                shape = encShape as List<NSNumber>,
-                dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
-                error = null,
-            ) ?: error("Failed to create encoder_hidden_states MLMultiArray")
-            for (i in encoderOutput.indices) {
-                arr.setObject(NSNumber(float = encoderOutput[i]), atIndexedSubscript = i.toLong())
-            }
-            cachedEncoderOutput = encoderOutput
-            cachedEncArray = arr
-            arr
-        }
-        val featureProvider = MLDictionaryFeatureProvider(
-            dictionary = mapOf(
-                "input_ids" to idsArray,
-                "encoder_hidden_states" to encArray,
-            ) as Map<String, Any>,
-            error = null,
-        ) ?: error("Failed to create feature provider")
-        val result = model!!.predictionFromFeatures(featureProvider, error = null)
-            ?: error("Decoder inference failed")
-        val outputFeature = result.featureValueForName("logits")
-            ?: error("Decoder output 'logits' not found")
-        val outputArray = outputFeature.multiArrayValue
-            ?: error("Decoder output is not a multi array")
-        // Extract logits for last position only
-        val vocabSize = MangaOcrConfig.VOCAB_SIZE
-        val lastPosOffset = (seqLen - 1) * vocabSize
-        return FloatArray(vocabSize) { outputArray.objectAtIndexedSubscript((lastPosOffset + it).toLong()).floatValue }
+        error("Legacy decoder removed. Use beginSequence() + stepWithKvCache() instead.")
     }
 
+    // ---- KV Cache methods ----
+
     actual fun beginSequence(encoderOutput: FloatArray): KvCacheState {
-        // Cache the encoder output for the legacy fallback path
-        cachedEncoderOutput = encoderOutput
-        cachedEncArray = null // Will be created on first use
-        return KvCacheState(encoderOutput)
+        val encoderArray = floatArrayToMLMultiArray(
+            encoderOutput,
+            listOf(1, MangaOcrConfig.ENCODER_SEQ_LENGTH, MangaOcrConfig.ENCODER_HIDDEN_SIZE),
+        )
+
+        // Run cross_attn_init to compute cross-attention KV
+        val featureProvider = MLDictionaryFeatureProvider(
+            dictionary = mapOf("encoder_hidden_states" to encoderArray) as Map<Any?, *>,
+            error = null,
+        ) ?: error("Failed to create cross_attn_init feature provider")
+
+        val result = crossAttnInitModel!!.predictionFromFeatures(featureProvider, error = null)
+            ?: error("cross_attn_init inference failed")
+
+        val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
+        val crossKeys = Array(numLayers) { layer ->
+            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue
+                ?: error("cross_key_layer$layer not found")
+        }
+        val crossValues = Array(numLayers) { layer ->
+            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue
+                ?: error("cross_value_layer$layer not found")
+        }
+
+        // Self-attention KV starts with seq_len=1 (CoreML RangeDim lower_bound=1)
+        val emptySelfKeys = Array(numLayers) {
+            createZeroMLMultiArray(listOf(1, MangaOcrConfig.DECODER_NUM_HEADS, 1, MangaOcrConfig.DECODER_HEAD_DIM))
+        }
+        val emptySelfValues = Array(numLayers) {
+            createZeroMLMultiArray(listOf(1, MangaOcrConfig.DECODER_NUM_HEADS, 1, MangaOcrConfig.DECODER_HEAD_DIM))
+        }
+
+        return KvCacheState(encoderArray, emptySelfKeys, emptySelfValues, crossKeys, crossValues)
     }
 
     actual fun stepWithKvCache(tokenId: Int, kvCache: KvCacheState): DecoderStepResult {
-        // KV cache not yet supported on iOS (requires decoder_with_past.mlmodelc CoreML model)
-        // This is a stub that throws UnsupportedOperationException
-        throw UnsupportedOperationException("KV cache not yet supported on iOS - requires CoreML model conversion")
+        val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
+        val vocabSize = MangaOcrConfig.VOCAB_SIZE
+
+        // Build input_ids [1, 1]
+        val idsArray = MLMultiArray(
+            shape = listOf(NSNumber(int = 1), NSNumber(int = 1)),
+            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeInt32,
+            error = null,
+        ) ?: error("Failed to create input_ids MLMultiArray")
+        idsArray.setObject(NSNumber(int = tokenId), atIndexedSubscript = 0L)
+
+        // Build feature dict
+        val dict = mutableMapOf<Any?, Any>(
+            "input_ids" to idsArray,
+            "encoder_hidden_states" to kvCache.encoderArray,
+        )
+        for (layer in 0 until numLayers) {
+            dict["past_self_key_layer$layer"] = kvCache.selfKeys[layer]
+            dict["past_self_value_layer$layer"] = kvCache.selfValues[layer]
+            dict["past_cross_key_layer$layer"] = kvCache.crossKeys[layer]
+            dict["past_cross_value_layer$layer"] = kvCache.crossValues[layer]
+        }
+
+        val featureProvider = MLDictionaryFeatureProvider(
+            dictionary = dict as Map<Any?, *>,
+            error = null,
+        ) ?: error("Failed to create decoder feature provider")
+
+        val result = decoderWithPastModel!!.predictionFromFeatures(featureProvider, error = null)
+            ?: error("decoder_with_past inference failed")
+
+        // Extract logits [1, 1, 6144]
+        val logitsArray = result.featureValueForName("logits")?.multiArrayValue
+            ?: error("logits not found")
+        val logits = FloatArray(vocabSize) {
+            logitsArray.objectAtIndexedSubscript(it.toLong()).floatValue
+        }
+
+        // Extract updated self-attention KV
+        val newSelfKeys = Array(numLayers) { layer ->
+            result.featureValueForName("present_self_key_layer$layer")?.multiArrayValue
+                ?: error("present_self_key_layer$layer not found")
+        }
+        val newSelfValues = Array(numLayers) { layer ->
+            result.featureValueForName("present_self_value_layer$layer")?.multiArrayValue
+                ?: error("present_self_value_layer$layer not found")
+        }
+
+        val newKv = KvCacheState(kvCache.encoderArray, newSelfKeys, newSelfValues, kvCache.crossKeys, kvCache.crossValues)
+        return DecoderStepResult(logits, newKv)
     }
 
     actual fun close() {
-        model = null
-        cachedEncoderOutput = null
-        cachedEncArray = null
+        crossAttnInitModel = null
+        decoderWithPastModel = null
+    }
+
+    // ---- Helpers ----
+
+    private fun loadModel(name: String): MLModel {
+        val url = NSBundle.mainBundle.URLForResource(name, withExtension = "mlmodelc", subdirectory = "mangaocr")
+            ?: error("CoreML model '$name' not found in bundle")
+        return MLModel.modelWithContentsOfURL(url, error = null)
+            ?: error("Failed to load CoreML model '$name'")
+    }
+
+    private fun floatArrayToMLMultiArray(data: FloatArray, shape: List<Int>): MLMultiArray {
+        val nsShape = shape.map { NSNumber(int = it) }
+        val array = MLMultiArray(
+            shape = nsShape,
+            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+            error = null,
+        ) ?: error("Failed to create MLMultiArray")
+        for (i in data.indices) {
+            array.setObject(NSNumber(float = data[i]), atIndexedSubscript = i.toLong())
+        }
+        return array
+    }
+
+    private fun createZeroMLMultiArray(shape: List<Int>): MLMultiArray {
+        val nsShape = shape.map { NSNumber(int = it) }
+        val array = MLMultiArray(
+            shape = nsShape,
+            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+            error = null,
+        ) ?: error("Failed to create zero MLMultiArray")
+        val count = shape.fold(1) { acc, v -> acc * v }
+        for (i in 0 until count) {
+            array.setObject(NSNumber(float = 0f), atIndexedSubscript = i.toLong())
+        }
+        return array
     }
 }
