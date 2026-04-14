@@ -1,11 +1,13 @@
 package com.manhwaviewer.data.repository
 
 import com.manhwaviewer.data.db.VaultFileDao
+import com.manhwaviewer.data.db.VaultFileEntity
 import com.manhwaviewer.data.db.toDomain
 import com.manhwaviewer.domain.entity.VaultFile
 import com.manhwaviewer.domain.repository.VaultFileRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Clock
 
 class VaultFileRepositoryImpl(
     private val dao: VaultFileDao,
@@ -15,4 +17,13 @@ class VaultFileRepositoryImpl(
         dao.getFilesInDirectory(prefix).map { entities -> entities.map { it.toDomain() } }
 
     override fun getTotalCount(): Flow<Int> = dao.getTotalCount()
+
+    override suspend fun addToVault(relativePath: String, originalPath: String): Long {
+        val entity = VaultFileEntity(
+            relativePath = relativePath,
+            originalPath = originalPath,
+            addedAt = Clock.System.now().toEpochMilliseconds(),
+        )
+        return dao.upsert(entity)
+    }
 }

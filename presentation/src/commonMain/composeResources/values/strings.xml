@@ -152,6 +152,14 @@
     <string name="file_delete_warning">이 작업은 되돌릴 수 없습니다.</string>
     <string name="file_delete_confirm">삭제</string>
 
+    <!-- 보관함 이동 -->
+    <string name="vault_move_title">보관함으로 이동</string>
+    <string name="vault_move_confirm">이동</string>
+    <string name="vault_move_message_single">"%1$s"이 이동됩니다.</string>
+    <string name="vault_move_message_multiple">%1$d개 파일이 이동됩니다.</string>
+    <string name="vault_move_info_hidden">갤러리·파일 탐색기에서 숨겨집니다</string>
+    <string name="vault_move_info_restore">언제든지 원래 위치로 복원할 수 있습니다</string>
+
     <!-- 폴더 만들기 -->
     <string name="file_create_folder_title">폴더 만들기</string>
     <string name="file_create_folder_default_name">새 폴더</string>

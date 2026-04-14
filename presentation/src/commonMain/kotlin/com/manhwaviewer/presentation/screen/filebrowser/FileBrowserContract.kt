@@ -21,6 +21,8 @@ data class FileBrowserState(
     val deleteTargets: List<ArchiveFile> = emptyList(),
     val showCreateFolderDialog: Boolean = false,
     val defaultFolderName: String = "",
+    val showVaultDialog: Boolean = false,
+    val vaultTargets: List<ArchiveFile> = emptyList(),
 )
 
 sealed interface FileBrowserIntent {
@@ -48,6 +50,8 @@ sealed interface FileBrowserIntent {
     data object ShowCreateFolderDialog : FileBrowserIntent
     data object DismissCreateFolderDialog : FileBrowserIntent
     data class ConfirmCreateFolder(val folderName: String) : FileBrowserIntent
+    data object ConfirmVault : FileBrowserIntent
+    data object DismissVaultDialog : FileBrowserIntent
 }
 
 sealed interface FileBrowserSideEffect {

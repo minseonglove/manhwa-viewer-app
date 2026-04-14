@@ -91,6 +91,53 @@ actual class MediaScanner {
         return requireNotNull(docDir?.path) { "NSDocumentDirectory not found" }
     }
 
+    actual fun getVaultPath(): String {
+        val fileManager = NSFileManager.defaultManager
+        val appSupportUrl = fileManager.URLForDirectory(
+            directory = platform.Foundation.NSApplicationSupportDirectory,
+            inDomain = NSUserDomainMask,
+            appropriateForURL = null,
+            create = true,
+            error = null,
+        )
+        val vaultPath = requireNotNull(appSupportUrl?.path) { "NSApplicationSupportDirectory not found" } + "/vault"
+        if (!fileManager.fileExistsAtPath(vaultPath)) {
+            fileManager.createDirectoryAtPath(
+                vaultPath,
+                withIntermediateDirectories = true,
+                attributes = null,
+                error = null,
+            )
+        }
+        return vaultPath
+    }
+
+    actual fun moveFile(sourcePath: String, destinationDir: String): Result<String> {
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(sourcePath)) {
+            return Result.failure(IllegalStateException("File not found: $sourcePath"))
+        }
+        if (!fileManager.fileExistsAtPath(destinationDir)) {
+            fileManager.createDirectoryAtPath(
+                destinationDir,
+                withIntermediateDirectories = true,
+                attributes = null,
+                error = null,
+            )
+        }
+        val fileName = sourcePath.substringAfterLast('/')
+        val destPath = "$destinationDir/$fileName"
+        if (fileManager.fileExistsAtPath(destPath)) {
+            return Result.failure(IllegalStateException("File already exists: $destPath"))
+        }
+        val success = fileManager.moveItemAtPath(sourcePath, toPath = destPath, error = null)
+        return if (success) {
+            Result.success(destPath)
+        } else {
+            Result.failure(IllegalStateException("Failed to move file"))
+        }
+    }
+
     actual fun renameFile(oldPath: String, newName: String): Result<String> {
         val fileManager = NSFileManager.defaultManager
         if (!fileManager.fileExistsAtPath(oldPath)) {

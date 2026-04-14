@@ -111,6 +111,34 @@ actual class MediaScanner(private val context: Context) {
         }
     }
 
+    actual fun getVaultPath(): String {
+        val vaultDir = File(context.filesDir, "vault")
+        if (!vaultDir.exists()) vaultDir.mkdirs()
+        return vaultDir.absolutePath
+    }
+
+    actual fun moveFile(sourcePath: String, destinationDir: String): Result<String> {
+        val sourceFile = File(sourcePath)
+        if (!sourceFile.exists()) return Result.failure(IllegalStateException("File not found: $sourcePath"))
+        val destDir = File(destinationDir)
+        if (!destDir.exists()) destDir.mkdirs()
+        val destFile = File(destDir, sourceFile.name)
+        if (destFile.exists()) return Result.failure(IllegalStateException("File already exists: ${destFile.absolutePath}"))
+        return if (sourceFile.renameTo(destFile)) {
+            Result.success(destFile.absolutePath)
+        } else {
+            // renameTo 실패 시 (cross-volume) copy+delete 폴백
+            try {
+                sourceFile.copyRecursively(destFile, overwrite = false)
+                if (sourceFile.isDirectory) sourceFile.deleteRecursively() else sourceFile.delete()
+                Result.success(destFile.absolutePath)
+            } catch (e: Exception) {
+                destFile.deleteRecursively()
+                Result.failure(IllegalStateException("Failed to move file: ${e.message}"))
+            }
+        }
+    }
+
     actual fun deleteFile(path: String): Result<Unit> {
         val file = File(path)
         if (!file.exists()) return Result.failure(IllegalStateException("File not found: $path"))

@@ -77,6 +77,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.GlassConfirmDialog
+import com.manhwaviewer.presentation.screen.common.GlassDialog
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SubHeader
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -110,7 +111,14 @@ import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
 import manhwa_viewer.presentation.generated.resources.file_create_folder_title
 import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
+import manhwa_viewer.presentation.generated.resources.ic_hide
 import manhwa_viewer.presentation.generated.resources.ic_plus
+import manhwa_viewer.presentation.generated.resources.vault_move_confirm
+import manhwa_viewer.presentation.generated.resources.vault_move_info_hidden
+import manhwa_viewer.presentation.generated.resources.vault_move_info_restore
+import manhwa_viewer.presentation.generated.resources.vault_move_message_multiple
+import manhwa_viewer.presentation.generated.resources.vault_move_message_single
+import manhwa_viewer.presentation.generated.resources.vault_move_title
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -400,6 +408,17 @@ fun FileBrowserScreen(
             hazeState = hazeState,
             onConfirm = { name -> viewModel.onIntent(FileBrowserIntent.ConfirmCreateFolder(name)) },
             onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissCreateFolderDialog) },
+        )
+    }
+
+    // 보관함 이동 다이얼로그
+    if (state.showVaultDialog && state.vaultTargets.isNotEmpty()) {
+        VaultMoveDialog(
+            count = state.vaultTargets.size,
+            firstName = state.vaultTargets.firstOrNull()?.fileName.orEmpty(),
+            hazeState = hazeState,
+            onConfirm = { viewModel.onIntent(FileBrowserIntent.ConfirmVault) },
+            onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissVaultDialog) },
         )
     }
 }
@@ -777,6 +796,149 @@ private fun DeleteConfirmDialog(
                 color = MangaLensColors.textTertiary,
             )
         }
+    }
+}
+
+// ── 보관함 이동 다이얼로그 ──────────────────────────────────────────
+
+@Composable
+private fun VaultMoveDialog(
+    count: Int,
+    firstName: String,
+    hazeState: HazeState,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    GlassConfirmDialog(
+        hazeState = hazeState,
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.vault_move_confirm),
+        confirmColor = MangaLensColors.tilePurple,
+        onConfirm = onConfirm,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp, bottom = 16.dp, start = 24.dp, end = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // 잠금 아이콘
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MangaLensColors.tilePurple.copy(alpha = 0.15f))
+                    .border(
+                        0.5.dp,
+                        MangaLensColors.tilePurple.copy(alpha = 0.25f),
+                        RoundedCornerShape(14.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_lock),
+                    contentDescription = null,
+                    tint = MangaLensColors.tilePurple,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            // 제목
+            Text(
+                text = stringResource(Res.string.vault_move_title),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MangaLensColors.onSurface,
+            )
+        }
+
+        // 설명 박스
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(MangaLensColors.tilePurple.copy(alpha = 0.15f))
+                .border(
+                    0.5.dp,
+                    MangaLensColors.tilePurple.copy(alpha = 0.25f),
+                    RoundedCornerShape(10.dp),
+                )
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // 메시지
+            Text(
+                text = buildAnnotatedString {
+                    if (count == 1) {
+                        withStyle(
+                            SpanStyle(
+                                color = MangaLensColors.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        ) {
+                            append(stringResource(Res.string.vault_move_message_single, firstName))
+                        }
+                    } else {
+                        withStyle(
+                            SpanStyle(
+                                color = MangaLensColors.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        ) {
+                            append(stringResource(Res.string.vault_move_message_multiple, count))
+                        }
+                    }
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MangaLensColors.textSecondary,
+            )
+
+            // 정보 항목
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                VaultInfoRow(
+                    icon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_hide),
+                            contentDescription = null,
+                            tint = MangaLensColors.textSecondary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    text = stringResource(Res.string.vault_move_info_hidden),
+                )
+                VaultInfoRow(
+                    icon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_folder_move),
+                            contentDescription = null,
+                            tint = MangaLensColors.textSecondary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    text = stringResource(Res.string.vault_move_info_restore),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VaultInfoRow(
+    icon: @Composable () -> Unit,
+    text: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        icon()
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MangaLensColors.textSecondary,
+        )
     }
 }
 

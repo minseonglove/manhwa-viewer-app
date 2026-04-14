@@ -8,6 +8,7 @@ import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.CreateFolderUseCase
 import com.manhwaviewer.domain.usecase.DeleteFileUseCase
+import com.manhwaviewer.domain.usecase.MoveToVaultUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
@@ -35,6 +36,7 @@ class FileBrowserViewModel(
     private val renameFileUseCase: RenameFileUseCase,
     private val deleteFileUseCase: DeleteFileUseCase,
     private val createFolderUseCase: CreateFolderUseCase,
+    private val moveToVaultUseCase: MoveToVaultUseCase,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -86,7 +88,11 @@ class FileBrowserViewModel(
                 copy(isSelectionMode = false, selectedFileKeys = emptySet())
             }
             FileBrowserIntent.MoveSelected -> { /* TODO: 선택 항목 이동 */ }
-            FileBrowserIntent.VaultSelected -> { /* TODO: 선택 항목 보관함 이동 */ }
+            FileBrowserIntent.VaultSelected -> showVaultDialog()
+            FileBrowserIntent.ConfirmVault -> confirmVault()
+            FileBrowserIntent.DismissVaultDialog -> updateState {
+                copy(showVaultDialog = false, vaultTargets = emptyList())
+            }
             FileBrowserIntent.DeleteSelected -> showDeleteDialog()
             FileBrowserIntent.RenameSelected -> showRenameDialog()
             is FileBrowserIntent.ConfirmRename -> confirmRename(intent.newName)
@@ -159,6 +165,38 @@ class FileBrowserViewModel(
                     isSelectionMode = false,
                     selectedFileKeys = emptySet(),
                 )
+            }
+        }
+    }
+
+    private fun showVaultDialog() {
+        val selectedKeys = currentState.selectedFileKeys
+        if (selectedKeys.isEmpty()) return
+        val targets = currentState.files.filter { fileKey(it) in selectedKeys }
+        if (targets.isEmpty()) return
+        updateState { copy(showVaultDialog = true, vaultTargets = targets) }
+    }
+
+    private fun confirmVault() {
+        val targets = currentState.vaultTargets
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val result = moveToVaultUseCase(targets.map { it.filePath })
+            result.onSuccess {
+                val movedKeys = targets.map { fileKey(it) }.toSet()
+                _coverModels.value = _coverModels.value.filterKeys { it !in movedKeys }
+                updateState {
+                    copy(
+                        files = files.filter { fileKey(it) !in movedKeys },
+                        showVaultDialog = false,
+                        vaultTargets = emptyList(),
+                        isSelectionMode = false,
+                        selectedFileKeys = emptySet(),
+                    )
+                }
+            }
+            result.onFailure {
+                // 파일시스템 레벨 실패 — 다이얼로그 유지
             }
         }
     }
