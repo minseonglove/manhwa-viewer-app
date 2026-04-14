@@ -1,12 +1,14 @@
 package com.manhwaviewer.data.scanner
 
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
 import kotlinx.datetime.Instant
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.attribute.BasicFileAttributes
 
 actual class MediaScanner(private val context: Context) {
 
@@ -14,57 +16,68 @@ actual class MediaScanner(private val context: Context) {
     private val archiveExtensions = setOf("zip", "cbz", "cbr")
 
     actual fun scanDirectory(directoryPath: String): List<ArchiveFile> {
-        val dir = try {
-            File(directoryPath).canonicalFile
-        } catch (e: Exception) {
-            return emptyList()
-        }
-        if (!dir.exists() || !dir.isDirectory) return emptyList()
+        val dir = Paths.get(directoryPath)
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) return emptyList()
 
         val results = mutableListOf<ArchiveFile>()
 
-        dir.listFiles()?.forEach { file ->
-            when {
-                file.isDirectory -> {
-                    results.add(
-                        ArchiveFile(
-                            filePath = file.absolutePath,
-                            fileName = file.name,
-                            type = ArchiveType.FOLDER,
-                            totalPages = 0,
-                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = false,
-                        )
-                    )
-                }
-                file.isFile && file.extension.lowercase() in archiveExtensions -> {
-                    val ext = file.extension.lowercase()
-                    results.add(
-                        ArchiveFile(
-                            filePath = file.absolutePath,
-                            fileName = file.name,
-                            type = when (ext) {
-                                "cbz" -> ArchiveType.CBZ
-                                "cbr" -> ArchiveType.CBR
-                                else -> ArchiveType.ZIP
-                            },
-                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = false,
-                        )
-                    )
-                }
-                file.isFile && file.extension.lowercase() in imageExtensions -> {
-                    results.add(
-                        ArchiveFile(
-                            filePath = file.absolutePath,
-                            fileName = file.name,
-                            type = ArchiveType.IMAGE,
-                            addedAt = Instant.fromEpochMilliseconds(file.lastModified()),
-                            hasImages = false,
-                        )
-                    )
+        try {
+            Files.newDirectoryStream(dir).use { stream ->
+                for (entry in stream) {
+                    val attrs = Files.readAttributes(entry, BasicFileAttributes::class.java)
+                    val name = entry.fileName.toString()
+                    val fullPath = entry.toAbsolutePath().toString()
+                    val modifiedAt = Instant.fromEpochMilliseconds(attrs.lastModifiedTime().toMillis())
+
+                    when {
+                        attrs.isDirectory -> {
+                            results.add(
+                                ArchiveFile(
+                                    filePath = fullPath,
+                                    fileName = name,
+                                    type = ArchiveType.FOLDER,
+                                    totalPages = 0,
+                                    addedAt = modifiedAt,
+                                    hasImages = false,
+                                ),
+                            )
+                        }
+                        attrs.isRegularFile -> {
+                            val ext = name.substringAfterLast('.', "").lowercase()
+                            when {
+                                ext in archiveExtensions -> {
+                                    results.add(
+                                        ArchiveFile(
+                                            filePath = fullPath,
+                                            fileName = name,
+                                            type = when (ext) {
+                                                "cbz" -> ArchiveType.CBZ
+                                                "cbr" -> ArchiveType.CBR
+                                                else -> ArchiveType.ZIP
+                                            },
+                                            addedAt = modifiedAt,
+                                            hasImages = false,
+                                        ),
+                                    )
+                                }
+                                ext in imageExtensions -> {
+                                    results.add(
+                                        ArchiveFile(
+                                            filePath = fullPath,
+                                            fileName = name,
+                                            type = ArchiveType.IMAGE,
+                                            addedAt = modifiedAt,
+                                            hasImages = false,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        } catch (_: Exception) {
+            return emptyList()
         }
 
         return results

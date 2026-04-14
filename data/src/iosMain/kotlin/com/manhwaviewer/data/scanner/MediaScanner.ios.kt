@@ -2,17 +2,14 @@ package com.manhwaviewer.data.scanner
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
-import kotlinx.cinterop.BooleanVar
-import kotlinx.cinterop.alloc
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.value
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import platform.Foundation.NSDate
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
-import platform.Foundation.NSFileModificationDate
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLContentModificationDateKey
+import platform.Foundation.NSURLIsDirectoryKey
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.timeIntervalSince1970
 
@@ -23,21 +20,30 @@ actual class MediaScanner {
 
     actual fun scanDirectory(directoryPath: String): List<ArchiveFile> {
         val fileManager = NSFileManager.defaultManager
-        val contents = fileManager.contentsOfDirectoryAtPath(directoryPath, error = null)
-            ?: return emptyList()
+        val dirUrl = NSURL.fileURLWithPath(directoryPath)
+        val prefetchKeys = listOf(NSURLIsDirectoryKey, NSURLContentModificationDateKey)
+
+        @Suppress("UNCHECKED_CAST")
+        val urls = fileManager.contentsOfDirectoryAtURL(
+            dirUrl,
+            includingPropertiesForKeys = prefetchKeys,
+            options = 0u,
+            error = null,
+        ) as? List<NSURL> ?: return emptyList()
 
         val results = mutableListOf<ArchiveFile>()
 
-        @Suppress("UNCHECKED_CAST")
-        val contentsList = contents as List<String>
-        for (name in contentsList) {
-            val fullPath = "$directoryPath/$name"
+        for (url in urls) {
+            val name = url.lastPathComponent ?: continue
+            val fullPath = url.path ?: continue
 
-            var isDir = false
-            memScoped {
-                val isDirPtr = alloc<BooleanVar>()
-                fileManager.fileExistsAtPath(fullPath, isDirectory = isDirPtr.ptr)
-                isDir = isDirPtr.value
+            val resourceValues = url.resourceValuesForKeys(prefetchKeys, error = null)
+            val isDir = resourceValues?.get(NSURLIsDirectoryKey) as? Boolean ?: false
+            val modDate = resourceValues?.get(NSURLContentModificationDateKey) as? NSDate
+            val modifiedAt = if (modDate != null) {
+                Instant.fromEpochMilliseconds((modDate.timeIntervalSince1970 * 1000).toLong())
+            } else {
+                Clock.System.now()
             }
 
             if (isDir) {
@@ -47,9 +53,9 @@ actual class MediaScanner {
                         fileName = name,
                         type = ArchiveType.FOLDER,
                         totalPages = 0,
-                        addedAt = getFileModifiedAt(fullPath),
+                        addedAt = modifiedAt,
                         hasImages = false,
-                    )
+                    ),
                 )
             } else {
                 val ext = name.substringAfterLast('.', "").lowercase()
@@ -63,9 +69,9 @@ actual class MediaScanner {
                                 "cbr" -> ArchiveType.CBR
                                 else -> ArchiveType.ZIP
                             },
-                            addedAt = getFileModifiedAt(fullPath),
+                            addedAt = modifiedAt,
                             hasImages = false,
-                        )
+                        ),
                     )
                 }
             }
@@ -83,16 +89,6 @@ actual class MediaScanner {
             error = null,
         )
         return requireNotNull(docDir?.path) { "NSDocumentDirectory not found" }
-    }
-
-    private fun getFileModifiedAt(path: String): Instant {
-        val attrs = NSFileManager.defaultManager.attributesOfItemAtPath(path, error = null)
-        val date = attrs?.get(NSFileModificationDate) as? NSDate
-        return if (date != null) {
-            Instant.fromEpochMilliseconds((date.timeIntervalSince1970 * 1000).toLong())
-        } else {
-            Clock.System.now()
-        }
     }
 
     actual fun renameFile(oldPath: String, newName: String): Result<String> {
