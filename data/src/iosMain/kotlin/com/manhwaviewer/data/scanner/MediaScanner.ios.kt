@@ -109,6 +109,25 @@ actual class MediaScanner {
         }
     }
 
+    actual fun createFolder(parentPath: String, folderName: String): Result<String> {
+        val fileManager = NSFileManager.defaultManager
+        val newPath = "$parentPath/$folderName"
+        if (fileManager.fileExistsAtPath(newPath)) {
+            return Result.failure(IllegalStateException("Folder already exists: $newPath"))
+        }
+        val success = fileManager.createDirectoryAtPath(
+            newPath,
+            withIntermediateDirectories = false,
+            attributes = null,
+            error = null,
+        )
+        return if (success) {
+            Result.success(newPath)
+        } else {
+            Result.failure(IllegalStateException("Failed to create folder"))
+        }
+    }
+
     actual fun deleteFile(path: String): Result<Unit> {
         val fileManager = NSFileManager.defaultManager
         if (!fileManager.fileExistsAtPath(path)) {

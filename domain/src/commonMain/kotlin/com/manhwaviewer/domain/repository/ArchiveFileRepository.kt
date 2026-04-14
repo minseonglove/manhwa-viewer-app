@@ -23,4 +23,5 @@ interface ArchiveFileRepository {
     suspend fun renameFile(oldPath: String, newName: String): Result<String>
     suspend fun deleteFile(path: String): Result<Unit>
     suspend fun migratePath(oldPath: String, newPath: String)
+    suspend fun createFolder(parentPath: String, folderName: String): Result<String>
 }

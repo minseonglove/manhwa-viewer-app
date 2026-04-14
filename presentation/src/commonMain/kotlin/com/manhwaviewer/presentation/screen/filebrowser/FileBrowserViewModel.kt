@@ -6,6 +6,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
+import com.manhwaviewer.domain.usecase.CreateFolderUseCase
 import com.manhwaviewer.domain.usecase.DeleteFileUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -33,6 +34,7 @@ class FileBrowserViewModel(
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val renameFileUseCase: RenameFileUseCase,
     private val deleteFileUseCase: DeleteFileUseCase,
+    private val createFolderUseCase: CreateFolderUseCase,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -95,6 +97,13 @@ class FileBrowserViewModel(
             FileBrowserIntent.DismissDeleteDialog -> updateState {
                 copy(showDeleteDialog = false, deleteTargets = emptyList())
             }
+            FileBrowserIntent.ShowCreateFolderDialog -> updateState {
+                copy(showCreateFolderDialog = true, defaultFolderName = generateDefaultFolderName())
+            }
+            FileBrowserIntent.DismissCreateFolderDialog -> updateState {
+                copy(showCreateFolderDialog = false)
+            }
+            is FileBrowserIntent.ConfirmCreateFolder -> confirmCreateFolder(intent.folderName)
         }
     }
 
@@ -197,6 +206,43 @@ class FileBrowserViewModel(
                 copy(selectedFileKeys = emptySet())
             } else {
                 copy(selectedFileKeys = allKeys)
+            }
+        }
+    }
+
+    private fun generateDefaultFolderName(): String {
+        val existingNames = currentState.files.map { it.fileName }.toSet()
+        val base = "새 폴더"
+        if (base !in existingNames) return base
+        var i = 1
+        while ("$base($i)" in existingNames) i++
+        return "$base($i)"
+    }
+
+    private fun confirmCreateFolder(folderName: String) {
+        val parentPath = currentState.currentPath
+        viewModelScope.launch {
+            val result = createFolderUseCase(parentPath, folderName)
+            result.onSuccess { newPath ->
+                val now = kotlinx.datetime.Instant.fromEpochMilliseconds(
+                    kotlin.time.Clock.System.now().toEpochMilliseconds(),
+                )
+                val newFolder = ArchiveFile(
+                    filePath = newPath,
+                    fileName = folderName,
+                    type = ArchiveType.FOLDER,
+                    addedAt = now,
+                )
+                val updatedFiles = sortFiles(currentState.files + newFolder)
+                updateState {
+                    copy(
+                        files = updatedFiles,
+                        showCreateFolderDialog = false,
+                    )
+                }
+            }
+            result.onFailure {
+                // 파일시스템 레벨 실패 — 다이얼로그 유지
             }
         }
     }

@@ -99,6 +99,18 @@ actual class MediaScanner(private val context: Context) {
         }
     }
 
+    actual fun createFolder(parentPath: String, folderName: String): Result<String> {
+        val parent = File(parentPath)
+        if (!parent.exists() || !parent.isDirectory) return Result.failure(IllegalStateException("Parent directory not found: $parentPath"))
+        val newDir = File(parent, folderName)
+        if (newDir.exists()) return Result.failure(IllegalStateException("Folder already exists: ${newDir.absolutePath}"))
+        return if (newDir.mkdir()) {
+            Result.success(newDir.absolutePath)
+        } else {
+            Result.failure(IllegalStateException("Failed to create folder"))
+        }
+    }
+
     actual fun deleteFile(path: String): Result<Unit> {
         val file = File(path)
         if (!file.exists()) return Result.failure(IllegalStateException("File not found: $path"))

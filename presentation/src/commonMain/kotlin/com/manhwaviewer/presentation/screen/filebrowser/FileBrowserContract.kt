@@ -19,6 +19,8 @@ data class FileBrowserState(
     val renameTarget: ArchiveFile? = null,
     val showDeleteDialog: Boolean = false,
     val deleteTargets: List<ArchiveFile> = emptyList(),
+    val showCreateFolderDialog: Boolean = false,
+    val defaultFolderName: String = "",
 )
 
 sealed interface FileBrowserIntent {
@@ -43,6 +45,9 @@ sealed interface FileBrowserIntent {
     data object DismissRenameDialog : FileBrowserIntent
     data object ConfirmDelete : FileBrowserIntent
     data object DismissDeleteDialog : FileBrowserIntent
+    data object ShowCreateFolderDialog : FileBrowserIntent
+    data object DismissCreateFolderDialog : FileBrowserIntent
+    data class ConfirmCreateFolder(val folderName: String) : FileBrowserIntent
 }
 
 sealed interface FileBrowserSideEffect {

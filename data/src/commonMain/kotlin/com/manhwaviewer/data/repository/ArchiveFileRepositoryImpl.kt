@@ -139,6 +139,11 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
             result
         }
 
+    override suspend fun createFolder(parentPath: String, folderName: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            mediaScanner.createFolder(parentPath, folderName)
+        }
+
     override suspend fun migratePath(oldPath: String, newPath: String) = withContext(Dispatchers.IO) {
         val single = dao.getByFilePath(oldPath)
         if (single != null) {

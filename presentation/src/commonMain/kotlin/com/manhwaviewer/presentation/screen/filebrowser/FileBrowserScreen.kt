@@ -39,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -107,8 +108,11 @@ import manhwa_viewer.presentation.generated.resources.file_delete_message_single
 import manhwa_viewer.presentation.generated.resources.file_delete_message_single_folder_suffix
 import manhwa_viewer.presentation.generated.resources.file_delete_message_single_highlight
 import manhwa_viewer.presentation.generated.resources.file_delete_title
+import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
+import manhwa_viewer.presentation.generated.resources.file_create_folder_title
 import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
+import manhwa_viewer.presentation.generated.resources.ic_plus
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -176,6 +180,17 @@ fun FileBrowserScreen(
                                 text = stringResource(Res.string.file_selection_cancel),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MangaLensColors.blueHi,
+                            )
+                        }
+                    }
+                } else if (state.insideArchivePath == null) {
+                    {
+                        IconButton(onClick = { viewModel.onIntent(FileBrowserIntent.ShowCreateFolderDialog) }) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_plus),
+                                contentDescription = stringResource(Res.string.file_create_folder_title),
+                                tint = MangaLensColors.blueHi,
+                                modifier = Modifier.size(22.dp),
                             )
                         }
                     }
@@ -376,6 +391,17 @@ fun FileBrowserScreen(
             hazeState = hazeState,
             onConfirm = { viewModel.onIntent(FileBrowserIntent.ConfirmDelete) },
             onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissDeleteDialog) },
+        )
+    }
+
+    // 폴더 만들기 다이얼로그
+    if (state.showCreateFolderDialog) {
+        CreateFolderDialog(
+            defaultName = state.defaultFolderName,
+            siblingNames = state.files.map { it.fileName }.toSet(),
+            hazeState = hazeState,
+            onConfirm = { name -> viewModel.onIntent(FileBrowserIntent.ConfirmCreateFolder(name)) },
+            onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissCreateFolderDialog) },
         )
     }
 }
@@ -851,6 +877,157 @@ private fun DeleteConfirmDialog(
                     text = stringResource(Res.string.file_delete_confirm),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.red,
+                )
+            }
+        }
+    }
+}
+
+// ── 폴더 만들기 다이얼로그 ──────────────────────────────────────────
+
+@Composable
+private fun CreateFolderDialog(
+    defaultName: String,
+    siblingNames: Set<String>,
+    hazeState: HazeState,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var textFieldValue by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = defaultName,
+                selection = TextRange(0, defaultName.length),
+            ),
+        )
+    }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    val value = textFieldValue.text
+    val hasInvalidChars = value.contains('/') || value.contains('\\') || value.contains("..")
+    val isConfirmEnabled = value.isNotBlank()
+        && !hasInvalidChars
+        && siblingNames.none { it.equals(value, ignoreCase = true) }
+
+    GlassDialog(
+        hazeState = hazeState,
+        onDismiss = onDismiss,
+    ) {
+        // 헤더
+        Text(
+            text = stringResource(Res.string.file_create_folder_title),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MangaLensColors.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
+        )
+
+        // 입력 필드
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(MangaLensColors.fillTertiary)
+                .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Row(
+                modifier = Modifier.padding(
+                    vertical = 16.dp,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = textFieldValue,
+                    onValueChange = { textFieldValue = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MangaLensColors.onSurface,
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MangaLensColors.blueHi),
+                )
+
+                if (value.isNotEmpty()) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_close_circle),
+                        contentDescription = null,
+                        tint = MangaLensColors.textTertiary,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable {
+                                textFieldValue = TextFieldValue("")
+                            },
+                    )
+                }
+            }
+        }
+
+        // 버튼 구분선
+        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
+
+        // 버튼 행
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // 취소 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 24.dp)
+                    .fillMaxHeight()
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.file_selection_cancel),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
+                    color = MangaLensColors.blueHi,
+                )
+            }
+
+            // 버튼 세로 구분선
+            Box(
+                modifier = Modifier
+                    .width(0.5.dp)
+                    .fillMaxHeight()
+                    .background(MangaLensColors.separator),
+            )
+
+            // 만들기 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 24.dp)
+                    .fillMaxHeight()
+                    .then(
+                        if (isConfirmEnabled) {
+                            Modifier.clickable { onConfirm(value) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.file_create_folder_confirm),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MangaLensColors.blueHi.copy(
+                        alpha = if (isConfirmEnabled) 1f else 0.35f,
+                    ),
                 )
             }
         }

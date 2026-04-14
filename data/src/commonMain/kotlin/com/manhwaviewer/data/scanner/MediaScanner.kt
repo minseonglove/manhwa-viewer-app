@@ -7,4 +7,5 @@ expect class MediaScanner {
     fun getDefaultScanPath(): String
     fun renameFile(oldPath: String, newName: String): Result<String>
     fun deleteFile(path: String): Result<Unit>
+    fun createFolder(parentPath: String, folderName: String): Result<String>
 }
