@@ -451,4 +451,5 @@ private class InMemoryCacheDao : TranslationCacheDao {
 
     override suspend fun clearAll() = cache.clear()
     override suspend fun getCacheCount(): Int = cache.size
+    override suspend fun getTotalDataSize(): Long = cache.sumOf { it.sourceText.length.toLong() + it.translatedText.length.toLong() }
 }
