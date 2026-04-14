@@ -9,6 +9,9 @@ expect class OcrDecoderRunner {
     /** Initialize KV cache: compute cross-attention KV + cache encoder output in native format. */
     fun beginSequence(encoderOutput: FloatArray): KvCacheState
 
+    /** Initialize KV cache from raw platform-specific encoder output (zero-copy). */
+    fun beginSequence(encoderOutput: EncoderOutput): KvCacheState
+
     /** Single decoder step with KV cache. Returns logits for the new token + updated KV. */
     fun stepWithKvCache(tokenId: Int, kvCache: KvCacheState): DecoderStepResult
 

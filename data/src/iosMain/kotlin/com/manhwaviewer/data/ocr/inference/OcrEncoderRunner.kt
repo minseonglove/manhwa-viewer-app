@@ -41,6 +41,30 @@ actual class OcrEncoderRunner {
         return FloatArray(count) { outputArray.objectAtIndexedSubscript(it.toLong()).floatValue }
     }
 
+    actual fun runToEncoderOutput(pixelValues: FloatArray): EncoderOutput {
+        val size = MangaOcrConfig.IMAGE_SIZE
+        val shape = listOf(1, 3, size, size).map { NSNumber(int = it) }
+        val inputArray = MLMultiArray(
+            shape = shape as List<NSNumber>,
+            dataType = MLMultiArrayDataType.MLMultiArrayDataTypeFloat32,
+            error = null,
+        ) ?: error("Failed to create input MLMultiArray")
+        for (i in pixelValues.indices) {
+            inputArray.setObject(NSNumber(float = pixelValues[i]), atIndexedSubscript = i.toLong())
+        }
+        val featureProvider = MLDictionaryFeatureProvider(
+            dictionary = mapOf("pixel_values" to inputArray) as Map<String, Any>,
+            error = null,
+        ) ?: error("Failed to create feature provider")
+        val result = model!!.predictionFromFeatures(featureProvider, error = null)
+            ?: error("Encoder inference failed")
+        val outputFeature = result.featureValueForName("last_hidden_state")
+            ?: error("Encoder output 'last_hidden_state' not found")
+        val outputArray = outputFeature.multiArrayValue
+            ?: error("Encoder output is not a multi array")
+        return EncoderOutput(outputArray)
+    }
+
     actual fun close() {
         model = null
     }

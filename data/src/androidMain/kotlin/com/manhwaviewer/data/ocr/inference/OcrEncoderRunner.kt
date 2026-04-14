@@ -19,7 +19,11 @@ actual class OcrEncoderRunner(private val context: Context) {
 
     actual fun initialize() {
         ortEnv = OrtEnvironment.getEnvironment()
-        session = ortEnv!!.createSession(getModelPath(), OrtSession.SessionOptions())
+        val options = OrtSession.SessionOptions().apply {
+            setIntraOpNumThreads(4)
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        }
+        session = ortEnv!!.createSession(getModelPath(), options)
     }
 
     actual fun run(pixelValues: FloatArray): FloatArray {
@@ -41,6 +45,27 @@ actual class OcrEncoderRunner(private val context: Context) {
         results.close()
         tensor.close()
         return output
+    }
+
+    actual fun runToEncoderOutput(pixelValues: FloatArray): EncoderOutput {
+        val env = ortEnv!!
+        val size = MangaOcrConfig.IMAGE_SIZE
+        val area = size * size
+        val buffer = ByteBuffer.allocateDirect(3 * area * 2).order(ByteOrder.nativeOrder())
+        for (i in 0 until 3 * area) {
+            buffer.putShort(i * 2, floatToHalf(pixelValues[i]))
+        }
+        val shape = longArrayOf(1, 3, size.toLong(), size.toLong())
+        val tensor = OnnxTensor.createTensor(env, buffer, shape, OnnxJavaType.FLOAT16)
+        val results = session!!.run(mapOf("pixel_values" to tensor))
+        val outputTensor = results.get(0) as OnnxTensor
+        val shortBuffer = outputTensor.shortBuffer
+        val fp16Bytes = ByteBuffer.allocateDirect(shortBuffer.remaining() * 2)
+            .order(ByteOrder.nativeOrder())
+        fp16Bytes.asShortBuffer().put(shortBuffer)
+        results.close()
+        tensor.close()
+        return EncoderOutput(fp16Bytes)
     }
 
     actual fun close() {

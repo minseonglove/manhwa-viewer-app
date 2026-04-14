@@ -21,8 +21,12 @@ actual class OcrDecoderRunner(private val context: Context) {
 
     actual fun initialize() {
         ortEnv = OrtEnvironment.getEnvironment()
-        crossAttnInitSession = ortEnv!!.createSession(extractModel(PlatformModelPaths.CROSS_ATTN_INIT_PATH))
-        decoderWithPastSession = ortEnv!!.createSession(extractModel(PlatformModelPaths.DECODER_WITH_PAST_PATH))
+        val options = OrtSession.SessionOptions().apply {
+            setIntraOpNumThreads(4)
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        }
+        crossAttnInitSession = ortEnv!!.createSession(extractModel(PlatformModelPaths.CROSS_ATTN_INIT_PATH), options)
+        decoderWithPastSession = ortEnv!!.createSession(extractModel(PlatformModelPaths.DECODER_WITH_PAST_PATH), options)
     }
 
     private var cachedEncoderFp16: ByteBuffer? = null
@@ -55,6 +59,35 @@ actual class OcrDecoderRunner(private val context: Context) {
         encoderTensor.close()
 
         // Self-attention KV starts empty (seq_len=0)
+        val emptySelfKeys = Array(MangaOcrConfig.DECODER_NUM_LAYERS) {
+            ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+        }
+        val emptySelfValues = Array(MangaOcrConfig.DECODER_NUM_LAYERS) {
+            ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+        }
+
+        return KvCacheState(encoderFp16, emptySelfKeys, emptySelfValues, crossKeys, crossValues)
+    }
+
+    actual fun beginSequence(encoderOutput: EncoderOutput): KvCacheState {
+        val env = ortEnv!!
+        val encoderFp16 = encoderOutput.fp16Buffer
+
+        val encoderShape = longArrayOf(1, MangaOcrConfig.ENCODER_SEQ_LENGTH.toLong(), MangaOcrConfig.ENCODER_HIDDEN_SIZE.toLong())
+        val encoderTensor = OnnxTensor.createTensor(env, encoderFp16.rewound(), encoderShape, OnnxJavaType.FLOAT16)
+
+        val initResults = crossAttnInitSession!!.run(mapOf("encoder_hidden_states" to encoderTensor))
+
+        val crossKeys = Array(MangaOcrConfig.DECODER_NUM_LAYERS) { layer ->
+            extractFp16Buffer(initResults.get(layer * 2) as OnnxTensor)
+        }
+        val crossValues = Array(MangaOcrConfig.DECODER_NUM_LAYERS) { layer ->
+            extractFp16Buffer(initResults.get(layer * 2 + 1) as OnnxTensor)
+        }
+
+        initResults.close()
+        encoderTensor.close()
+
         val emptySelfKeys = Array(MangaOcrConfig.DECODER_NUM_LAYERS) {
             ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
         }
@@ -157,11 +190,9 @@ actual class OcrDecoderRunner(private val context: Context) {
 
     private fun extractFp16Buffer(tensor: OnnxTensor): ByteBuffer {
         val shortBuffer = tensor.shortBuffer
-        val byteBuffer = ByteBuffer.allocateDirect(shortBuffer.remaining() * 2).order(ByteOrder.nativeOrder())
-        while (shortBuffer.hasRemaining()) {
-            byteBuffer.putShort(shortBuffer.get())
-        }
-        byteBuffer.flip()
+        val byteBuffer = ByteBuffer.allocateDirect(shortBuffer.remaining() * 2)
+            .order(ByteOrder.nativeOrder())
+        byteBuffer.asShortBuffer().put(shortBuffer)
         return byteBuffer
     }
 

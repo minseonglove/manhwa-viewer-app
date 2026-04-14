@@ -239,6 +239,44 @@ internal fun beamSearchDecodeWithKvCache(
 }
 
 /**
+ * Greedy decoding with KV cache. No beam branching, no KV copy.
+ * Faster than beam search when beam_width=1 since it avoids copySelfAttn() and logSoftmax.
+ */
+internal fun greedyDecodeWithKvCache(
+    maxLength: Int,
+    vocabSize: Int,
+    startTokenId: Int,
+    eosTokenId: Int,
+    initialKvCache: KvCacheState,
+    decoderStep: (tokenId: Int, kvCache: KvCacheState) -> DecoderStepResult,
+): List<Int> {
+    val tokenIds = IntArray(maxLength + 1)
+    tokenIds[0] = startTokenId
+    var seqLen = 1
+    var kvCache = initialKvCache
+
+    for (step in 0 until maxLength) {
+        val result = decoderStep(tokenIds[seqLen - 1], kvCache)
+        applyRepetitionPenalty(result.logits, tokenIds, seqLen, MangaOcrConfig.REPETITION_PENALTY)
+        applyTemperature(result.logits, MangaOcrConfig.TEMPERATURE)
+        val nextToken = argmax(result.logits)
+        tokenIds[seqLen] = nextToken
+        seqLen++
+        kvCache = result.kvCache
+        if (nextToken == eosTokenId) break
+    }
+    return (0 until seqLen).map { tokenIds[it] }
+}
+
+private fun argmax(values: FloatArray): Int {
+    var maxIdx = 0
+    for (i in 1 until values.size) {
+        if (values[i] > values[maxIdx]) maxIdx = i
+    }
+    return maxIdx
+}
+
+/**
  * Partial selection sort to find top-k indices by value.
  * O(k * n) which is efficient for small k (beam width 3~5) over vocab size 6144.
  */

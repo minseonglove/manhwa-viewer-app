@@ -55,6 +55,37 @@ actual class OcrDecoderRunner {
         return KvCacheState(encoderArray, emptySelfKeys, emptySelfValues, crossKeys, crossValues)
     }
 
+    actual fun beginSequence(encoderOutput: EncoderOutput): KvCacheState {
+        val encoderArray = encoderOutput.multiArray
+
+        val featureProvider = MLDictionaryFeatureProvider(
+            dictionary = mapOf("encoder_hidden_states" to encoderArray) as Map<Any?, *>,
+            error = null,
+        ) ?: error("Failed to create cross_attn_init feature provider")
+
+        val result = crossAttnInitModel!!.predictionFromFeatures(featureProvider, error = null)
+            ?: error("cross_attn_init inference failed")
+
+        val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
+        val crossKeys = Array(numLayers) { layer ->
+            result.featureValueForName("cross_key_layer$layer")?.multiArrayValue
+                ?: error("cross_key_layer$layer not found")
+        }
+        val crossValues = Array(numLayers) { layer ->
+            result.featureValueForName("cross_value_layer$layer")?.multiArrayValue
+                ?: error("cross_value_layer$layer not found")
+        }
+
+        val emptySelfKeys = Array(numLayers) {
+            createZeroMLMultiArray(listOf(1, MangaOcrConfig.DECODER_NUM_HEADS, 1, MangaOcrConfig.DECODER_HEAD_DIM))
+        }
+        val emptySelfValues = Array(numLayers) {
+            createZeroMLMultiArray(listOf(1, MangaOcrConfig.DECODER_NUM_HEADS, 1, MangaOcrConfig.DECODER_HEAD_DIM))
+        }
+
+        return KvCacheState(encoderArray, emptySelfKeys, emptySelfValues, crossKeys, crossValues)
+    }
+
     actual fun stepWithKvCache(tokenId: Int, kvCache: KvCacheState): DecoderStepResult {
         val numLayers = MangaOcrConfig.DECODER_NUM_LAYERS
         val vocabSize = MangaOcrConfig.VOCAB_SIZE

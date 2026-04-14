@@ -41,21 +41,34 @@ class CommonMangaOcrEngine(
             padColor = computeBorderAverageColor(image),
         )
 
-        val encoderOutput = encoder.run(pixelValues)
+        val encoderOutput = encoder.runToEncoderOutput(pixelValues)
 
         val tokenIds = try {
             val initialKvCache = decoder.beginSequence(encoderOutput)
-            beamSearchDecodeWithKvCache(
-                beamWidth = MangaOcrConfig.BEAM_WIDTH,
-                maxLength = MangaOcrConfig.MAX_LENGTH,
-                vocabSize = MangaOcrConfig.VOCAB_SIZE,
-                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
-                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
-                initialKvCache = initialKvCache,
-            ) { tokenId, kvCache ->
-                decoder.stepWithKvCache(tokenId, kvCache)
+            if (MangaOcrConfig.BEAM_WIDTH <= 1) {
+                greedyDecodeWithKvCache(
+                    maxLength = MangaOcrConfig.MAX_LENGTH,
+                    vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                    startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                    eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+                    initialKvCache = initialKvCache,
+                ) { tokenId, kvCache ->
+                    decoder.stepWithKvCache(tokenId, kvCache)
+                }
+            } else {
+                beamSearchDecodeWithKvCache(
+                    beamWidth = MangaOcrConfig.BEAM_WIDTH,
+                    maxLength = MangaOcrConfig.MAX_LENGTH,
+                    vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                    startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                    eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+                    initialKvCache = initialKvCache,
+                ) { tokenId, kvCache ->
+                    decoder.stepWithKvCache(tokenId, kvCache)
+                }
             }
         } catch (_: UnsupportedOperationException) {
+            val fp32Output = encoder.run(pixelValues)
             beamSearchDecode(
                 beamWidth = MangaOcrConfig.BEAM_WIDTH,
                 maxLength = MangaOcrConfig.MAX_LENGTH,
@@ -63,7 +76,7 @@ class CommonMangaOcrEngine(
                 startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
                 eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
             ) { inputIds, seqLen ->
-                decoder.run(inputIds, seqLen, encoderOutput)
+                decoder.run(inputIds, seqLen, fp32Output)
             }
         }
 
