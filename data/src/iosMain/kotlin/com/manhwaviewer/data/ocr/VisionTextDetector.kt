@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.ocr
 
+import kotlin.math.roundToInt
 import kotlinx.cinterop.*
 import platform.CoreGraphics.*
 import platform.Foundation.*
@@ -27,10 +28,10 @@ class VisionTextDetector : TextDetector {
         return observations.mapNotNull { observation ->
             val bbox = observation.boundingBox
             // Vision bbox는 좌하단 원점 + 정규화 좌표 → 좌상단 원점 픽셀 좌표로 변환
-            val x = (CGRectGetMinX(bbox) * imageWidth).toInt().coerceAtLeast(0)
-            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imageHeight).toInt().coerceAtLeast(0)
-            val w = (CGRectGetWidth(bbox) * imageWidth).toInt().coerceAtMost(imageWidth - x)
-            val h = (CGRectGetHeight(bbox) * imageHeight).toInt().coerceAtMost(imageHeight - y)
+            val x = (CGRectGetMinX(bbox) * imageWidth).roundToInt().coerceAtLeast(0)
+            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imageHeight).roundToInt().coerceAtLeast(0)
+            val w = (CGRectGetWidth(bbox) * imageWidth).roundToInt().coerceAtMost(imageWidth - x)
+            val h = (CGRectGetHeight(bbox) * imageHeight).roundToInt().coerceAtMost(imageHeight - y)
             if (w <= 0 || h <= 0) return@mapNotNull null
 
             val croppedCgImage = CGImageCreateWithImageInRect(

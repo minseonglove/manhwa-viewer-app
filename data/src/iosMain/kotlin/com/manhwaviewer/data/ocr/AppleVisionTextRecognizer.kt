@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.ocr
 
+import kotlin.math.roundToInt
 import kotlinx.cinterop.*
 import platform.CoreGraphics.*
 import platform.CoreGraphics.CGRectGetMinX
@@ -13,7 +14,7 @@ import platform.Vision.*
 class AppleVisionTextRecognizer : PlatformTextRecognizer {
 
     companion object {
-        private const val WIDE_RATIO_THRESHOLD = 3.0f
+        private const val WIDE_RATIO_THRESHOLD = 2.0f
     }
 
     override suspend fun recognizeText(imageBytes: ByteArray): String {
@@ -36,10 +37,10 @@ class AppleVisionTextRecognizer : PlatformTextRecognizer {
 
         return observations.mapNotNull { obs ->
             val bbox = obs.boundingBox
-            val x = (CGRectGetMinX(bbox) * imgW).toInt().coerceAtLeast(0)
-            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imgH).toInt().coerceAtLeast(0)
-            val w = (CGRectGetWidth(bbox) * imgW).toInt().coerceAtMost(imgW - x)
-            val h = (CGRectGetHeight(bbox) * imgH).toInt().coerceAtMost(imgH - y)
+            val x = (CGRectGetMinX(bbox) * imgW).roundToInt().coerceAtLeast(0)
+            val y = ((1.0 - CGRectGetMinY(bbox) - CGRectGetHeight(bbox)) * imgH).roundToInt().coerceAtLeast(0)
+            val w = (CGRectGetWidth(bbox) * imgW).roundToInt().coerceAtMost(imgW - x)
+            val h = (CGRectGetHeight(bbox) * imgH).roundToInt().coerceAtMost(imgH - y)
 
             if (h <= 0 || w.toFloat() / h < WIDE_RATIO_THRESHOLD) return@mapNotNull null
 

@@ -12,7 +12,7 @@ import kotlinx.coroutines.tasks.await
 class MlKitTextRecognizer : PlatformTextRecognizer {
 
     companion object {
-        private const val WIDE_RATIO_THRESHOLD = 3.0f
+        private const val WIDE_RATIO_THRESHOLD = 2.0f
     }
 
     private val recognizer = TextRecognition.getClient(

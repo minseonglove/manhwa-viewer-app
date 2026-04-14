@@ -1,5 +1,7 @@
 package com.manhwaviewer.data.ocr
 
+import kotlin.math.roundToInt
+
 object YoloPostProcessor {
 
     private const val CONF_THRESHOLD = 0.3f
@@ -7,6 +9,7 @@ object YoloPostProcessor {
     private const val PADDING_RATIO = 0.08f
     private const val MIN_PADDING_PX = 4
     private const val MAX_PADDING_PX = 20
+    private const val MIN_BOX_SIZE_PX = 8
 
     fun parseAndFilter(
         rawOutput: FloatArray,
@@ -28,13 +31,13 @@ object YoloPostProcessor {
             val classId = rawOutput[offset + 5]
             if (confidence < CONF_THRESHOLD) continue
             if (classId != TEXT_CLASS_ID) continue
-            val bx = ((x1 - padX) / scale).toInt().coerceIn(0, originalWidth)
-            val by = ((y1 - padY) / scale).toInt().coerceIn(0, originalHeight)
-            val bx2 = ((x2 - padX) / scale).toInt().coerceIn(0, originalWidth)
-            val by2 = ((y2 - padY) / scale).toInt().coerceIn(0, originalHeight)
+            val bx = ((x1 - padX) / scale).roundToInt().coerceIn(0, originalWidth)
+            val by = ((y1 - padY) / scale).roundToInt().coerceIn(0, originalHeight)
+            val bx2 = ((x2 - padX) / scale).roundToInt().coerceIn(0, originalWidth)
+            val by2 = ((y2 - padY) / scale).roundToInt().coerceIn(0, originalHeight)
             val bw = bx2 - bx
             val bh = by2 - by
-            if (bw <= 0 || bh <= 0) continue
+            if (bw < MIN_BOX_SIZE_PX || bh < MIN_BOX_SIZE_PX) continue
             boxes.add(DetectedBox(bx, by, bw, bh, confidence, isJapanese = true))
         }
         return boxes
