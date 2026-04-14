@@ -44,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -608,23 +609,25 @@ private fun RenameDialog(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, bottom = 12.dp, start = 20.dp, end = 20.dp),
+                .padding(top = 24.dp, bottom = 16.dp, start = 24.dp, end = 24.dp),
         )
 
         // 입력 필드
         Box(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 20.dp)
+                .padding(bottom = 24.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
                 .background(MangaLensColors.fillTertiary)
                 .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Row(
-                modifier = Modifier.height(38.dp),
+                modifier = Modifier.padding(
+                    vertical = 16.dp,
+                ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicTextField(
@@ -633,7 +636,7 @@ private fun RenameDialog(
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
                         color = MangaLensColors.onSurface,
                     ),
                     singleLine = true,
@@ -660,12 +663,15 @@ private fun RenameDialog(
 
         // 버튼 행
         Row(
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
         ) {
             // 취소 버튼
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .padding(vertical = 16.dp)
                     .fillMaxHeight()
                     .clickable(onClick = onDismiss),
                 contentAlignment = Alignment.Center,
@@ -689,6 +695,7 @@ private fun RenameDialog(
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .padding(vertical = 16.dp)
                     .fillMaxHeight()
                     .then(
                         if (isConfirmEnabled) {
