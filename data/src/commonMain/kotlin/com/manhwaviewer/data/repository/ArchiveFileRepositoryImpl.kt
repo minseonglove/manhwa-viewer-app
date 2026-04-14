@@ -108,14 +108,7 @@ class ArchiveFileRepositoryImpl(
         }
 
     override suspend fun deleteByPath(path: String) {
-        val single = dao.getByFilePath(path)
-        if (single != null) {
-            pageOcrCacheDao.deleteOcrCacheByFilePath(path)
-            dao.deleteByFilePath(path)
-        } else {
-            pageOcrCacheDao.deleteOcrCacheByDirectory(path)
-            dao.deleteByDirectory(path)
-        }
+        dao.deleteByPathWithOcrCache(path)
     }
 
     override suspend fun deleteFile(path: String): Result<Unit> =
@@ -149,4 +142,19 @@ class ArchiveFileRepositoryImpl(
             dao.updateDirectoryPath(oldPath, newPath)
         }
     }
+
+    override suspend fun moveToVault(path: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            mediaScanner.moveFile(path, mediaScanner.getVaultPath())
+        }
+
+    override suspend fun addToVaultWithMigration(originalPath: String, newPath: String, relativePath: String) =
+        withContext(Dispatchers.IO) {
+            dao.addToVaultWithMigration(
+                originalPath = originalPath,
+                newPath = newPath,
+                relativePath = relativePath,
+                addedAt = Clock.System.now().toEpochMilliseconds(),
+            )
+        }
 }

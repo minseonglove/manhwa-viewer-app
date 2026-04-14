@@ -4,44 +4,54 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
-interface PageOcrCacheDao {
+abstract class PageOcrCacheDao {
     @Query(
         "SELECT * FROM page_ocr_cache " +
             "WHERE archiveId = :archiveId AND entryName = :entryName " +
             "LIMIT 1"
     )
-    suspend fun findOcrCache(archiveId: Long, entryName: String): PageOcrCacheEntity?
+    abstract suspend fun findOcrCache(archiveId: Long, entryName: String): PageOcrCacheEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOcrCache(entity: PageOcrCacheEntity): Long
+    abstract suspend fun insertOcrCache(entity: PageOcrCacheEntity): Long
 
     @Query("DELETE FROM page_ocr_cache WHERE archiveId = :archiveId")
-    suspend fun deleteByArchive(archiveId: Long)
+    abstract suspend fun deleteByArchive(archiveId: Long)
 
     @Query(
         "SELECT * FROM page_ocr_translation " +
             "WHERE ocrCacheId = :ocrCacheId " +
             "LIMIT 1"
     )
-    suspend fun findTranslation(ocrCacheId: Long): PageOcrTranslationEntity?
+    abstract suspend fun findTranslation(ocrCacheId: Long): PageOcrTranslationEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTranslation(entity: PageOcrTranslationEntity)
+    abstract suspend fun insertTranslation(entity: PageOcrTranslationEntity)
 
     @Query("SELECT COALESCE(SUM(LENGTH(blocksJson)), 0) FROM page_ocr_cache")
-    suspend fun getOcrDataSize(): Long
+    abstract suspend fun getOcrDataSize(): Long
 
     @Query("SELECT COALESCE(SUM(LENGTH(translationsJson)), 0) FROM page_ocr_translation")
-    suspend fun getTranslationDataSize(): Long
+    abstract suspend fun getTranslationDataSize(): Long
 
     @Query("DELETE FROM page_ocr_cache")
-    suspend fun clearAll()
+    abstract suspend fun clearAll()
 
     @Query("DELETE FROM page_ocr_cache WHERE archiveId IN (SELECT id FROM archive_files WHERE filePath = :filePath)")
-    suspend fun deleteOcrCacheByFilePath(filePath: String)
+    abstract suspend fun deleteOcrCacheByFilePath(filePath: String)
 
     @Query("DELETE FROM page_ocr_cache WHERE archiveId IN (SELECT id FROM archive_files WHERE filePath LIKE :directoryPath || '/%')")
-    suspend fun deleteOcrCacheByDirectory(directoryPath: String)
+    abstract suspend fun deleteOcrCacheByDirectory(directoryPath: String)
+
+    @Transaction
+    open suspend fun insertOcrCacheWithTranslation(
+        ocrEntity: PageOcrCacheEntity,
+        translationEntity: PageOcrTranslationEntity,
+    ) {
+        val ocrCacheId = insertOcrCache(ocrEntity)
+        insertTranslation(translationEntity.copy(ocrCacheId = ocrCacheId))
+    }
 }

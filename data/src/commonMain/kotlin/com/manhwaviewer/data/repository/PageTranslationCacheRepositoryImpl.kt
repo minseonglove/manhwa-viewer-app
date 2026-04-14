@@ -69,28 +69,25 @@ class PageTranslationCacheRepositoryImpl(
         val ocrBlockDtos = cache.blocks.map {
             OcrBlockDto(it.x, it.y, it.width, it.height, it.originalText, it.dominantColorArgb)
         }
-        val ocrCacheId = dao.insertOcrCache(
-            PageOcrCacheEntity(
-                id = cache.id,
-                archiveId = cache.archiveId,
-                entryName = cache.entryName,
-                page = cache.page,
-                imageWidth = cache.imageWidth,
-                imageHeight = cache.imageHeight,
-                blocksJson = json.encodeToString(ocrBlockDtos),
-                createdAt = cache.createdAt,
-            )
+        val ocrEntity = PageOcrCacheEntity(
+            id = cache.id,
+            archiveId = cache.archiveId,
+            entryName = cache.entryName,
+            page = cache.page,
+            imageWidth = cache.imageWidth,
+            imageHeight = cache.imageHeight,
+            blocksJson = json.encodeToString(ocrBlockDtos),
+            createdAt = cache.createdAt,
         )
         val translations = cache.blocks.map { it.translatedText }
-        dao.insertTranslation(
-            PageOcrTranslationEntity(
-                ocrCacheId = ocrCacheId,
-                translationsJson = json.encodeToString(translations),
-                sourceLanguage = "ja",
-                targetLanguage = "ko",
-                createdAt = cache.createdAt,
-            )
+        val translationEntity = PageOcrTranslationEntity(
+            ocrCacheId = 0, // @Transaction 메서드 내부에서 실제 ID로 교체됨
+            translationsJson = json.encodeToString(translations),
+            sourceLanguage = "ja",
+            targetLanguage = "ko",
+            createdAt = cache.createdAt,
         )
+        dao.insertOcrCacheWithTranslation(ocrEntity, translationEntity)
     }
 
     override suspend fun deleteByArchive(archiveId: Long) = withContext(Dispatchers.IO) {
