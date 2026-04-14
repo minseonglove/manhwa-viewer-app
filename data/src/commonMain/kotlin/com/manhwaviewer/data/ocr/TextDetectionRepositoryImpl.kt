@@ -23,6 +23,8 @@ class TextDetectionRepositoryImpl(
         private const val AMBIGUOUS_RATIO = 1.5f
         private const val MAX_CONCURRENT_OCR = 3
         private const val OVERLAP_IOU_THRESHOLD = 0.3f
+        private const val SMALL_REGION_MIN_DIM = 40
+        private const val NEAR_SQUARE_LOW = 0.8f
     }
 
     private val ocrSemaphore = Semaphore(MAX_CONCURRENT_OCR)
@@ -80,8 +82,12 @@ class TextDetectionRepositoryImpl(
                     region.width.toFloat() / region.height >= HORIZONTAL_RATIO
             }
             val (ambiguousRegions, verticalRegions) = nonHorizontalRegions.partition { region ->
-                region.height > 0 &&
-                    region.width.toFloat() / region.height >= AMBIGUOUS_RATIO
+                region.height > 0 && run {
+                    val ratio = region.width.toFloat() / region.height
+                    val minDim = minOf(region.width, region.height)
+                    ratio >= AMBIGUOUS_RATIO ||
+                        (minDim < SMALL_REGION_MIN_DIM && ratio >= NEAR_SQUARE_LOW)
+                }
             }
 
             // 4. 플랫폼(MLKit) 결과 중 YOLO 세로 영역과 겹치는 것 제거 (YOLO 우선)
@@ -108,7 +114,7 @@ class TextDetectionRepositoryImpl(
                 async {
                     ocrSemaphore.withPermit {
                         val ocrStart = now()
-                        val text = verticalOcr.recognizeText(region.croppedImageBytes)
+                        val text = verticalOcr.recognizeText(region.croppedImage)
                         println("PageOCR |   V[$i] (${region.x},${region.y} ${region.width}x${region.height}): ${now() - ocrStart}ms → \"$text\"")
                         TextBlock(region.x, region.y, region.width, region.height, text)
                     }

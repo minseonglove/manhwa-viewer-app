@@ -104,6 +104,86 @@ actual fun cropRegion(
     return result
 }
 
+actual fun computeBorderAverageColor(image: PlatformImage): Float {
+    val cgImage = image.CGImage ?: return 1.0f
+    val w = CGImageGetWidth(cgImage).toInt()
+    val h = CGImageGetHeight(cgImage).toInt()
+    if (w == 0 || h == 0) return 1.0f
+
+    val bytesPerPixel = 4
+    val bytesPerRow = bytesPerPixel * w
+    val rawData = ByteArray(w * h * bytesPerPixel)
+
+    rawData.usePinned { pinned ->
+        val colorSpace = CGColorSpaceCreateDeviceRGB()
+        val context = CGBitmapContextCreate(
+            pinned.addressOf(0),
+            w.toULong(),
+            h.toULong(),
+            8u,
+            bytesPerRow.toULong(),
+            colorSpace,
+            CGImageAlphaInfo.kCGImageAlphaPremultipliedLast.value or kCGBitmapByteOrder32Big,
+        ) ?: run {
+            CGColorSpaceRelease(colorSpace)
+            return 1.0f
+        }
+        CGContextDrawImage(context, CGRectMake(0.0, 0.0, w.toDouble(), h.toDouble()), cgImage)
+        CGContextRelease(context)
+        CGColorSpaceRelease(colorSpace)
+    }
+
+    var sum = 0L
+    var count = 0
+    val xStep = maxOf(1, w / 50)
+    val yStep = maxOf(1, h / 50)
+
+    // Top and bottom rows
+    for (y in intArrayOf(0, h - 1)) {
+        var x = 0
+        while (x < w) {
+            val offset = (y * w + x) * bytesPerPixel
+            val r = rawData[offset].toInt() and 0xFF
+            val g = rawData[offset + 1].toInt() and 0xFF
+            val b = rawData[offset + 2].toInt() and 0xFF
+            sum += (r + g + b) / 3
+            count++
+            x += xStep
+        }
+    }
+    // Left and right columns
+    for (x in intArrayOf(0, w - 1)) {
+        var y = 0
+        while (y < h) {
+            val offset = (y * w + x) * bytesPerPixel
+            val r = rawData[offset].toInt() and 0xFF
+            val g = rawData[offset + 1].toInt() and 0xFF
+            val b = rawData[offset + 2].toInt() and 0xFF
+            sum += (r + g + b) / 3
+            count++
+            y += yStep
+        }
+    }
+
+    return if (count > 0) (sum.toFloat() / count / 255f).coerceIn(0f, 1f) else 1.0f
+}
+
+actual fun cropToPlatformImage(
+    image: PlatformImage,
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+): PlatformImage {
+    val cgImage = image.CGImage ?: throw IllegalArgumentException("Failed to get CGImage from UIImage")
+    val cropRect = CGRectMake(x.toDouble(), y.toDouble(), width.toDouble(), height.toDouble())
+    val croppedCgImage = CGImageCreateWithImageInRect(cgImage, cropRect)
+        ?: throw IllegalArgumentException("Failed to crop CGImage")
+    val result = UIImage.imageWithCGImage(croppedCgImage)
+    CGImageRelease(croppedCgImage)
+    return result
+}
+
 actual fun getImageDimensions(image: PlatformImage): Pair<Int, Int> {
     val cgImage = image.CGImage ?: throw IllegalArgumentException("Failed to get CGImage from UIImage")
     return CGImageGetWidth(cgImage).toInt() to CGImageGetHeight(cgImage).toInt()

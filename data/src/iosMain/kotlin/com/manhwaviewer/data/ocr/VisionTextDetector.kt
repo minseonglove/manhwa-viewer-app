@@ -4,7 +4,6 @@ import kotlinx.cinterop.*
 import platform.CoreGraphics.*
 import platform.Foundation.*
 import platform.UIKit.UIImage
-import platform.UIKit.UIImageJPEGRepresentation
 import platform.Vision.*
 import platform.CoreGraphics.CGRectGetMinX
 import platform.CoreGraphics.CGRectGetMinY
@@ -39,12 +38,9 @@ class VisionTextDetector : TextDetector {
             ) ?: return@mapNotNull null
 
             val croppedUiImage = UIImage.imageWithCGImage(croppedCgImage)
-            val jpegData = UIImageJPEGRepresentation(croppedUiImage, 0.95)
-                ?: return@mapNotNull null
-            val bytes = jpegData.bytes?.readBytes(jpegData.length.toInt())
-                ?: return@mapNotNull null
+            CGImageRelease(croppedCgImage)
 
-            DetectedRegion(x = x, y = y, width = w, height = h, croppedImageBytes = bytes)
+            DetectedRegion(x = x, y = y, width = w, height = h, croppedImage = croppedUiImage)
         }
     }
 

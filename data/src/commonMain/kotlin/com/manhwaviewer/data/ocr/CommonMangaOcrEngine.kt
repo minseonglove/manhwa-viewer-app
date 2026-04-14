@@ -1,6 +1,8 @@
 package com.manhwaviewer.data.ocr
 
 import com.manhwaviewer.data.ocr.image.NormRange
+import com.manhwaviewer.data.ocr.image.PlatformImage
+import com.manhwaviewer.data.ocr.image.computeBorderAverageColor
 import com.manhwaviewer.data.ocr.image.decodeImage
 import com.manhwaviewer.data.ocr.image.resizeAndPadToFloatArray
 import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
@@ -15,34 +17,54 @@ class CommonMangaOcrEngine(
     private var tokenizer: MangaOcrTokenizer? = null
     private var initialized = false
 
-    override suspend fun recognizeText(imageBytes: ByteArray): String {
+    private fun ensureInitialized() {
         if (!initialized) {
             encoder.initialize()
             decoder.initialize()
             tokenizer = MangaOcrTokenizer(vocabLoader())
             initialized = true
         }
+    }
 
-        val image = decodeImage(imageBytes)
+    override suspend fun recognizeText(imageBytes: ByteArray): String {
+        ensureInitialized()
+        return recognizeText(decodeImage(imageBytes))
+    }
+
+    override suspend fun recognizeText(image: PlatformImage): String {
+        ensureInitialized()
+
         val pixelValues = resizeAndPadToFloatArray(
             image,
             targetSize = MangaOcrConfig.IMAGE_SIZE,
             normRange = NormRange.MINUS_ONE_ONE,
-            padColor = 1.0f,
+            padColor = computeBorderAverageColor(image),
         )
 
         val encoderOutput = encoder.run(pixelValues)
 
-        val initialKvCache = decoder.beginSequence(encoderOutput)
-        val tokenIds = beamSearchDecodeWithKvCache(
-            beamWidth = MangaOcrConfig.BEAM_WIDTH,
-            maxLength = MangaOcrConfig.MAX_LENGTH,
-            vocabSize = MangaOcrConfig.VOCAB_SIZE,
-            startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
-            eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
-            initialKvCache = initialKvCache,
-        ) { tokenId, kvCache ->
-            decoder.stepWithKvCache(tokenId, kvCache)
+        val tokenIds = try {
+            val initialKvCache = decoder.beginSequence(encoderOutput)
+            beamSearchDecodeWithKvCache(
+                beamWidth = MangaOcrConfig.BEAM_WIDTH,
+                maxLength = MangaOcrConfig.MAX_LENGTH,
+                vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+                initialKvCache = initialKvCache,
+            ) { tokenId, kvCache ->
+                decoder.stepWithKvCache(tokenId, kvCache)
+            }
+        } catch (_: UnsupportedOperationException) {
+            beamSearchDecode(
+                beamWidth = MangaOcrConfig.BEAM_WIDTH,
+                maxLength = MangaOcrConfig.MAX_LENGTH,
+                vocabSize = MangaOcrConfig.VOCAB_SIZE,
+                startTokenId = MangaOcrConfig.DECODER_START_TOKEN_ID,
+                eosTokenId = MangaOcrConfig.EOS_TOKEN_ID,
+            ) { inputIds, seqLen ->
+                decoder.run(inputIds, seqLen, encoderOutput)
+            }
         }
 
         return tokenizer!!.decode(tokenIds)

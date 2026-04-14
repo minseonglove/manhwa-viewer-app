@@ -1,11 +1,13 @@
 package com.manhwaviewer.data.ocr
 
+import com.manhwaviewer.data.ocr.image.PlatformImage
+
 data class DetectedRegion(
     val x: Int,
     val y: Int,
     val width: Int,
     val height: Int,
-    val croppedImageBytes: ByteArray,
+    val croppedImage: PlatformImage,
 )
 
 interface TextDetector {

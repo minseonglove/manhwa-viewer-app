@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.ocr
 
+import com.manhwaviewer.data.ocr.image.PlatformImage
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -10,12 +11,14 @@ class ManagedOcrEngine(
     private var engine: MangaOcrEngine? = null
     private val mutex = Mutex()
 
-    override suspend fun recognizeText(imageBytes: ByteArray): String {
-        val e = mutex.withLock {
-            engine ?: factory().also { engine = it }
-        }
-        return e.recognizeText(imageBytes)
-    }
+    private suspend fun getEngine(): MangaOcrEngine =
+        mutex.withLock { engine ?: factory().also { engine = it } }
+
+    override suspend fun recognizeText(imageBytes: ByteArray): String =
+        getEngine().recognizeText(imageBytes)
+
+    override suspend fun recognizeText(image: PlatformImage): String =
+        getEngine().recognizeText(image)
 
     override fun close() {
         engine?.close()

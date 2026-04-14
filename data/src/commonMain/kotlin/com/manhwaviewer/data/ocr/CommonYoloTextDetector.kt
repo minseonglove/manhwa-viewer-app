@@ -1,7 +1,7 @@
 package com.manhwaviewer.data.ocr
 
 import com.manhwaviewer.data.ocr.image.NormRange
-import com.manhwaviewer.data.ocr.image.cropRegion
+import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
 import com.manhwaviewer.data.ocr.image.getImageDimensions
 import com.manhwaviewer.data.ocr.image.resizeAndPadToFloatArray
@@ -51,7 +51,7 @@ class CommonYoloTextDetector(
                 y = padded.y,
                 width = padded.width,
                 height = padded.height,
-                croppedImageBytes = cropRegion(image, padded.x, padded.y, padded.width, padded.height),
+                croppedImage = cropToPlatformImage(image, padded.x, padded.y, padded.width, padded.height),
             )
         }
     }
