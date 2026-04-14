@@ -4,7 +4,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -23,7 +25,7 @@ import dev.chrisbanes.haze.hazeEffect
 fun GlassDialog(
     hazeState: HazeState,
     onDismiss: () -> Unit,
-    width: Dp = 270.dp,
+    width: Dp = 320.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
@@ -36,7 +38,8 @@ fun GlassDialog(
         // 대신 Surface에 반투명 배경을 설정
         Surface(
             modifier = Modifier
-                .width(width)
+                .padding(horizontal = 16.dp)
+                .widthIn(max = width)
                 .clip(RoundedCornerShape(16.dp))
                 .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),

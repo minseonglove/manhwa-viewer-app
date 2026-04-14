@@ -65,9 +65,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ArchiveFile
@@ -98,8 +101,11 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import manhwa_viewer.presentation.generated.resources.file_delete_confirm
-import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple
-import manhwa_viewer.presentation.generated.resources.file_delete_message_single
+import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_highlight
+import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_suffix
+import manhwa_viewer.presentation.generated.resources.file_delete_message_single_file_suffix
+import manhwa_viewer.presentation.generated.resources.file_delete_message_single_folder_suffix
+import manhwa_viewer.presentation.generated.resources.file_delete_message_single_highlight
 import manhwa_viewer.presentation.generated.resources.file_delete_title
 import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
@@ -365,6 +371,7 @@ fun FileBrowserScreen(
         DeleteConfirmDialog(
             count = state.deleteTargets.size,
             firstName = state.deleteTargets.firstOrNull()?.fileName.orEmpty(),
+            isFolder = state.deleteTargets.firstOrNull()?.type == ArchiveType.FOLDER,
             hazeState = hazeState,
             onConfirm = { viewModel.onIntent(FileBrowserIntent.ConfirmDelete) },
             onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissDeleteDialog) },
@@ -620,12 +627,12 @@ private fun RenameDialog(
         // 헤더
         Text(
             text = stringResource(Res.string.file_selection_rename),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = MangaLensColors.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 16.dp, start = 24.dp, end = 24.dp),
+                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
         )
 
         // 입력 필드
@@ -687,14 +694,14 @@ private fun RenameDialog(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 16.dp)
+                    .padding(vertical = 24.dp)
                     .fillMaxHeight()
                     .clickable(onClick = onDismiss),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(Res.string.file_selection_cancel),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
                     color = MangaLensColors.blueHi,
                 )
             }
@@ -711,7 +718,7 @@ private fun RenameDialog(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 16.dp)
+                    .padding(vertical = 24.dp)
                     .fillMaxHeight()
                     .then(
                         if (isConfirmEnabled) {
@@ -724,7 +731,7 @@ private fun RenameDialog(
             ) {
                 Text(
                     text = stringResource(Res.string.file_selection_rename),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.blueHi.copy(
                         alpha = if (isConfirmEnabled) 1f else 0.35f,
                     ),
@@ -740,6 +747,7 @@ private fun RenameDialog(
 private fun DeleteConfirmDialog(
     count: Int,
     firstName: String,
+    isFolder: Boolean,
     hazeState: HazeState,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -752,30 +760,46 @@ private fun DeleteConfirmDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 22.dp, bottom = 18.dp, start = 20.dp, end = 20.dp),
+                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 타이틀
             Text(
                 text = stringResource(Res.string.file_delete_title),
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = MangaLensColors.onSurface,
             )
             // 메시지
+            val highlightStyle = SpanStyle(
+                color = MangaLensColors.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
             Text(
-                text = if (count == 1) {
-                    stringResource(Res.string.file_delete_message_single, firstName)
-                } else {
-                    stringResource(Res.string.file_delete_message_multiple, count)
+                text = buildAnnotatedString {
+                    if (count == 1) {
+                        val highlight = stringResource(Res.string.file_delete_message_single_highlight, firstName)
+                        val suffix = if (isFolder) {
+                            stringResource(Res.string.file_delete_message_single_folder_suffix)
+                        } else {
+                            stringResource(Res.string.file_delete_message_single_file_suffix)
+                        }
+                        withStyle(highlightStyle) { append(highlight) }
+                        append(suffix)
+                    } else {
+                        val highlight = stringResource(Res.string.file_delete_message_multiple_highlight, count)
+                        val suffix = stringResource(Res.string.file_delete_message_multiple_suffix)
+                        withStyle(highlightStyle) { append(highlight) }
+                        append(suffix)
+                    }
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MangaLensColors.textSecondary,
             )
             // 경고
             Text(
                 text = stringResource(Res.string.file_delete_warning),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelLarge,
                 color = MangaLensColors.textTertiary,
             )
         }
@@ -793,14 +817,14 @@ private fun DeleteConfirmDialog(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 14.dp)
+                    .padding(vertical = 24.dp)
                     .fillMaxHeight()
                     .clickable(onClick = onDismiss),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(Res.string.file_selection_cancel),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
                     color = MangaLensColors.blueHi,
                 )
             }
@@ -817,14 +841,14 @@ private fun DeleteConfirmDialog(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 14.dp)
+                    .padding(vertical = 24.dp)
                     .fillMaxHeight()
                     .clickable(onClick = onConfirm),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(Res.string.file_delete_confirm),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MangaLensColors.red,
                 )
             }
