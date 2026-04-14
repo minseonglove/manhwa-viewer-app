@@ -6,6 +6,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
+import com.manhwaviewer.domain.usecase.DeleteFileUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
@@ -28,6 +29,7 @@ class FileBrowserViewModel(
     private val scanArchiveEntriesUseCase: ScanArchiveEntriesUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val renameFileUseCase: RenameFileUseCase,
+    private val deleteFileUseCase: DeleteFileUseCase,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -71,11 +73,15 @@ class FileBrowserViewModel(
             }
             FileBrowserIntent.MoveSelected -> { /* TODO: 선택 항목 이동 */ }
             FileBrowserIntent.VaultSelected -> { /* TODO: 선택 항목 보관함 이동 */ }
-            FileBrowserIntent.DeleteSelected -> { /* TODO: 선택 항목 삭제 */ }
+            FileBrowserIntent.DeleteSelected -> showDeleteDialog()
             FileBrowserIntent.RenameSelected -> showRenameDialog()
             is FileBrowserIntent.ConfirmRename -> confirmRename(intent.newName)
             FileBrowserIntent.DismissRenameDialog -> updateState {
                 copy(showRenameDialog = false, renameTarget = null)
+            }
+            FileBrowserIntent.ConfirmDelete -> confirmDelete()
+            FileBrowserIntent.DismissDeleteDialog -> updateState {
+                copy(showDeleteDialog = false, deleteTargets = emptyList())
             }
         }
     }
@@ -100,6 +106,39 @@ class FileBrowserViewModel(
                 selectedFileKeys + key
             }
             copy(selectedFileKeys = newSelected)
+        }
+    }
+
+    private fun showDeleteDialog() {
+        val selectedKeys = currentState.selectedFileKeys
+        if (selectedKeys.isEmpty()) return
+        val targets = currentState.files.filter { fileKey(it) in selectedKeys }
+        if (targets.isEmpty()) return
+        updateState { copy(showDeleteDialog = true, deleteTargets = targets) }
+    }
+
+    private fun confirmDelete() {
+        val targets = currentState.deleteTargets
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val deletedKeys = supervisorScope {
+                targets.map { target ->
+                    async(ioDispatcher) {
+                        val result = deleteFileUseCase(target.filePath)
+                        if (result.isSuccess) fileKey(target) else null
+                    }
+                }.mapNotNull { it.await() }.toSet()
+            }
+            updateState {
+                copy(
+                    files = files.filter { fileKey(it) !in deletedKeys },
+                    coverModels = coverModels.filterKeys { it !in deletedKeys },
+                    showDeleteDialog = false,
+                    deleteTargets = emptyList(),
+                    isSelectionMode = false,
+                    selectedFileKeys = emptySet(),
+                )
+            }
         }
     }
 

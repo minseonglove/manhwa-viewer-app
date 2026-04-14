@@ -87,6 +87,17 @@ actual class MediaScanner(private val context: Context) {
         }
     }
 
+    actual fun deleteFile(path: String): Result<Unit> {
+        val file = File(path)
+        if (!file.exists()) return Result.failure(IllegalStateException("File not found: $path"))
+        val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
+        return if (deleted) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("Failed to delete file"))
+        }
+    }
+
     private fun countImages(folder: File): Int =
         folder.listFiles()?.count { it.isFile && it.extension.lowercase() in imageExtensions } ?: 0
 }

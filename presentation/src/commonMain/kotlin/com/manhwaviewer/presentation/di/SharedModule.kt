@@ -19,6 +19,7 @@ import com.manhwaviewer.domain.usecase.GetVaultFilesUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
+import com.manhwaviewer.domain.usecase.DeleteFileUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
@@ -69,11 +70,12 @@ val sharedModule = module {
     factory { GetNextArchiveUseCase(get()) }
     factory { GetPreviousArchiveUseCase(get()) }
     factory { RenameFileUseCase(get()) }
+    factory { DeleteFileUseCase(get()) }
     factory { AnalyzeFuriganaUseCase(get()) }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get(), get()) }
-    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
+    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get()) }

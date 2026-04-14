@@ -121,6 +121,15 @@ override fun getVaultFiles(): Flow<List<ArchiveFile>> =
         }
     }
 
+    override suspend fun deleteFile(path: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val result = mediaScanner.deleteFile(path)
+            result.onSuccess {
+                deleteByPath(path)
+            }
+            result
+        }
+
     override suspend fun renameFile(oldPath: String, newName: String): Result<String> =
         withContext(Dispatchers.IO) {
             val result = mediaScanner.renameFile(oldPath, newName)

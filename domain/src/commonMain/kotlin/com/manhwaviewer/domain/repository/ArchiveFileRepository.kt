@@ -21,5 +21,6 @@ interface ArchiveFileRepository {
     suspend fun getImageBytes(filePath: String, entryName: String): ByteArray?
     suspend fun deleteByPath(path: String)
     suspend fun renameFile(oldPath: String, newName: String): Result<String>
+    suspend fun deleteFile(path: String): Result<Unit>
     suspend fun migratePath(oldPath: String, newPath: String)
 }

@@ -114,6 +114,19 @@ actual class MediaScanner {
         }
     }
 
+    actual fun deleteFile(path: String): Result<Unit> {
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(path)) {
+            return Result.failure(IllegalStateException("File not found: $path"))
+        }
+        val success = fileManager.removeItemAtPath(path, error = null)
+        return if (success) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("Failed to delete file"))
+        }
+    }
+
     private fun countImages(folderPath: String): Int {
         val contents = NSFileManager.defaultManager.contentsOfDirectoryAtPath(folderPath, error = null)
             ?: return 0

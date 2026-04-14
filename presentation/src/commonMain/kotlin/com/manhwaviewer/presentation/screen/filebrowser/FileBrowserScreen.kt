@@ -97,6 +97,11 @@ import manhwa_viewer.presentation.generated.resources.ic_name
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import manhwa_viewer.presentation.generated.resources.file_delete_confirm
+import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple
+import manhwa_viewer.presentation.generated.resources.file_delete_message_single
+import manhwa_viewer.presentation.generated.resources.file_delete_title
+import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -352,6 +357,17 @@ fun FileBrowserScreen(
             hazeState = hazeState,
             onConfirm = { newName -> viewModel.onIntent(FileBrowserIntent.ConfirmRename(newName)) },
             onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissRenameDialog) },
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (state.showDeleteDialog && state.deleteTargets.isNotEmpty()) {
+        DeleteConfirmDialog(
+            count = state.deleteTargets.size,
+            firstName = state.deleteTargets.firstOrNull()?.fileName.orEmpty(),
+            hazeState = hazeState,
+            onConfirm = { viewModel.onIntent(FileBrowserIntent.ConfirmDelete) },
+            onDismiss = { viewModel.onIntent(FileBrowserIntent.DismissDeleteDialog) },
         )
     }
 }
@@ -712,6 +728,104 @@ private fun RenameDialog(
                     color = MangaLensColors.blueHi.copy(
                         alpha = if (isConfirmEnabled) 1f else 0.35f,
                     ),
+                )
+            }
+        }
+    }
+}
+
+// ── 삭제 확인 다이얼로그 ─────────────────────────────────────────
+
+@Composable
+private fun DeleteConfirmDialog(
+    count: Int,
+    firstName: String,
+    hazeState: HazeState,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    GlassDialog(
+        hazeState = hazeState,
+        onDismiss = onDismiss,
+    ) {
+        // 헤더 + 메시지
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 22.dp, bottom = 18.dp, start = 20.dp, end = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // 타이틀
+            Text(
+                text = stringResource(Res.string.file_delete_title),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = MangaLensColors.onSurface,
+            )
+            // 메시지
+            Text(
+                text = if (count == 1) {
+                    stringResource(Res.string.file_delete_message_single, firstName)
+                } else {
+                    stringResource(Res.string.file_delete_message_multiple, count)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MangaLensColors.textSecondary,
+            )
+            // 경고
+            Text(
+                text = stringResource(Res.string.file_delete_warning),
+                style = MaterialTheme.typography.labelSmall,
+                color = MangaLensColors.textTertiary,
+            )
+        }
+
+        // 버튼 구분선
+        HorizontalDivider(color = MangaLensColors.separator, thickness = 0.5.dp)
+
+        // 버튼 행
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+        ) {
+            // 취소 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 14.dp)
+                    .fillMaxHeight()
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.file_selection_cancel),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    color = MangaLensColors.blueHi,
+                )
+            }
+
+            // 버튼 세로 구분선
+            Box(
+                modifier = Modifier
+                    .width(0.5.dp)
+                    .fillMaxHeight()
+                    .background(MangaLensColors.separator),
+            )
+
+            // 삭제 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 14.dp)
+                    .fillMaxHeight()
+                    .clickable(onClick = onConfirm),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.file_delete_confirm),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MangaLensColors.red,
                 )
             }
         }
