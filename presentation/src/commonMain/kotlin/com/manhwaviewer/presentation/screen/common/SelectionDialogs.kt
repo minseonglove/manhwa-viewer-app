@@ -3,7 +3,9 @@ package com.manhwaviewer.presentation.screen.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -46,6 +48,13 @@ import manhwa_viewer.presentation.generated.resources.file_delete_title
 import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.file_selection_rename
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
+import manhwa_viewer.presentation.generated.resources.ic_repeat
+import manhwa_viewer.presentation.generated.resources.vault_restore_confirm
+import manhwa_viewer.presentation.generated.resources.vault_restore_info
+import manhwa_viewer.presentation.generated.resources.vault_restore_message_multiple
+import manhwa_viewer.presentation.generated.resources.vault_restore_message_single_file
+import manhwa_viewer.presentation.generated.resources.vault_restore_message_single_folder
+import manhwa_viewer.presentation.generated.resources.vault_restore_title
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -212,5 +221,96 @@ fun DeleteConfirmDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         )
+    }
+}
+
+// ── 보관함 복원 다이얼로그 ──────────────────────────────────────────
+
+@Composable
+fun RestoreConfirmDialog(
+    count: Int,
+    firstName: String,
+    isFolder: Boolean,
+    hazeState: HazeState,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    GlassConfirmDialog(
+        hazeState = hazeState,
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.vault_restore_confirm),
+        confirmColor = MangaLensColors.green,
+        onConfirm = onConfirm,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 32.dp, bottom = 16.dp, start = 24.dp, end = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MangaLensColors.green.copy(alpha = 0.12f))
+                    .border(0.5.dp, MangaLensColors.green.copy(alpha = 0.22f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_repeat),
+                    contentDescription = null,
+                    tint = MangaLensColors.green,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            Text(
+                text = stringResource(Res.string.vault_restore_title),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MangaLensColors.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        val message = if (count == 1) {
+            if (isFolder) {
+                stringResource(Res.string.vault_restore_message_single_folder, firstName)
+            } else {
+                stringResource(Res.string.vault_restore_message_single_file, firstName)
+            }
+        } else {
+            stringResource(Res.string.vault_restore_message_multiple, count)
+        }
+
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MangaLensColors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_repeat),
+                contentDescription = null,
+                tint = MangaLensColors.textTertiary,
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                text = stringResource(Res.string.vault_restore_info),
+                style = MaterialTheme.typography.bodySmall,
+                color = MangaLensColors.textSecondary,
+            )
+        }
     }
 }

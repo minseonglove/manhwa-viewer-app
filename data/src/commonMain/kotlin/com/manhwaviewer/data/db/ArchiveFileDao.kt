@@ -90,4 +90,29 @@ abstract class ArchiveFileDao {
             updateDirectoryPath(originalPath, newPath)
         }
     }
+
+    @Transaction
+    open suspend fun addFolderToVaultWithMigration(
+        originalPath: String,
+        newPath: String,
+        relativePath: String,
+        subFileRelativePaths: List<Pair<String, String>>,
+        addedAt: Long,
+    ) {
+        insertVaultFile(relativePath, originalPath, addedAt)
+        for ((subRelPath, subOrigPath) in subFileRelativePaths) {
+            insertVaultFile(subRelPath, subOrigPath, addedAt)
+        }
+        updateDirectoryPath(originalPath, newPath)
+    }
+
+    @Transaction
+    open suspend fun restoreFromVaultWithMigration(vaultPath: String, originalPath: String) {
+        val single = getByFilePath(vaultPath)
+        if (single != null) {
+            updateFilePath(vaultPath, originalPath)
+        } else {
+            updateDirectoryPath(vaultPath, originalPath)
+        }
+    }
 }

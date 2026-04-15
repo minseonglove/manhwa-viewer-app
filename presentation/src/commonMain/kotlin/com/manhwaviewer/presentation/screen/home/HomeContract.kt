@@ -5,7 +5,6 @@ import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 
 data class HomeState(
     val imageCount: Int = 0,
-    val vaultFolderCount: Int = 0,
     val isLoading: Boolean = false,
     val continueReading: ArchiveFile? = null,
     val continueReadingCoverModel: ViewerPageModel? = null,

@@ -26,4 +26,10 @@ class VaultFileRepositoryImpl(
         )
         return dao.upsert(entity)
     }
+
+    override suspend fun getByRelativePath(relativePath: String): VaultFile? =
+        dao.getByRelativePath(relativePath)?.toDomain()
+
+    override suspend fun deleteByRelativePathPrefix(prefix: String) =
+        dao.deleteByRelativePathPrefix(prefix)
 }

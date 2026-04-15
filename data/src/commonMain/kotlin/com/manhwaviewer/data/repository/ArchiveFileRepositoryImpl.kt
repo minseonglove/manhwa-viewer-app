@@ -162,4 +162,43 @@ class ArchiveFileRepositoryImpl(
                 addedAt = Clock.System.now().toEpochMilliseconds(),
             )
         }
+
+    override suspend fun addFolderToVaultWithMigration(
+        originalPath: String,
+        newPath: String,
+        relativePath: String,
+        subFileOriginalPaths: List<String>,
+    ) = withContext(Dispatchers.IO) {
+        val subPairs = subFileOriginalPaths.map { subPath ->
+            val relToFolder = subPath.removePrefix(originalPath).trimStart('/')
+            "$relativePath/$relToFolder" to subPath
+        }
+        dao.addFolderToVaultWithMigration(
+            originalPath = originalPath,
+            newPath = newPath,
+            relativePath = relativePath,
+            subFileRelativePaths = subPairs,
+            addedAt = Clock.System.now().toEpochMilliseconds(),
+        )
+    }
+
+    override suspend fun restoreFromVaultWithMigration(vaultPath: String, originalPath: String) =
+        withContext(Dispatchers.IO) {
+            dao.restoreFromVaultWithMigration(vaultPath, originalPath)
+        }
+
+    override suspend fun isDirectory(path: String): Boolean =
+        withContext(Dispatchers.IO) {
+            mediaScanner.isDirectory(path)
+        }
+
+    override suspend fun listFilesRecursively(path: String): List<String> =
+        withContext(Dispatchers.IO) {
+            mediaScanner.listFilesRecursively(path)
+        }
+
+    override suspend fun ensureDirectoryExists(path: String) =
+        withContext(Dispatchers.IO) {
+            mediaScanner.ensureDirectoryExists(path)
+        }
 }

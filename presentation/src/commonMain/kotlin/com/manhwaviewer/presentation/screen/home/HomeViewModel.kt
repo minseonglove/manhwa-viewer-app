@@ -5,7 +5,6 @@ import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultTotalCountUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ import kotlinx.coroutines.supervisorScope
 class HomeViewModel(
     getRecentArchivesUseCase: GetRecentArchivesUseCase,
     getDeviceImagesUseCase: GetDeviceImagesUseCase,
-    getVaultTotalCountUseCase: GetVaultTotalCountUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
 ) : MviViewModel<HomeState, HomeIntent, HomeSideEffect>(HomeState()) {
 
@@ -49,11 +47,6 @@ class HomeViewModel(
         viewModelScope.launch {
             getDeviceImagesUseCase().collect { images ->
                 updateState { copy(imageCount = images.size) }
-            }
-        }
-        viewModelScope.launch {
-            getVaultTotalCountUseCase().collect { count ->
-                updateState { copy(vaultFolderCount = count) }
             }
         }
     }

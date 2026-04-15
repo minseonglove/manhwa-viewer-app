@@ -3,10 +3,8 @@ package com.manhwaviewer.presentation.screen.home
 import com.manhwaviewer.domain.usecase.GetDeviceImagesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultTotalCountUseCase
 import com.manhwaviewer.presentation.fake.FakeArchiveFileRepository
 import com.manhwaviewer.presentation.fake.FakeImageFileRepository
-import com.manhwaviewer.presentation.fake.FakeVaultFileRepository
 import com.manhwaviewer.presentation.fake.makeArchive
 import com.manhwaviewer.presentation.fake.makeImageFile
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +30,6 @@ class HomeViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeArchiveRepo: FakeArchiveFileRepository
     private lateinit var fakeImageRepo: FakeImageFileRepository
-    private lateinit var fakeVaultRepo: FakeVaultFileRepository
     private lateinit var viewModel: HomeViewModel
 
     @BeforeTest
@@ -40,11 +37,9 @@ class HomeViewModelTest {
         Dispatchers.setMain(testDispatcher)
         fakeArchiveRepo = FakeArchiveFileRepository()
         fakeImageRepo = FakeImageFileRepository()
-        fakeVaultRepo = FakeVaultFileRepository()
         viewModel = HomeViewModel(
             GetRecentArchivesUseCase(fakeArchiveRepo),
             GetDeviceImagesUseCase(fakeImageRepo),
-            GetVaultTotalCountUseCase(fakeVaultRepo),
             GetImageEntriesUseCase(fakeArchiveRepo),
         )
     }
@@ -58,7 +53,6 @@ class HomeViewModelTest {
     fun `initial state has zero counts and empty lists`() = runTest {
         val state = viewModel.state.value
         assertEquals(0, state.imageCount)
-        assertEquals(0, state.vaultFolderCount)
         assertEquals(emptyList(), state.recentArchives)
         assertNull(state.continueReading)
     }
@@ -79,13 +73,6 @@ class HomeViewModelTest {
         fakeImageRepo.allImagesFlow.value = listOf(makeImageFile(id = 1), makeImageFile(id = 2))
         advanceUntilIdle()
         assertEquals(2, viewModel.state.value.imageCount)
-    }
-
-    @Test
-    fun `state updates vaultFolderCount when repository emits`() = runTest {
-        fakeVaultRepo.totalCountFlow.value = 3
-        advanceUntilIdle()
-        assertEquals(3, viewModel.state.value.vaultFolderCount)
     }
 
     @Test

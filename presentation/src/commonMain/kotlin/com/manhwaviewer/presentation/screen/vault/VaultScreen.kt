@@ -59,6 +59,7 @@ import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.common.ActionBarButton
 import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import com.manhwaviewer.presentation.screen.common.DeleteConfirmDialog
+import com.manhwaviewer.presentation.screen.common.RestoreConfirmDialog
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.ListViewMode
@@ -351,6 +352,18 @@ fun VaultScreen(
             hazeState = hazeState,
             onConfirm = { viewModel.onIntent(VaultIntent.ConfirmDelete) },
             onDismiss = { viewModel.onIntent(VaultIntent.DismissDeleteDialog) },
+        )
+    }
+
+    // 복원 확인 다이얼로그
+    if (state.showRestoreDialog && state.restoreTargets.isNotEmpty()) {
+        RestoreConfirmDialog(
+            count = state.restoreTargets.size,
+            firstName = state.restoreTargets.firstOrNull()?.fileName.orEmpty(),
+            isFolder = state.restoreTargets.firstOrNull()?.type == ArchiveType.FOLDER,
+            hazeState = hazeState,
+            onConfirm = { viewModel.onIntent(VaultIntent.ConfirmRestore) },
+            onDismiss = { viewModel.onIntent(VaultIntent.DismissRestoreDialog) },
         )
     }
 }

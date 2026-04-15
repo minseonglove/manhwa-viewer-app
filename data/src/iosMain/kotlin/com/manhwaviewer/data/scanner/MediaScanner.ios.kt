@@ -188,4 +188,44 @@ actual class MediaScanner {
         }
     }
 
+    actual fun isDirectory(path: String): Boolean {
+        val fileManager = NSFileManager.defaultManager
+        return kotlinx.cinterop.memScoped {
+            val isDir = alloc<kotlinx.cinterop.BooleanVar>()
+            fileManager.fileExistsAtPath(path, isDirectory = isDir.ptr) && isDir.value
+        }
+    }
+
+    actual fun listFilesRecursively(directoryPath: String): List<String> {
+        val fileManager = NSFileManager.defaultManager
+        val enumerator = fileManager.enumeratorAtPath(directoryPath) ?: return emptyList()
+        val result = mutableListOf<String>()
+        var item = enumerator.nextObject()
+        while (item != null) {
+            val relativePath = item as String
+            val fullPath = "$directoryPath/$relativePath"
+            val isDir = kotlinx.cinterop.memScoped {
+                val dir = alloc<kotlinx.cinterop.BooleanVar>()
+                fileManager.fileExistsAtPath(fullPath, isDirectory = dir.ptr) && dir.value
+            }
+            if (!isDir) {
+                result.add(fullPath)
+            }
+            item = enumerator.nextObject()
+        }
+        return result
+    }
+
+    actual fun ensureDirectoryExists(path: String) {
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(path)) {
+            // 실패 시 후속 moveFile에서 명확한 에러가 발생하므로 여기서는 best-effort
+            fileManager.createDirectoryAtPath(
+                path,
+                withIntermediateDirectories = true,
+                attributes = null,
+                error = null,
+            )
+        }
+    }
 }

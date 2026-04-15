@@ -24,6 +24,21 @@ open class FakeArchiveFileRepository : ArchiveFileRepository {
     override suspend fun getImageEntries(filePath: String): List<String> = emptyList()
     override suspend fun getImageEntriesSorted(filePath: String, sortByDate: Boolean, ascending: Boolean): List<String> = emptyList()
     override suspend fun getImageBytes(filePath: String, entryName: String): ByteArray? = null
+    override suspend fun deleteByPath(path: String) {}
+    override suspend fun clearRecentHistory(id: Long) {}
+    override suspend fun clearAllRecentHistory() {}
+    override suspend fun renameFile(oldPath: String, newName: String): Result<String> = Result.success("")
+    override suspend fun deleteFile(path: String): Result<Unit> = Result.success(Unit)
+    override suspend fun migratePath(oldPath: String, newPath: String) {}
+    override suspend fun createFolder(parentPath: String, folderName: String): Result<String> = Result.success("")
+    override suspend fun moveFile(sourcePath: String, destinationDir: String): Result<String> = Result.success("")
+    override suspend fun moveToVault(path: String): Result<String> = Result.success("")
+    override suspend fun addToVaultWithMigration(originalPath: String, newPath: String, relativePath: String) {}
+    override suspend fun addFolderToVaultWithMigration(originalPath: String, newPath: String, relativePath: String, subFileOriginalPaths: List<String>) {}
+    override suspend fun restoreFromVaultWithMigration(vaultPath: String, originalPath: String) {}
+    override suspend fun isDirectory(path: String): Boolean = false
+    override suspend fun listFilesRecursively(path: String): List<String> = emptyList()
+    override suspend fun ensureDirectoryExists(path: String) {}
 }
 
 fun makeArchive(

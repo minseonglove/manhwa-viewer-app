@@ -3,9 +3,10 @@ package com.manhwaviewer.presentation.screen.vault
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
-import com.manhwaviewer.domain.usecase.DeleteFileUseCase
+import com.manhwaviewer.domain.usecase.DeleteVaultFilesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
+import com.manhwaviewer.domain.usecase.RestoreFromVaultUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -32,8 +33,9 @@ class VaultViewModel(
     private val scanArchiveEntriesUseCase: ScanArchiveEntriesUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
-    private val deleteFileUseCase: DeleteFileUseCase,
+    private val deleteVaultFilesUseCase: DeleteVaultFilesUseCase,
     private val renameFileUseCase: RenameFileUseCase,
+    private val restoreFromVaultUseCase: RestoreFromVaultUseCase,
     private val moveRequestHolder: MoveRequestHolder,
     private val vaultPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
@@ -80,7 +82,11 @@ class VaultViewModel(
                 copy(isSelectionMode = false, selectedFileKeys = emptySet())
             }
             VaultIntent.MoveSelected -> moveSelected()
-            VaultIntent.RestoreSelected -> { /* TODO: 복원 기능 구현 예정 */ }
+            VaultIntent.RestoreSelected -> showRestoreDialog()
+            VaultIntent.ConfirmRestore -> confirmRestore()
+            VaultIntent.DismissRestoreDialog -> updateState {
+                copy(showRestoreDialog = false, restoreTargets = emptyList())
+            }
             VaultIntent.DeleteSelected -> showDeleteDialog()
             VaultIntent.RenameSelected -> showRenameDialog()
             is VaultIntent.ConfirmRename -> confirmRename(intent.newName)
@@ -327,23 +333,56 @@ class VaultViewModel(
         val targets = currentState.deleteTargets
         if (targets.isEmpty()) return
         viewModelScope.launch {
-            val deletedKeys = supervisorScope {
-                targets.map { target ->
-                    async(ioDispatcher) {
-                        val result = deleteFileUseCase(target.filePath)
-                        if (result.isSuccess) fileKey(target) else null
-                    }
-                }.mapNotNull { it.await() }.toSet()
+            val paths = targets.map { it.filePath }
+            val result = deleteVaultFilesUseCase(paths, vaultPath)
+            val successCount = result.getOrDefault(0)
+            if (successCount > 0) {
+                val deletedKeys = targets.take(successCount).map { fileKey(it) }.toSet()
+                _coverModels.value = _coverModels.value.filterKeys { it !in deletedKeys }
+                updateState {
+                    copy(
+                        archiveFiles = archiveFiles.filter { fileKey(it) !in deletedKeys },
+                        showDeleteDialog = false,
+                        deleteTargets = emptyList(),
+                        isSelectionMode = false,
+                        selectedFileKeys = emptySet(),
+                    )
+                }
+            } else {
+                updateState { copy(showDeleteDialog = false, deleteTargets = emptyList()) }
             }
-            _coverModels.value = _coverModels.value.filterKeys { it !in deletedKeys }
-            updateState {
-                copy(
-                    archiveFiles = archiveFiles.filter { fileKey(it) !in deletedKeys },
-                    showDeleteDialog = false,
-                    deleteTargets = emptyList(),
-                    isSelectionMode = false,
-                    selectedFileKeys = emptySet(),
-                )
+        }
+    }
+
+    private fun showRestoreDialog() {
+        val selectedKeys = currentState.selectedFileKeys
+        if (selectedKeys.isEmpty()) return
+        val targets = currentState.archiveFiles.filter { fileKey(it) in selectedKeys }
+        if (targets.isEmpty()) return
+        updateState { copy(showRestoreDialog = true, restoreTargets = targets) }
+    }
+
+    private fun confirmRestore() {
+        val targets = currentState.restoreTargets
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val paths = targets.map { it.filePath }
+            val result = restoreFromVaultUseCase(paths, vaultPath)
+            val successCount = result.getOrDefault(0)
+            if (successCount > 0) {
+                val restoredKeys = targets.take(successCount).map { fileKey(it) }.toSet()
+                _coverModels.value = _coverModels.value.filterKeys { it !in restoredKeys }
+                updateState {
+                    copy(
+                        archiveFiles = archiveFiles.filter { fileKey(it) !in restoredKeys },
+                        showRestoreDialog = false,
+                        restoreTargets = emptyList(),
+                        isSelectionMode = false,
+                        selectedFileKeys = emptySet(),
+                    )
+                }
+            } else {
+                updateState { copy(showRestoreDialog = false, restoreTargets = emptyList()) }
             }
         }
     }

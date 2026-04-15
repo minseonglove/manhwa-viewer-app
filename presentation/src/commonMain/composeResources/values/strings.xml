@@ -170,6 +170,14 @@
     <string name="vault_move_info_hidden">갤러리·파일 탐색기에서 숨겨집니다</string>
     <string name="vault_move_info_restore">언제든지 원래 위치로 복원할 수 있습니다</string>
 
+    <!-- 보관함 복원 -->
+    <string name="vault_restore_title">보관함에서 복원</string>
+    <string name="vault_restore_confirm">복원</string>
+    <string name="vault_restore_message_single_file">"%1$s" 파일을 원래 위치로 복원합니다.</string>
+    <string name="vault_restore_message_single_folder">"%1$s" 폴더를 원래 위치로 복원합니다.</string>
+    <string name="vault_restore_message_multiple">%1$d개 파일을 원래 위치로 복원합니다.</string>
+    <string name="vault_restore_info">각 파일이 저장되어 있던 원래 경로로 복원됩니다.</string>
+
     <!-- 폴더 만들기 -->
     <string name="file_create_folder_title">폴더 만들기</string>
     <string name="file_create_folder_default_name">새 폴더</string>

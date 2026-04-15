@@ -7,14 +7,26 @@ class MoveToVaultUseCase(
 ) {
     suspend operator fun invoke(filePaths: List<String>): Result<Unit> {
         for (path in filePaths) {
+            val fileName = path.substringAfterLast('/')
+            val isDir = archiveFileRepository.isDirectory(path)
+            val subFiles = if (isDir) archiveFileRepository.listFilesRecursively(path) else emptyList()
+
             val moveResult = archiveFileRepository.moveToVault(path)
             moveResult.onSuccess { newPath ->
-                val fileName = path.substringAfterLast('/')
-                archiveFileRepository.addToVaultWithMigration(
-                    originalPath = path,
-                    newPath = newPath,
-                    relativePath = fileName,
-                )
+                if (isDir && subFiles.isNotEmpty()) {
+                    archiveFileRepository.addFolderToVaultWithMigration(
+                        originalPath = path,
+                        newPath = newPath,
+                        relativePath = fileName,
+                        subFileOriginalPaths = subFiles,
+                    )
+                } else {
+                    archiveFileRepository.addToVaultWithMigration(
+                        originalPath = path,
+                        newPath = newPath,
+                        relativePath = fileName,
+                    )
+                }
             }
             moveResult.onFailure { return Result.failure(it) }
         }

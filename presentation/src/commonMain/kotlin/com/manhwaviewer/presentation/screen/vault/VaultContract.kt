@@ -18,6 +18,8 @@ data class VaultState(
     val renameTarget: ArchiveFile? = null,
     val showDeleteDialog: Boolean = false,
     val deleteTargets: List<ArchiveFile> = emptyList(),
+    val showRestoreDialog: Boolean = false,
+    val restoreTargets: List<ArchiveFile> = emptyList(),
 )
 
 enum class NavigationDirection { FORWARD, BACKWARD }
@@ -47,6 +49,8 @@ sealed interface VaultIntent {
     data object DismissRenameDialog : VaultIntent
     data object ConfirmDelete : VaultIntent
     data object DismissDeleteDialog : VaultIntent
+    data object ConfirmRestore : VaultIntent
+    data object DismissRestoreDialog : VaultIntent
 }
 
 sealed interface VaultSideEffect {

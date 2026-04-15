@@ -23,4 +23,7 @@ interface VaultFileDao {
 
     @Query("SELECT * FROM vault_files WHERE relativePath = :relativePath LIMIT 1")
     suspend fun getByRelativePath(relativePath: String): VaultFileEntity?
+
+    @Query("DELETE FROM vault_files WHERE relativePath = :prefix OR relativePath LIKE :prefix || '/%'")
+    suspend fun deleteByRelativePathPrefix(prefix: String)
 }

@@ -15,15 +15,15 @@ import com.manhwaviewer.domain.usecase.GetPageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.GetPreviousArchiveUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesCountUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultDirectoryFilesUseCase
-import com.manhwaviewer.domain.usecase.GetVaultTotalCountUseCase
 import com.manhwaviewer.domain.usecase.GetViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.CreateFolderUseCase
 import com.manhwaviewer.domain.usecase.DeleteFileUseCase
+import com.manhwaviewer.domain.usecase.DeleteVaultFilesUseCase
 import com.manhwaviewer.domain.usecase.MoveFilesUseCase
 import com.manhwaviewer.domain.usecase.MoveToVaultUseCase
+import com.manhwaviewer.domain.usecase.RestoreFromVaultUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
@@ -54,8 +54,6 @@ val sharedModule = module {
     factory { ClearRecentHistoryUseCase(get()) }
     factory { ClearAllRecentHistoryUseCase(get()) }
     factory { GetDeviceImagesUseCase(get()) }
-    factory { GetVaultDirectoryFilesUseCase(get()) }
-    factory { GetVaultTotalCountUseCase(get()) }
     factory { ScanLocalFilesUseCase(get()) }
     factory { ScanArchiveEntriesUseCase(get()) }
     factory { UpdateLastReadIndexUseCase(get()) }
@@ -80,6 +78,8 @@ val sharedModule = module {
     factory { DeleteFileUseCase(get()) }
     factory { CreateFolderUseCase(get()) }
     factory { MoveToVaultUseCase(get()) }
+    factory { RestoreFromVaultUseCase(get(), get()) }
+    factory { DeleteVaultFilesUseCase(get(), get()) }
     factory { MoveFilesUseCase(get()) }
     factory { AnalyzeFuriganaUseCase(get()) }
 
@@ -87,12 +87,12 @@ val sharedModule = module {
     single { MoveRequestHolder() }
 
     // ViewModels
-    viewModel { HomeViewModel(get(), get(), get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get()) }
     viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { FileMoveSelectViewModel(get(), get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
-    viewModel { VaultViewModel(get(), get(), get(), get(), get(), get(), get(), get(named("vaultPath"))) }
+    viewModel { VaultViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(named("vaultPath"))) }
     viewModelOf(::ViewerViewModel)
     viewModel { SettingsViewModel(get(), get()) }
 }

@@ -11,4 +11,7 @@ class FakeVaultFileRepository : VaultFileRepository {
 
     override fun getFilesInDirectory(prefix: String): Flow<List<VaultFile>> = filesFlow
     override fun getTotalCount(): Flow<Int> = totalCountFlow
+    override suspend fun addToVault(relativePath: String, originalPath: String): Long = 0L
+    override suspend fun getByRelativePath(relativePath: String): VaultFile? = null
+    override suspend fun deleteByRelativePathPrefix(prefix: String) {}
 }

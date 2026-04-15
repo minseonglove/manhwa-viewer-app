@@ -26,4 +26,9 @@ interface ArchiveFileRepository {
     suspend fun moveFile(sourcePath: String, destinationDir: String): Result<String>
     suspend fun moveToVault(path: String): Result<String>
     suspend fun addToVaultWithMigration(originalPath: String, newPath: String, relativePath: String)
+    suspend fun addFolderToVaultWithMigration(originalPath: String, newPath: String, relativePath: String, subFileOriginalPaths: List<String>)
+    suspend fun restoreFromVaultWithMigration(vaultPath: String, originalPath: String)
+    suspend fun isDirectory(path: String): Boolean
+    suspend fun listFilesRecursively(path: String): List<String>
+    suspend fun ensureDirectoryExists(path: String)
 }

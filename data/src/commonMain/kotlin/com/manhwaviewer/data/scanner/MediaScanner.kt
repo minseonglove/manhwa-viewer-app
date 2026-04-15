@@ -10,4 +10,7 @@ expect class MediaScanner {
     fun deleteFile(path: String): Result<Unit>
     fun createFolder(parentPath: String, folderName: String): Result<String>
     fun moveFile(sourcePath: String, destinationDir: String): Result<String>
+    fun isDirectory(path: String): Boolean
+    fun listFilesRecursively(directoryPath: String): List<String>
+    fun ensureDirectoryExists(path: String)
 }

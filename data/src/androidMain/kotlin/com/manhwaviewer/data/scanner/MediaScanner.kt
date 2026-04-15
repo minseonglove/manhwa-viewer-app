@@ -149,4 +149,13 @@ actual class MediaScanner(private val context: Context) {
             Result.failure(IllegalStateException("Failed to delete file"))
         }
     }
+
+    actual fun isDirectory(path: String): Boolean = File(path).isDirectory
+
+    actual fun listFilesRecursively(directoryPath: String): List<String> =
+        File(directoryPath).walkTopDown().filter { it.isFile }.map { it.absolutePath }.toList()
+
+    actual fun ensureDirectoryExists(path: String) {
+        File(path).mkdirs()
+    }
 }
