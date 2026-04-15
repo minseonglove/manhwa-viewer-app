@@ -14,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.manhwaviewer.presentation.util.VAULT_ROOT_MARKER
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.file_browser_internal_storage
+import manhwa_viewer.presentation.generated.resources.home_shortcut_vault
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_home
 import org.jetbrains.compose.resources.painterResource
@@ -57,10 +59,10 @@ fun Breadcrumb(
                     modifier = Modifier.size(16.dp),
                 )
             }
-            val displayName = if (segment.isEmpty()) {
-                stringResource(Res.string.file_browser_internal_storage)
-            } else {
-                segment
+            val displayName = when {
+                segment.isEmpty() -> stringResource(Res.string.file_browser_internal_storage)
+                segment == VAULT_ROOT_MARKER -> stringResource(Res.string.home_shortcut_vault)
+                else -> segment
             }
             Text(
                 text = displayName,

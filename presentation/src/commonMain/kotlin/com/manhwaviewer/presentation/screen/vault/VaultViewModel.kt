@@ -211,19 +211,8 @@ class VaultViewModel(
         }
     }
 
-    private fun buildPathSegments(path: String): List<Pair<String, String>> {
-        val result = mutableListOf<Pair<String, String>>("보관함" to vaultPath)
-        if (path.startsWith(vaultPath)) {
-            val remaining = path.removePrefix(vaultPath)
-            val extraParts = remaining.split("/").filter { it.isNotEmpty() }
-            var accumulated = vaultPath
-            for (part in extraParts) {
-                accumulated = "$accumulated/$part"
-                result.add(part to accumulated)
-            }
-        }
-        return result
-    }
+    private fun buildPathSegments(path: String): List<Pair<String, String>> =
+        com.manhwaviewer.presentation.util.buildPathSegments(path, vaultPath, vaultPath)
 
     private fun loadCoverModels(files: List<ArchiveFile>) {
         val insideArchive = currentState.insideArchivePath

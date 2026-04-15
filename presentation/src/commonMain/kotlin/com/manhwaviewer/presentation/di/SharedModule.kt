@@ -89,7 +89,7 @@ val sharedModule = module {
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get()) }
     viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
-    viewModel { FileMoveSelectViewModel(get(), get(), get(), get(), get(named("defaultScanPath"))) }
+    viewModel { FileMoveSelectViewModel(get(), get(), get(), get(), get(named("defaultScanPath")), get(named("vaultPath"))) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(named("vaultPath"))) }

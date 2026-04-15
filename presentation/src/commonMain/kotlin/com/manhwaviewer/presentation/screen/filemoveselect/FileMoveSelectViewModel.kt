@@ -21,6 +21,7 @@ class FileMoveSelectViewModel(
     private val moveFilesUseCase: MoveFilesUseCase,
     private val moveRequestHolder: MoveRequestHolder,
     private val defaultScanPath: String,
+    private val vaultPath: String,
 ) : MviViewModel<FileMoveSelectState, FileMoveSelectIntent, FileMoveSelectSideEffect>(
     FileMoveSelectState(),
 ) {
@@ -89,6 +90,8 @@ class FileMoveSelectViewModel(
             if (segments.size > 1) {
                 val parentPath = segments[segments.size - 2].second
                 navigateToFolder(parentPath, NavigationDirection.BACKWARD)
+            } else {
+                sendSideEffect(FileMoveSelectSideEffect.NavigateBack)
             }
         }
     }
@@ -155,5 +158,5 @@ class FileMoveSelectViewModel(
     }
 
     private fun buildPathSegments(path: String): List<Pair<String, String>> =
-        buildPathSegments(path, defaultScanPath)
+        buildPathSegments(path, defaultScanPath, vaultPath)
 }
