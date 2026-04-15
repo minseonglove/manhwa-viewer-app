@@ -38,7 +38,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -59,26 +58,26 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.presentation.screen.common.ActionBarButton
 import com.manhwaviewer.presentation.screen.common.BaseTopBar
 import com.manhwaviewer.presentation.screen.common.CreateFolderDialog
+import com.manhwaviewer.presentation.screen.common.DeleteConfirmDialog
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.GlassConfirmDialog
 import com.manhwaviewer.presentation.screen.common.ListViewMode
+import com.manhwaviewer.presentation.screen.common.RenameDialog
+import com.manhwaviewer.presentation.screen.common.SelectAllCheckbox
+import com.manhwaviewer.presentation.screen.common.SelectionCheckbox
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -88,24 +87,12 @@ import manhwa_viewer.presentation.generated.resources.file_browser_empty
 import manhwa_viewer.presentation.generated.resources.file_browser_title
 import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
 import manhwa_viewer.presentation.generated.resources.file_create_folder_title
-import manhwa_viewer.presentation.generated.resources.file_delete_confirm
-import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_highlight
-import manhwa_viewer.presentation.generated.resources.file_delete_message_multiple_suffix
-import manhwa_viewer.presentation.generated.resources.file_delete_message_single_file_suffix
-import manhwa_viewer.presentation.generated.resources.file_delete_message_single_folder_suffix
-import manhwa_viewer.presentation.generated.resources.file_delete_message_single_highlight
-import manhwa_viewer.presentation.generated.resources.file_delete_title
-import manhwa_viewer.presentation.generated.resources.file_delete_warning
 import manhwa_viewer.presentation.generated.resources.file_selection_cancel
 import manhwa_viewer.presentation.generated.resources.file_selection_count
 import manhwa_viewer.presentation.generated.resources.file_selection_delete
 import manhwa_viewer.presentation.generated.resources.file_selection_move
 import manhwa_viewer.presentation.generated.resources.file_selection_rename
-import manhwa_viewer.presentation.generated.resources.file_selection_select_all
 import manhwa_viewer.presentation.generated.resources.file_selection_vault
-import manhwa_viewer.presentation.generated.resources.ic_check_off
-import manhwa_viewer.presentation.generated.resources.ic_check_on
-import manhwa_viewer.presentation.generated.resources.ic_close_circle
 import manhwa_viewer.presentation.generated.resources.ic_delete
 import manhwa_viewer.presentation.generated.resources.ic_folder_move
 import manhwa_viewer.presentation.generated.resources.ic_hide
@@ -434,51 +421,6 @@ fun FileBrowserScreen(
     }
 }
 
-// ── 전체 선택 체크박스 ────────────────────────────────────────────
-
-@Composable
-private fun SelectAllCheckbox(
-    isAllSelected: Boolean,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        SelectionCheckbox(isSelected = isAllSelected)
-        Text(
-            text = stringResource(Res.string.file_selection_select_all),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MangaLensColors.onSurface,
-        )
-    }
-}
-
-// ── 선택 모드 체크박스 ────────────────────────────────────────────
-
-@Composable
-private fun SelectionCheckbox(
-    isSelected: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Crossfade(
-        targetState = isSelected,
-        modifier = modifier.size(24.dp),
-    ) { checked ->
-        Icon(
-            painter = painterResource(
-                if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
-            ),
-            contentDescription = null,
-            tint = if (checked) Color.Unspecified else MangaLensColors.textTertiary,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
 // ── 파일 탐색 전용 파일 아이템 (선택 모드 지원) ─────────────────────
 
 @Composable
@@ -555,7 +497,7 @@ private fun FileSelectionActionBar(
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceAround,
         ) {
-            FileActionButton(
+            ActionBarButton(
                 icon = { tint ->
                     Icon(
                         painter = painterResource(Res.drawable.ic_folder_move),
@@ -569,7 +511,7 @@ private fun FileSelectionActionBar(
                 enabled = hasSelection,
                 onClick = onMove,
             )
-            FileActionButton(
+            ActionBarButton(
                 icon = { tint ->
                     Icon(
                         painter = painterResource(Res.drawable.ic_lock),
@@ -583,7 +525,7 @@ private fun FileSelectionActionBar(
                 enabled = hasSelection,
                 onClick = onVault,
             )
-            FileActionButton(
+            ActionBarButton(
                 icon = { tint ->
                     Icon(
                         painter = painterResource(Res.drawable.ic_delete),
@@ -598,7 +540,7 @@ private fun FileSelectionActionBar(
                 onClick = onDelete,
             )
             if (selectedCount <= 1) {
-                FileActionButton(
+                ActionBarButton(
                     icon = { tint ->
                         Icon(
                             painter = painterResource(Res.drawable.ic_name),
@@ -613,199 +555,6 @@ private fun FileSelectionActionBar(
                     onClick = onRename,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun FileActionButton(
-    icon: @Composable (Color) -> Unit,
-    label: String,
-    color: Color,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .then(
-                if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        icon(color)
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Medium,
-                letterSpacing = (-0.24).sp,
-            ),
-            color = color,
-        )
-    }
-}
-
-// ── 이름 변경 다이얼로그 ──────────────────────────────────────────
-
-@Composable
-private fun RenameDialog(
-    initialName: String,
-    siblingNames: Set<String>,
-    hazeState: HazeState,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var textFieldValue by remember {
-        mutableStateOf(
-            TextFieldValue(
-                text = initialName,
-                selection = TextRange(0, initialName.length),
-            ),
-        )
-    }
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-    val value = textFieldValue.text
-    val isConfirmEnabled = value.isNotBlank()
-        && value != initialName
-        && siblingNames.none { it.equals(value, ignoreCase = true) }
-
-    GlassConfirmDialog(
-        hazeState = hazeState,
-        onDismiss = onDismiss,
-        confirmText = stringResource(Res.string.file_selection_rename),
-        confirmColor = MangaLensColors.blueHi,
-        confirmEnabled = isConfirmEnabled,
-        onConfirm = { onConfirm(value) },
-    ) {
-        // 헤더
-        Text(
-            text = stringResource(Res.string.file_selection_rename),
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MangaLensColors.onSurface,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
-        )
-
-        // 입력 필드
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(MangaLensColors.fillTertiary)
-                .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Row(
-                modifier = Modifier.padding(
-                    vertical = 16.dp,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = textFieldValue,
-                    onValueChange = { textFieldValue = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MangaLensColors.onSurface,
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(MangaLensColors.blueHi),
-                )
-
-                if (value.isNotEmpty()) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_close_circle),
-                        contentDescription = null,
-                        tint = MangaLensColors.textTertiary,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable {
-                                textFieldValue = TextFieldValue("")
-                            },
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ── 삭제 확인 다이얼로그 ─────────────────────────────────────────
-
-@Composable
-private fun DeleteConfirmDialog(
-    count: Int,
-    firstName: String,
-    isFolder: Boolean,
-    hazeState: HazeState,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    GlassConfirmDialog(
-        hazeState = hazeState,
-        onDismiss = onDismiss,
-        confirmText = stringResource(Res.string.file_delete_confirm),
-        confirmColor = MangaLensColors.red,
-        onConfirm = onConfirm,
-    ) {
-        // 헤더 + 메시지
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // 타이틀
-            Text(
-                text = stringResource(Res.string.file_delete_title),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = MangaLensColors.onSurface,
-            )
-            // 메시지
-            val highlightStyle = SpanStyle(
-                color = MangaLensColors.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = buildAnnotatedString {
-                    if (count == 1) {
-                        val highlight = stringResource(Res.string.file_delete_message_single_highlight, firstName)
-                        val suffix = if (isFolder) {
-                            stringResource(Res.string.file_delete_message_single_folder_suffix)
-                        } else {
-                            stringResource(Res.string.file_delete_message_single_file_suffix)
-                        }
-                        withStyle(highlightStyle) { append(highlight) }
-                        append(suffix)
-                    } else {
-                        val highlight = stringResource(Res.string.file_delete_message_multiple_highlight, count)
-                        val suffix = stringResource(Res.string.file_delete_message_multiple_suffix)
-                        withStyle(highlightStyle) { append(highlight) }
-                        append(suffix)
-                    }
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                color = MangaLensColors.textSecondary,
-            )
-            // 경고
-            Text(
-                text = stringResource(Res.string.file_delete_warning),
-                style = MaterialTheme.typography.labelLarge,
-                color = MangaLensColors.textTertiary,
-            )
         }
     }
 }
