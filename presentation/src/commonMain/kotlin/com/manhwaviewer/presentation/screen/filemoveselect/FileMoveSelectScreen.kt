@@ -116,8 +116,8 @@ fun FileMoveSelectScreen(
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = stringResource(Res.string.file_move_title),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
                         ),
                         color = MangaLensColors.onSurface,
                     )
