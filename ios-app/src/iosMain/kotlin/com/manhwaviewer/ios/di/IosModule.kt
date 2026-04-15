@@ -37,6 +37,7 @@ val iosPlatformModule = module {
     // Platform Data Sources
     single { MediaScanner() }
     single(named("defaultScanPath")) { get<MediaScanner>().getDefaultScanPath() }
+    single(named("vaultPath")) { get<MediaScanner>().getVaultPath() }
 
     // Platform Repositories
     single<ImageFileRepository> { ImageFileRepositoryImpl() }

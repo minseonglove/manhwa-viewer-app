@@ -137,8 +137,8 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Route.VAULT) {
             VaultScreen(
-                onNavigateToViewer = { archiveId ->
-                    navController.navigate(Route.viewer(archiveId))
+                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },

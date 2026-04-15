@@ -35,6 +35,7 @@ private val androidPlatformModule = module {
     // Platform Data Sources
     single { MediaScanner(androidContext()) }
     single(named("defaultScanPath")) { get<MediaScanner>().getDefaultScanPath() }
+    single(named("vaultPath")) { get<MediaScanner>().getVaultPath() }
 
     // Platform Repositories
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
