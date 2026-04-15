@@ -14,6 +14,7 @@ import com.manhwaviewer.presentation.screen.home.HomeScreen
 import com.manhwaviewer.presentation.screen.settings.SettingsScreen
 import com.manhwaviewer.presentation.screen.viewer.ViewerScreen
 import com.manhwaviewer.presentation.screen.filebrowser.FileBrowserScreen
+import com.manhwaviewer.presentation.screen.filemoveselect.FileMoveSelectScreen
 import com.manhwaviewer.presentation.screen.recent.RecentScreen
 import com.manhwaviewer.presentation.screen.imagegallery.ImageGalleryScreen
 import com.manhwaviewer.presentation.screen.vault.VaultScreen
@@ -89,13 +90,31 @@ fun NavGraph(navController: NavHostController) {
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Route.FILE_BROWSER) {
+        composable(Route.FILE_BROWSER) { backStackEntry ->
+            val moveCompleted = backStackEntry.savedStateHandle
+                .get<Boolean>("moveCompleted") == true
             FileBrowserScreen(
                 onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
                     navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
+                onNavigateToMoveSelect = { navController.navigate(Route.FILE_MOVE_SELECT) },
+                moveCompleted = moveCompleted,
+                onMoveCompletedConsumed = {
+                    backStackEntry.savedStateHandle.remove<Boolean>("moveCompleted")
+                },
+            )
+        }
+        composable(Route.FILE_MOVE_SELECT) {
+            FileMoveSelectScreen(
+                onMoveCompleted = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("moveCompleted", true)
+                    navController.popBackStack()
+                },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Route.RECENT) {

@@ -27,6 +27,7 @@ fun Breadcrumb(
     onSegmentClick: (Int) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
+    showHomeIcon: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -34,22 +35,26 @@ fun Breadcrumb(
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(Res.drawable.ic_home),
-            contentDescription = "홈",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(16.dp)
-                .clickable(onClick = onHomeClick),
-        )
+        if (showHomeIcon) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_home),
+                contentDescription = "홈",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable(onClick = onHomeClick),
+            )
+        }
 
         pathSegments.forEachIndexed { index, segment ->
-            Icon(
-                painter = painterResource(Res.drawable.ic_chevron_right),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(12.dp),
-            )
+            if (showHomeIcon || index > 0) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
             val displayName = if (segment.isEmpty()) {
                 stringResource(Res.string.file_browser_internal_storage)
             } else {

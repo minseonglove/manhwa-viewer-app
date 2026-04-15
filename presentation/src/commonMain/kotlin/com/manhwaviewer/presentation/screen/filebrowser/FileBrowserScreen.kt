@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
 import com.manhwaviewer.presentation.screen.common.BaseTopBar
+import com.manhwaviewer.presentation.screen.common.CreateFolderDialog
 import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.GlassConfirmDialog
@@ -127,11 +128,22 @@ fun FileBrowserScreen(
     onNavigateToViewer: (archiveId: Long, startPage: Int, sortByDate: Boolean, sortAscending: Boolean) -> Unit,
     onBack: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToMoveSelect: () -> Unit = {},
+    moveCompleted: Boolean = false,
+    onMoveCompletedConsumed: () -> Unit = {},
     viewModel: FileBrowserViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val coverModels by viewModel.coverModels.collectAsState()
     val hazeState = rememberHazeState()
+
+    // 이동 완료 후 복귀 시 새로고침
+    LaunchedEffect(moveCompleted) {
+        if (moveCompleted) {
+            viewModel.refresh()
+            onMoveCompletedConsumed()
+        }
+    }
 
     // 선택 모드에서 뒤로가기 → 선택 모드 해제
     BackHandler(enabled = state.isSelectionMode) {
@@ -147,6 +159,7 @@ fun FileBrowserScreen(
             when (effect) {
                 is FileBrowserSideEffect.NavigateToViewer -> onNavigateToViewer(effect.archiveId, effect.startPage, effect.sortByDate, effect.sortAscending)
                 FileBrowserSideEffect.NavigateToHome -> onBack()
+                FileBrowserSideEffect.NavigateToMoveSelect -> onNavigateToMoveSelect()
             }
         }
     }
@@ -940,99 +953,4 @@ private fun VaultInfoRow(
     }
 }
 
-// ── 폴더 만들기 다이얼로그 ──────────────────────────────────────────
-
-@Composable
-private fun CreateFolderDialog(
-    defaultName: String,
-    siblingNames: Set<String>,
-    hazeState: HazeState,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var textFieldValue by remember {
-        mutableStateOf(
-            TextFieldValue(
-                text = defaultName,
-                selection = TextRange(0, defaultName.length),
-            ),
-        )
-    }
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-    val value = textFieldValue.text
-    val hasInvalidChars = value.contains('/') || value.contains('\\') || value.contains("..")
-    val isConfirmEnabled = value.isNotBlank()
-        && !hasInvalidChars
-        && siblingNames.none { it.equals(value, ignoreCase = true) }
-
-    GlassConfirmDialog(
-        hazeState = hazeState,
-        onDismiss = onDismiss,
-        confirmText = stringResource(Res.string.file_create_folder_confirm),
-        confirmColor = MangaLensColors.blueHi,
-        confirmEnabled = isConfirmEnabled,
-        onConfirm = { onConfirm(value) },
-    ) {
-        // 헤더
-        Text(
-            text = stringResource(Res.string.file_create_folder_title),
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MangaLensColors.onSurface,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
-        )
-
-        // 입력 필드
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(MangaLensColors.fillTertiary)
-                .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(10.dp))
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Row(
-                modifier = Modifier.padding(
-                    vertical = 16.dp,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = textFieldValue,
-                    onValueChange = { textFieldValue = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MangaLensColors.onSurface,
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(MangaLensColors.blueHi),
-                )
-
-                if (value.isNotEmpty()) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_close_circle),
-                        contentDescription = null,
-                        tint = MangaLensColors.textTertiary,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable {
-                                textFieldValue = TextFieldValue("")
-                            },
-                    )
-                }
-            }
-        }
-    }
-}
+// CreateFolderDialog는 common 패키지의 공유 컴포넌트 사용

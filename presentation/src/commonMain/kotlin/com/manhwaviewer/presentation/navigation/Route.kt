@@ -8,6 +8,7 @@ object Route {
     const val RECENT = "recent"
     const val IMAGE_GALLERY = "image_gallery"
     const val VAULT = "vault"
+    const val FILE_MOVE_SELECT = "file_move_select"
 
     fun viewer(archiveId: Long, startPage: Int = -1, sortByDate: Boolean = false, sortAscending: Boolean = true): String =
         "viewer/$archiveId?startPage=$startPage&sortByDate=$sortByDate&sortAscending=$sortAscending"

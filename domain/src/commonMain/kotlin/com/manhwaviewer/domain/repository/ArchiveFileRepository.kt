@@ -23,6 +23,7 @@ interface ArchiveFileRepository {
     suspend fun deleteFile(path: String): Result<Unit>
     suspend fun migratePath(oldPath: String, newPath: String)
     suspend fun createFolder(parentPath: String, folderName: String): Result<String>
+    suspend fun moveFile(sourcePath: String, destinationDir: String): Result<String>
     suspend fun moveToVault(path: String): Result<String>
     suspend fun addToVaultWithMigration(originalPath: String, newPath: String, relativePath: String)
 }

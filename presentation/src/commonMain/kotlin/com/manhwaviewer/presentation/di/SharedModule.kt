@@ -22,6 +22,7 @@ import com.manhwaviewer.domain.usecase.RecognizePageTextUseCase
 import com.manhwaviewer.domain.usecase.RecognizeTextUseCase
 import com.manhwaviewer.domain.usecase.CreateFolderUseCase
 import com.manhwaviewer.domain.usecase.DeleteFileUseCase
+import com.manhwaviewer.domain.usecase.MoveFilesUseCase
 import com.manhwaviewer.domain.usecase.MoveToVaultUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
@@ -33,6 +34,8 @@ import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.screen.filebrowser.FileBrowserViewModel
+import com.manhwaviewer.presentation.screen.filemoveselect.FileMoveSelectViewModel
+import com.manhwaviewer.presentation.screen.filemoveselect.MoveRequestHolder
 import com.manhwaviewer.presentation.screen.home.HomeViewModel
 import com.manhwaviewer.presentation.screen.imagegallery.ImageGalleryViewModel
 import com.manhwaviewer.presentation.screen.recent.RecentViewModel
@@ -77,11 +80,16 @@ val sharedModule = module {
     factory { DeleteFileUseCase(get()) }
     factory { CreateFolderUseCase(get()) }
     factory { MoveToVaultUseCase(get()) }
+    factory { MoveFilesUseCase(get()) }
     factory { AnalyzeFuriganaUseCase(get()) }
+
+    // Holders
+    single { MoveRequestHolder() }
 
     // ViewModels
     viewModel { HomeViewModel(get(), get(), get(), get()) }
-    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
+    viewModel { FileBrowserViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("defaultScanPath"))) }
+    viewModel { FileMoveSelectViewModel(get(), get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { RecentViewModel(get(), get(), get(), get()) }
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get()) }

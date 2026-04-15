@@ -134,6 +134,11 @@ class ArchiveFileRepositoryImpl(
             mediaScanner.createFolder(parentPath, folderName)
         }
 
+    override suspend fun moveFile(sourcePath: String, destinationDir: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            mediaScanner.moveFile(sourcePath, destinationDir)
+        }
+
     override suspend fun migratePath(oldPath: String, newPath: String) = withContext(Dispatchers.IO) {
         val single = dao.getByFilePath(oldPath)
         if (single != null) {

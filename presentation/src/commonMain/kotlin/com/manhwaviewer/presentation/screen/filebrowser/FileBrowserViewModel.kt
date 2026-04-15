@@ -12,9 +12,11 @@ import com.manhwaviewer.domain.usecase.MoveToVaultUseCase
 import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
+import com.manhwaviewer.presentation.screen.filemoveselect.MoveRequestHolder
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
 import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
+import com.manhwaviewer.presentation.util.buildPathSegments
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,7 @@ class FileBrowserViewModel(
     private val deleteFileUseCase: DeleteFileUseCase,
     private val createFolderUseCase: CreateFolderUseCase,
     private val moveToVaultUseCase: MoveToVaultUseCase,
+    private val moveRequestHolder: MoveRequestHolder,
     private val defaultScanPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
@@ -87,7 +90,7 @@ class FileBrowserViewModel(
             FileBrowserIntent.ExitSelectionMode -> updateState {
                 copy(isSelectionMode = false, selectedFileKeys = emptySet())
             }
-            FileBrowserIntent.MoveSelected -> { /* TODO: 선택 항목 이동 */ }
+            FileBrowserIntent.MoveSelected -> moveSelected()
             FileBrowserIntent.VaultSelected -> showVaultDialog()
             FileBrowserIntent.ConfirmVault -> confirmVault()
             FileBrowserIntent.DismissVaultDialog -> updateState {
@@ -114,6 +117,21 @@ class FileBrowserViewModel(
     }
 
     private fun fileKey(file: ArchiveFile): String = "${file.filePath}/${file.fileName}"
+
+    private fun moveSelected() {
+        val paths = currentState.files
+            .filter { fileKey(it) in currentState.selectedFileKeys }
+            .map { it.filePath }
+        if (paths.isNotEmpty()) {
+            moveRequestHolder.sourcePaths = paths
+            moveRequestHolder.startPath = currentState.currentPath
+            sendSideEffect(FileBrowserSideEffect.NavigateToMoveSelect)
+        }
+    }
+
+    fun refresh() {
+        navigateToFolder(currentState.currentPath)
+    }
 
     private fun enterSelectionMode(file: ArchiveFile) {
         updateState {
@@ -442,27 +460,8 @@ class FileBrowserViewModel(
         }
     }
 
-    private fun buildPathSegments(path: String): List<Pair<String, String>> {
-        if (path.startsWith(defaultScanPath)) {
-            val result = mutableListOf<Pair<String, String>>("" to defaultScanPath)
-            val remaining = path.removePrefix(defaultScanPath)
-            val extraParts = remaining.split("/").filter { it.isNotEmpty() }
-            var accumulated = defaultScanPath
-            for (part in extraParts) {
-                accumulated = "$accumulated/$part"
-                result.add(part to accumulated)
-            }
-            return result
-        }
-        val parts = path.split("/").filter { it.isNotEmpty() }
-        val result = mutableListOf<Pair<String, String>>()
-        var accumulated = ""
-        for (part in parts) {
-            accumulated = "$accumulated/$part"
-            result.add(part to accumulated)
-        }
-        return result
-    }
+    private fun buildPathSegments(path: String): List<Pair<String, String>> =
+        buildPathSegments(path, defaultScanPath)
 
     private fun sortFiles(
         files: List<ArchiveFile>,

@@ -167,6 +167,13 @@
     <string name="file_create_folder_default_name">새 폴더</string>
     <string name="file_create_folder_confirm">만들기</string>
 
+    <!-- 파일 이동 화면 -->
+    <string name="file_move_title">이동</string>
+    <string name="file_move_cancel">취소</string>
+    <string name="file_move_banner">%1$d개 항목 이동 중</string>
+    <string name="file_move_confirm">여기로 이동</string>
+    <string name="file_move_empty_folders">폴더가 없습니다</string>
+
     <!-- 최근 화면: 선택 모드 -->
     <string name="recent_selection_count">%1$d개 선택됨</string>
     <string name="recent_selection_empty_hint">항목을 선택하세요</string>
