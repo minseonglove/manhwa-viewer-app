@@ -135,13 +135,20 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
             )
         }
-        composable(Route.VAULT) {
+        composable(Route.VAULT) { backStackEntry ->
+            val moveCompleted = backStackEntry.savedStateHandle
+                .get<Boolean>("moveCompleted") == true
             VaultScreen(
                 onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
                     navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
+                onNavigateToMoveSelect = { navController.navigate(Route.FILE_MOVE_SELECT) },
+                moveCompleted = moveCompleted,
+                onMoveCompletedConsumed = {
+                    backStackEntry.savedStateHandle.remove<Boolean>("moveCompleted")
+                },
             )
         }
     }

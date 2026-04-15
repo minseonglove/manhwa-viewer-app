@@ -58,9 +58,11 @@ class FileMoveSelectViewModel(
         viewModelScope.launch {
             updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction) }
             try {
+                val sourcePaths = currentState.sourcePaths.toSet()
                 val folders = withContext(Dispatchers.IO) {
                     scanLocalFilesUseCase(path)
                         .filter { it.type == ArchiveType.FOLDER }
+                        .filter { it.filePath !in sourcePaths }
                         .sortedBy { com.manhwaviewer.domain.util.naturalSortKey(it.fileName) }
                 }
                 updateState {

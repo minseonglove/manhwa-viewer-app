@@ -3,10 +3,13 @@ package com.manhwaviewer.presentation.screen.vault
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.DeleteFileUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
+import com.manhwaviewer.presentation.screen.filemoveselect.MoveRequestHolder
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
@@ -29,6 +32,9 @@ class VaultViewModel(
     private val scanArchiveEntriesUseCase: ScanArchiveEntriesUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
+    private val deleteFileUseCase: DeleteFileUseCase,
+    private val renameFileUseCase: RenameFileUseCase,
+    private val moveRequestHolder: MoveRequestHolder,
     private val vaultPath: String,
     private val ioDispatcher: CoroutineContext = Dispatchers.IO,
 ) : MviViewModel<VaultState, VaultIntent, VaultSideEffect>(VaultState()) {
@@ -67,6 +73,24 @@ class VaultViewModel(
                     )
                 }
             }
+            is VaultIntent.EnterSelectionMode -> enterSelectionMode(intent.file)
+            is VaultIntent.ToggleSelection -> toggleSelection(intent.file)
+            VaultIntent.ToggleSelectAll -> toggleSelectAll()
+            VaultIntent.ExitSelectionMode -> updateState {
+                copy(isSelectionMode = false, selectedFileKeys = emptySet())
+            }
+            VaultIntent.MoveSelected -> moveSelected()
+            VaultIntent.RestoreSelected -> { /* TODO: 복원 기능 구현 예정 */ }
+            VaultIntent.DeleteSelected -> showDeleteDialog()
+            VaultIntent.RenameSelected -> showRenameDialog()
+            is VaultIntent.ConfirmRename -> confirmRename(intent.newName)
+            VaultIntent.DismissRenameDialog -> updateState {
+                copy(showRenameDialog = false, renameTarget = null)
+            }
+            VaultIntent.ConfirmDelete -> confirmDelete()
+            VaultIntent.DismissDeleteDialog -> updateState {
+                copy(showDeleteDialog = false, deleteTargets = emptyList())
+            }
         }
     }
 
@@ -75,7 +99,15 @@ class VaultViewModel(
         coverLoadJob?.cancel()
         _coverModels.value = emptyMap()
         collectJob = viewModelScope.launch {
-            updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction) }
+            updateState {
+                copy(
+                    isLoading = true,
+                    currentPath = path,
+                    navigationDirection = direction,
+                    isSelectionMode = false,
+                    selectedFileKeys = emptySet(),
+                )
+            }
             try {
                 val ext = path.substringAfterLast('.').lowercase()
                 val isArchive = ext in archiveExtensions
@@ -234,6 +266,124 @@ class VaultViewModel(
         }
     }
 
+    fun refresh() {
+        navigateToFolder(currentState.currentPath)
+    }
+
+    private fun fileKey(file: ArchiveFile): String = "${file.filePath}/${file.fileName}"
+
+    private fun enterSelectionMode(file: ArchiveFile) {
+        updateState {
+            copy(
+                isSelectionMode = true,
+                selectedFileKeys = setOf(fileKey(file)),
+            )
+        }
+    }
+
+    private fun toggleSelection(file: ArchiveFile) {
+        updateState {
+            val key = fileKey(file)
+            val newSelected = if (key in selectedFileKeys) {
+                selectedFileKeys - key
+            } else {
+                selectedFileKeys + key
+            }
+            copy(selectedFileKeys = newSelected)
+        }
+    }
+
+    private fun toggleSelectAll() {
+        updateState {
+            val allKeys = archiveFiles.map { fileKey(it) }.toSet()
+            if (selectedFileKeys == allKeys) {
+                copy(selectedFileKeys = emptySet())
+            } else {
+                copy(selectedFileKeys = allKeys)
+            }
+        }
+    }
+
+    private fun moveSelected() {
+        val paths = currentState.archiveFiles
+            .filter { fileKey(it) in currentState.selectedFileKeys }
+            .map { it.filePath }
+        if (paths.isNotEmpty()) {
+            moveRequestHolder.sourcePaths = paths
+            moveRequestHolder.startPath = currentState.currentPath
+            sendSideEffect(VaultSideEffect.NavigateToMoveSelect)
+        }
+    }
+
+    private fun showDeleteDialog() {
+        val selectedKeys = currentState.selectedFileKeys
+        if (selectedKeys.isEmpty()) return
+        val targets = currentState.archiveFiles.filter { fileKey(it) in selectedKeys }
+        if (targets.isEmpty()) return
+        updateState { copy(showDeleteDialog = true, deleteTargets = targets) }
+    }
+
+    private fun confirmDelete() {
+        val targets = currentState.deleteTargets
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val deletedKeys = supervisorScope {
+                targets.map { target ->
+                    async(ioDispatcher) {
+                        val result = deleteFileUseCase(target.filePath)
+                        if (result.isSuccess) fileKey(target) else null
+                    }
+                }.mapNotNull { it.await() }.toSet()
+            }
+            _coverModels.value = _coverModels.value.filterKeys { it !in deletedKeys }
+            updateState {
+                copy(
+                    archiveFiles = archiveFiles.filter { fileKey(it) !in deletedKeys },
+                    showDeleteDialog = false,
+                    deleteTargets = emptyList(),
+                    isSelectionMode = false,
+                    selectedFileKeys = emptySet(),
+                )
+            }
+        }
+    }
+
+    private fun showRenameDialog() {
+        if (currentState.selectedFileKeys.size != 1) return
+        val selectedKey = currentState.selectedFileKeys.first()
+        val target = currentState.archiveFiles.firstOrNull { fileKey(it) == selectedKey } ?: return
+        updateState { copy(showRenameDialog = true, renameTarget = target) }
+    }
+
+    private fun confirmRename(newName: String) {
+        val target = currentState.renameTarget ?: return
+        viewModelScope.launch {
+            val result = renameFileUseCase(target.filePath, newName)
+            result.onSuccess { newPath ->
+                val oldKey = fileKey(target)
+                val renamedFile = target.copy(filePath = newPath, fileName = newName)
+                val newKey = fileKey(renamedFile)
+
+                _coverModels.value = _coverModels.value.toMutableMap().apply {
+                    remove(oldKey)?.let { put(newKey, it) }
+                }
+                updateState {
+                    val updatedFiles = archiveFiles.map { if (fileKey(it) == oldKey) renamedFile else it }
+                    copy(
+                        archiveFiles = updatedFiles,
+                        showRenameDialog = false,
+                        renameTarget = null,
+                        isSelectionMode = false,
+                        selectedFileKeys = emptySet(),
+                    )
+                }
+            }
+            result.onFailure {
+                // 파일시스템 레벨 실패 — 다이얼로그 유지
+            }
+        }
+    }
+
     private fun resortFiles() {
         updateState { copy(archiveFiles = sortArchiveFiles(archiveFiles)) }
     }
@@ -245,16 +395,12 @@ class VaultViewModel(
                 else -> 1
             }
         }
-        val comparator = when (currentState.sortState.field) {
-            SortField.NAME -> compareBy<ArchiveFile> { typeOrder(it.type) }
-                .thenBy { it.fileName.lowercase() }
-            SortField.DATE -> compareBy<ArchiveFile> { typeOrder(it.type) }
-                .thenBy { it.addedAt }
+        val secondaryComparator = when (currentState.sortState.field) {
+            SortField.NAME -> compareBy<ArchiveFile> { it.fileName.lowercase() }
+            SortField.DATE -> compareBy<ArchiveFile> { it.addedAt }
         }
-        return if (currentState.sortState.ascending) {
-            files.sortedWith(comparator)
-        } else {
-            files.sortedWith(comparator.reversed())
-        }
+        val comparator = compareBy<ArchiveFile> { typeOrder(it.type) }
+            .then(if (currentState.sortState.ascending) secondaryComparator else secondaryComparator.reversed())
+        return files.sortedWith(comparator)
     }
 }

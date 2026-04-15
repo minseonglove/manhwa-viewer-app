@@ -12,6 +12,12 @@ data class VaultState(
     val insideArchivePath: String? = null,
     val archiveFiles: List<ArchiveFile> = emptyList(),
     val navigationDirection: NavigationDirection = NavigationDirection.FORWARD,
+    val isSelectionMode: Boolean = false,
+    val selectedFileKeys: Set<String> = emptySet(),
+    val showRenameDialog: Boolean = false,
+    val renameTarget: ArchiveFile? = null,
+    val showDeleteDialog: Boolean = false,
+    val deleteTargets: List<ArchiveFile> = emptyList(),
 )
 
 enum class NavigationDirection { FORWARD, BACKWARD }
@@ -25,6 +31,22 @@ sealed interface VaultIntent {
     data class SetSortField(val field: SortField) : VaultIntent
     data object ToggleSortDirection : VaultIntent
     data object ToggleViewMode : VaultIntent
+
+    // 선택 모드
+    data class EnterSelectionMode(val file: ArchiveFile) : VaultIntent
+    data class ToggleSelection(val file: ArchiveFile) : VaultIntent
+    data object ToggleSelectAll : VaultIntent
+    data object ExitSelectionMode : VaultIntent
+
+    // 선택 모드 액션
+    data object MoveSelected : VaultIntent
+    data object RestoreSelected : VaultIntent
+    data object DeleteSelected : VaultIntent
+    data object RenameSelected : VaultIntent
+    data class ConfirmRename(val newName: String) : VaultIntent
+    data object DismissRenameDialog : VaultIntent
+    data object ConfirmDelete : VaultIntent
+    data object DismissDeleteDialog : VaultIntent
 }
 
 sealed interface VaultSideEffect {
@@ -35,4 +57,5 @@ sealed interface VaultSideEffect {
         val sortAscending: Boolean = true,
     ) : VaultSideEffect
     data object NavigateBack : VaultSideEffect
+    data object NavigateToMoveSelect : VaultSideEffect
 }
