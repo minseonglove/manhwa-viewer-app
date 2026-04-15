@@ -619,7 +619,7 @@ private fun ZoomableImage(
     // subSamplingFailed 상태를 이 스코프에서 관리 (fallback 용)
     var subSamplingFailed by remember { mutableStateOf(false) }
 
-    if (useSubSampling && !subSamplingFailed && pageModel != null) {
+    if (useSubSampling && !subSamplingFailed) {
         // SubSamplingImage 경로: 보이는 영역만 타일 디코딩 (메모리 안전)
         val getImageBytesUseCase: GetImageBytesUseCase = koinInject()
         var sourceResult by remember { mutableStateOf<PlatformSubSamplingResult?>(null) }

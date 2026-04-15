@@ -32,7 +32,9 @@ fun Breadcrumb(
     Row(
         modifier = modifier
             .horizontalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            .padding(
+                vertical = 8.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showHomeIcon) {
@@ -41,7 +43,7 @@ fun Breadcrumb(
                 contentDescription = "홈",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(20.dp)
                     .clickable(onClick = onHomeClick),
             )
         }
@@ -52,7 +54,7 @@ fun Breadcrumb(
                     painter = painterResource(Res.drawable.ic_chevron_right),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
             val displayName = if (segment.isEmpty()) {
@@ -63,11 +65,11 @@ fun Breadcrumb(
             Text(
                 text = displayName,
                 style = if (index == pathSegments.lastIndex) {
-                    MaterialTheme.typography.labelMedium.copy(
+                    MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                     )
                 } else {
-                    MaterialTheme.typography.labelMedium
+                    MaterialTheme.typography.labelLarge
                 },
                 color = if (index == pathSegments.lastIndex) {
                     MaterialTheme.colorScheme.primary
