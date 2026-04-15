@@ -78,7 +78,7 @@ import manhwa_viewer.presentation.generated.resources.ic_delete
 import manhwa_viewer.presentation.generated.resources.ic_folder_move
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import manhwa_viewer.presentation.generated.resources.ic_name
-import manhwa_viewer.presentation.generated.resources.ic_restore
+import manhwa_viewer.presentation.generated.resources.ic_repeat
 import manhwa_viewer.presentation.generated.resources.vault_selection_restore
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -462,7 +462,7 @@ private fun VaultSelectionActionBar(
             ActionBarButton(
                 icon = { tint ->
                     Icon(
-                        painter = painterResource(Res.drawable.ic_restore),
+                        painter = painterResource(Res.drawable.ic_repeat),
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(24.dp),
