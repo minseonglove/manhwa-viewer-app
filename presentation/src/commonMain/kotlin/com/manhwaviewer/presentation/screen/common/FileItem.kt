@@ -78,6 +78,7 @@ fun FileItem(
     insideArchive: Boolean = false,
     leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
+    showDivider: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -94,7 +95,7 @@ fun FileItem(
                         Modifier.clickable(onClick = onClick)
                     },
                 )
-                .padding(vertical = 12.dp),
+                .padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leadingContent != null) {
@@ -166,10 +167,12 @@ fun FileItem(
                 )
             }
         }
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.padding(start = 62.dp),
-        )
+        if (showDivider) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(start = 62.dp),
+            )
+        }
     }
 }
 

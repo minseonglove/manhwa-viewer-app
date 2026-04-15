@@ -33,7 +33,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -217,13 +219,13 @@ fun VaultScreen(
                                 if (columns == 1) {
                                     LazyColumn(
                                         contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.archiveFiles, key = { "${it.filePath}/${it.fileName}" }) { file ->
+                                        itemsIndexed(state.archiveFiles, key = { _, file -> "${file.filePath}/${file.fileName}" }) { index, file ->
                                             VaultFileItem(
                                                 file = file,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = fileKey(file) in state.selectedFileKeys,
+                                                showDivider = index < state.archiveFiles.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(VaultIntent.ToggleSelection(file))
@@ -251,13 +253,13 @@ fun VaultScreen(
                                         columns = GridCells.Fixed(2),
                                         contentPadding = PaddingValues(16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.archiveFiles, key = { "${it.filePath}/${it.fileName}" }) { file ->
+                                        itemsIndexed(state.archiveFiles, key = { _, file -> "${file.filePath}/${file.fileName}" }) { index, file ->
                                             VaultFileItem(
                                                 file = file,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = fileKey(file) in state.selectedFileKeys,
+                                                showDivider = index < state.archiveFiles.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(VaultIntent.ToggleSelection(file))
@@ -388,6 +390,7 @@ private fun VaultFileItem(
     file: ArchiveFile,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    showDivider: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     coverModel: com.manhwaviewer.presentation.screen.viewer.ViewerPageModel?,
@@ -400,6 +403,7 @@ private fun VaultFileItem(
         coverModel = coverModel,
         insideArchive = insideArchive,
         showLockBadge = false,
+        showDivider = showDivider,
         leadingContent = {
             AnimatedVisibility(
                 visible = isSelectionMode,

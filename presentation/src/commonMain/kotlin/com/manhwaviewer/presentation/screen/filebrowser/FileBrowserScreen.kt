@@ -36,7 +36,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -251,13 +253,13 @@ fun FileBrowserScreen(
                                 if (columns == 1) {
                                     LazyColumn(
                                         contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.files, key = { "${it.filePath}/${it.fileName}" }) { file ->
+                                        itemsIndexed(state.files, key = { _, file -> "${file.filePath}/${file.fileName}" }) { index, file ->
                                             FileBrowserFileItem(
                                                 file = file,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = fileKey(file) in state.selectedFileKeys,
+                                                showDivider = index < state.files.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(FileBrowserIntent.ToggleSelection(file))
@@ -285,13 +287,13 @@ fun FileBrowserScreen(
                                         columns = GridCells.Fixed(2),
                                         contentPadding = PaddingValues(16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.files, key = { "${it.filePath}/${it.fileName}" }) { file ->
+                                        itemsIndexed(state.files, key = { _, file -> "${file.filePath}/${file.fileName}" }) { index, file ->
                                             FileBrowserFileItem(
                                                 file = file,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = fileKey(file) in state.selectedFileKeys,
+                                                showDivider = index < state.files.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(FileBrowserIntent.ToggleSelection(file))
@@ -428,6 +430,7 @@ private fun FileBrowserFileItem(
     file: ArchiveFile,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    showDivider: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     coverModel: com.manhwaviewer.presentation.screen.viewer.ViewerPageModel?,
@@ -439,6 +442,7 @@ private fun FileBrowserFileItem(
         onLongClick = onLongClick,
         coverModel = coverModel,
         insideArchive = insideArchive,
+        showDivider = showDivider,
         leadingContent = {
             AnimatedVisibility(
                 visible = isSelectionMode,

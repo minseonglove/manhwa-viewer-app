@@ -39,7 +39,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
@@ -247,13 +249,13 @@ fun RecentScreen(
                                         columns = GridCells.Fixed(2),
                                         contentPadding = PaddingValues(16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.archives, key = { it.id }) { archive ->
+                                        itemsIndexed(state.archives, key = { _, archive -> archive.id }) { index, archive ->
                                             RecentFileItem(
                                                 archive = archive,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = archive.id in state.selectedArchiveIds,
+                                                showDivider = index < state.archives.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(RecentIntent.ToggleSelection(archive))
@@ -276,13 +278,13 @@ fun RecentScreen(
                                 } else {
                                     LazyColumn(
                                         contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        items(state.archives, key = { it.id }) { archive ->
+                                        itemsIndexed(state.archives, key = { _, archive -> archive.id }) { index, archive ->
                                             RecentFileItem(
                                                 archive = archive,
                                                 isSelectionMode = state.isSelectionMode,
                                                 isSelected = archive.id in state.selectedArchiveIds,
+                                                showDivider = index < state.archives.lastIndex,
                                                 onClick = {
                                                     if (state.isSelectionMode) {
                                                         viewModel.onIntent(RecentIntent.ToggleSelection(archive))
@@ -401,6 +403,7 @@ private fun RecentFileItem(
     archive: ArchiveFile,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    showDivider: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onDelete: () -> Unit,
@@ -414,6 +417,7 @@ private fun RecentFileItem(
         showProgress = true,
         showFileType = false,
         showFolderCover = true,
+        showDivider = showDivider,
         leadingContent = {
             AnimatedVisibility(
                 visible = isSelectionMode,
