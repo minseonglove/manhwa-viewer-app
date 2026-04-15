@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import com.manhwaviewer.domain.entity.FuriganaToken
 import com.manhwaviewer.domain.usecase.AnalyzeFuriganaUseCase
+import com.manhwaviewer.domain.usecase.ClearRecentHistoryUseCase
 import com.manhwaviewer.domain.usecase.GetArchiveByIdUseCase
 import com.manhwaviewer.domain.usecase.GetImageBytesUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
@@ -68,6 +69,7 @@ class ViewerViewModel(
     private val getPreviousArchiveUseCase: GetPreviousArchiveUseCase,
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
     private val analyzeFuriganaUseCase: AnalyzeFuriganaUseCase,
+    private val clearRecentHistoryUseCase: ClearRecentHistoryUseCase,
 ) : MviViewModel<ViewerState, ViewerIntent, ViewerSideEffect>(ViewerState()) {
 
     private var cacheJob: Job? = null
@@ -314,8 +316,23 @@ class ViewerViewModel(
                 return@launch
             }
             val entries = getImageEntriesUseCase(archive.filePath, sortByDate, sortAscending)
+
+            // 페이지가 모두 제거된 경우 → 최근 목록에서 완전 제거 후 뒤로가기
+            if (entries.isEmpty()) {
+                clearRecentHistoryUseCase(archiveId)
+                updateState { copy(isLoading = false) }
+                sendSideEffect(ViewerSideEffect.NavigateBack)
+                return@launch
+            }
+
             val page = if (startPage >= 0) startPage else archive.lastReadIndex
-            val initialPage = page.coerceIn(0, (entries.size - 1).coerceAtLeast(0))
+            val initialPage = page.coerceIn(0, entries.size - 1)
+
+            // lastReadIndex 또는 totalPages가 실제와 다르면 DB 동기화
+            if (initialPage != archive.lastReadIndex || entries.size != archive.totalPages) {
+                updateLastReadIndexUseCase(archiveId, initialPage)
+            }
+
             updateState {
                 copy(
                     archive = archive,
