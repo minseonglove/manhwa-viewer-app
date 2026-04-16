@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -296,7 +298,6 @@ private fun SearchResultList(
 @Composable
 private fun SearchSectionHeader(title: String, count: Int) {
     Column {
-        HorizontalDivider(color = MangaLensColors.separator)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -319,6 +320,7 @@ private fun SearchSectionHeader(title: String, count: Int) {
                 color = MangaLensColors.textTertiary,
             )
         }
+        HorizontalDivider(color = MangaLensColors.separator)
     }
 }
 
@@ -406,20 +408,14 @@ private fun SearchIconArea(file: ArchiveFile) {
             }
         }
         ArchiveType.IMAGE -> {
-            Box(
+            AsyncImage(
+                model = file.filePath,
+                contentDescription = file.fileName,
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MangaLensColors.green.copy(alpha = 0.10f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_image_gallery),
-                    contentDescription = null,
-                    tint = MangaLensColors.green,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop,
+            )
         }
         else -> {
             Box(
@@ -443,18 +439,23 @@ private fun SearchIconArea(file: ArchiveFile) {
 // ── 하이라이트 ───────────────────────────────────────────────────────
 
 private fun highlightQuery(text: String, query: String): AnnotatedString {
-    if (query.isBlank()) return AnnotatedString(text)
+    val baseStyle = SpanStyle(color = MangaLensColors.onSurface)
+    if (query.isBlank()) return buildAnnotatedString {
+        withStyle(baseStyle) { append(text) }
+    }
     val lowerText = text.lowercase()
     val lowerQuery = query.lowercase()
     val idx = lowerText.indexOf(lowerQuery)
-    if (idx == -1) return AnnotatedString(text)
+    if (idx == -1) return buildAnnotatedString {
+        withStyle(baseStyle) { append(text) }
+    }
 
     return buildAnnotatedString {
-        append(text.substring(0, idx))
+        withStyle(baseStyle) { append(text.substring(0, idx)) }
         withStyle(SpanStyle(color = MangaLensColors.blueHi, fontWeight = FontWeight.Bold)) {
             append(text.substring(idx, idx + query.length))
         }
-        append(text.substring(idx + query.length))
+        withStyle(baseStyle) { append(text.substring(idx + query.length)) }
     }
 }
 
