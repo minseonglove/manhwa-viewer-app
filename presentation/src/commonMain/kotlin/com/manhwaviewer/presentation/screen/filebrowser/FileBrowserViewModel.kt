@@ -106,8 +106,8 @@ class FileBrowserViewModel(
             FileBrowserIntent.DismissDeleteDialog -> updateState {
                 copy(showDeleteDialog = false, deleteTargets = emptyList())
             }
-            FileBrowserIntent.ShowCreateFolderDialog -> updateState {
-                copy(showCreateFolderDialog = true, defaultFolderName = generateDefaultFolderName())
+            is FileBrowserIntent.ShowCreateFolderDialog -> updateState {
+                copy(showCreateFolderDialog = true, defaultFolderName = generateDefaultFolderName(intent.baseName))
             }
             FileBrowserIntent.DismissCreateFolderDialog -> updateState {
                 copy(showCreateFolderDialog = false)
@@ -266,9 +266,9 @@ class FileBrowserViewModel(
         }
     }
 
-    private fun generateDefaultFolderName(): String {
+    private fun generateDefaultFolderName(baseName: String): String {
         val existingNames = currentState.files.map { it.fileName }.toSet()
-        val base = "새 폴더"
+        val base = baseName
         if (base !in existingNames) return base
         var i = 1
         while ("$base($i)" in existingNames) i++

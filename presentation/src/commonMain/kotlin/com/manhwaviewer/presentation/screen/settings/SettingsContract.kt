@@ -1,5 +1,7 @@
 package com.manhwaviewer.presentation.screen.settings
 
+import org.jetbrains.compose.resources.StringResource
+
 data class SettingsState(
     val translationCacheSize: Long = 0L,
     val imageCacheSize: Long = 0L,
@@ -12,5 +14,5 @@ sealed interface SettingsIntent {
 }
 
 sealed interface SettingsSideEffect {
-    data class ShowToast(val message: String) : SettingsSideEffect
+    data class ShowToast(val messageRes: StringResource) : SettingsSideEffect
 }

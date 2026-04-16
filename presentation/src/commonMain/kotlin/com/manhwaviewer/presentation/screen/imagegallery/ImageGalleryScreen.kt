@@ -30,6 +30,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.BaseTopBar
+import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.home_shortcut_images
+import manhwa_viewer.presentation.generated.resources.image_gallery_empty
+import manhwa_viewer.presentation.generated.resources.image_gallery_total_prefix
+import manhwa_viewer.presentation.generated.resources.image_gallery_total_suffix
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -52,7 +58,7 @@ fun ImageGalleryScreen(
     Scaffold(
         topBar = {
             BaseTopBar(
-                title = "이미지",
+                title = stringResource(Res.string.home_shortcut_images),
                 onBack = onBack,
                 sortState = state.sortState,
                 onSortFieldChange = { viewModel.onIntent(ImageGalleryIntent.SetSortField(it)) },
@@ -73,7 +79,7 @@ fun ImageGalleryScreen(
                 }
                 state.images.isEmpty() -> {
                     Text(
-                        text = "이미지가 없습니다",
+                        text = stringResource(Res.string.image_gallery_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),
@@ -125,11 +131,11 @@ fun ImageGalleryScreen(
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
                                     text = buildAnnotatedString {
-                                        append("총 ")
+                                        append(stringResource(Res.string.image_gallery_total_prefix))
                                         withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
                                             append("${state.images.size}")
                                         }
-                                        append("개")
+                                        append(stringResource(Res.string.image_gallery_total_suffix))
                                     },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

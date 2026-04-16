@@ -5,6 +5,9 @@ import com.manhwaviewer.domain.usecase.ClearCacheUseCase
 import com.manhwaviewer.domain.usecase.GetCacheSizeUseCase
 import com.manhwaviewer.presentation.mvi.MviViewModel
 import kotlinx.coroutines.launch
+import manhwa_viewer.presentation.generated.resources.Res
+import manhwa_viewer.presentation.generated.resources.settings_image_cache_cleared
+import manhwa_viewer.presentation.generated.resources.settings_translation_cache_cleared
 
 class SettingsViewModel(
     private val getCacheSizeUseCase: GetCacheSizeUseCase,
@@ -35,7 +38,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             clearCacheUseCase.translationCache()
             refreshCacheSize()
-            sendSideEffect(SettingsSideEffect.ShowToast("번역 캐시가 삭제되었습니다"))
+            sendSideEffect(SettingsSideEffect.ShowToast(Res.string.settings_translation_cache_cleared))
         }
     }
 
@@ -43,7 +46,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             clearCacheUseCase.imageCache()
             refreshCacheSize()
-            sendSideEffect(SettingsSideEffect.ShowToast("이미지 캐시가 삭제되었습니다"))
+            sendSideEffect(SettingsSideEffect.ShowToast(Res.string.settings_image_cache_cleared))
         }
     }
 }

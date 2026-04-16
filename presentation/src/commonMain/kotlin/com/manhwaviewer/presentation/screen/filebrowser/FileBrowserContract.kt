@@ -47,7 +47,7 @@ sealed interface FileBrowserIntent {
     data object DismissRenameDialog : FileBrowserIntent
     data object ConfirmDelete : FileBrowserIntent
     data object DismissDeleteDialog : FileBrowserIntent
-    data object ShowCreateFolderDialog : FileBrowserIntent
+    data class ShowCreateFolderDialog(val baseName: String) : FileBrowserIntent
     data object DismissCreateFolderDialog : FileBrowserIntent
     data class ConfirmCreateFolder(val folderName: String) : FileBrowserIntent
     data object ConfirmVault : FileBrowserIntent

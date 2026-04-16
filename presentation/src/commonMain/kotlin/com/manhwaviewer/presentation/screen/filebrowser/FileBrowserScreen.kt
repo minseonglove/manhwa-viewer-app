@@ -88,6 +88,7 @@ import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.file_browser_empty
 import manhwa_viewer.presentation.generated.resources.file_browser_title
 import manhwa_viewer.presentation.generated.resources.file_create_folder_confirm
+import manhwa_viewer.presentation.generated.resources.file_create_folder_default_name
 import manhwa_viewer.presentation.generated.resources.file_create_folder_title
 import manhwa_viewer.presentation.generated.resources.file_selection_cancel
 import manhwa_viewer.presentation.generated.resources.file_selection_count
@@ -191,7 +192,8 @@ fun FileBrowserScreen(
                     }
                 } else if (state.insideArchivePath == null) {
                     {
-                        IconButton(onClick = { viewModel.onIntent(FileBrowserIntent.ShowCreateFolderDialog) }) {
+                        val defaultFolderName = stringResource(Res.string.file_create_folder_default_name)
+                        IconButton(onClick = { viewModel.onIntent(FileBrowserIntent.ShowCreateFolderDialog(defaultFolderName)) }) {
                             Icon(
                                 painter = painterResource(Res.drawable.ic_plus),
                                 contentDescription = stringResource(Res.string.file_create_folder_title),

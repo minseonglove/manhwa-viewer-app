@@ -4,6 +4,9 @@
     <string name="back">뒤로가기</string>
     <string name="back_short">뒤로</string>
     <string name="close">닫기</string>
+    <string name="common_delete">삭제</string>
+    <string name="common_cancel">취소</string>
+    <string name="home_icon_description">홈</string>
     <string name="viewer_settings">설정</string>
 
     <!-- 뷰어: 상단 바 -->
@@ -197,4 +200,28 @@
     <string name="recent_delete_selected_title">%1$d개 기록 삭제</string>
     <string name="recent_delete_selected_description">%1$d개 항목의 최근 기록이 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.</string>
     <string name="recent_delete_selected_confirm">%1$d개 비우기</string>
+
+    <!-- 설정 화면 -->
+    <string name="settings_title">설정</string>
+    <string name="settings_cache_delete_title">캐시 삭제</string>
+    <string name="settings_translation_cache_delete_message">번역 캐시를 삭제하시겠습니까?</string>
+    <string name="settings_image_cache_delete_message">이미지 캐시를 삭제하시겠습니까?</string>
+    <string name="settings_section_storage">저장소</string>
+    <string name="settings_translation_cache">번역 캐시</string>
+    <string name="settings_image_cache">이미지 캐시</string>
+    <string name="settings_section_app_info">앱 정보</string>
+    <string name="settings_version">버전</string>
+    <string name="settings_open_source_license">오픈소스 라이선스</string>
+    <string name="settings_view">보기</string>
+    <string name="settings_translation_cache_cleared">번역 캐시가 삭제되었습니다</string>
+    <string name="settings_image_cache_cleared">이미지 캐시가 삭제되었습니다</string>
+
+    <!-- 보관함 화면 -->
+    <string name="vault_empty">보관함이 비어있습니다</string>
+    <string name="vault_info_description">보관함에 저장된 콘텐츠는\n기기 갤러리에 노출되지 않습니다.</string>
+
+    <!-- 이미지 갤러리 -->
+    <string name="image_gallery_empty">이미지가 없습니다</string>
+    <string name="image_gallery_total_prefix">총 </string>
+    <string name="image_gallery_total_suffix">개</string>
 </resources>

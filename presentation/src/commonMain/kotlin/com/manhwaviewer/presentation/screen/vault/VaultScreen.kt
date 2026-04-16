@@ -73,6 +73,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.file_selection_cancel
+import manhwa_viewer.presentation.generated.resources.home_shortcut_vault
 import manhwa_viewer.presentation.generated.resources.file_selection_count
 import manhwa_viewer.presentation.generated.resources.file_selection_delete
 import manhwa_viewer.presentation.generated.resources.file_selection_move
@@ -82,6 +83,8 @@ import manhwa_viewer.presentation.generated.resources.ic_folder_move
 import manhwa_viewer.presentation.generated.resources.ic_lock
 import manhwa_viewer.presentation.generated.resources.ic_name
 import manhwa_viewer.presentation.generated.resources.ic_repeat
+import manhwa_viewer.presentation.generated.resources.vault_empty
+import manhwa_viewer.presentation.generated.resources.vault_info_description
 import manhwa_viewer.presentation.generated.resources.vault_selection_restore
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -135,7 +138,7 @@ fun VaultScreen(
                 title = if (state.isSelectionMode) {
                     stringResource(Res.string.file_selection_count, state.selectedFileKeys.size)
                 } else {
-                    "보관함"
+                    stringResource(Res.string.home_shortcut_vault)
                 },
                 onBack = if (state.isSelectionMode) null else ({ viewModel.onIntent(VaultIntent.GoBack) }),
                 pathSegments = state.pathSegments,
@@ -187,7 +190,7 @@ fun VaultScreen(
                     }
                     state.archiveFiles.isEmpty() -> {
                         Text(
-                            text = "보관함이 비어있습니다",
+                            text = stringResource(Res.string.vault_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.align(Alignment.Center),
@@ -551,13 +554,13 @@ private fun VaultInfoBanner(modifier: Modifier = Modifier) {
                     modifier = Modifier.size(14.dp),
                 )
                 Text(
-                    text = "보관함",
+                    text = stringResource(Res.string.home_shortcut_vault),
                     style = MaterialTheme.typography.labelMedium,
                     color = MangaLensColors.tilePurple,
                 )
             }
             Text(
-                text = "보관함에 저장된 콘텐츠는\n기기 갤러리에 노출되지 않습니다.",
+                text = stringResource(Res.string.vault_info_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

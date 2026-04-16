@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.manhwaviewer.presentation.util.VAULT_ROOT_MARKER
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.file_browser_internal_storage
+import manhwa_viewer.presentation.generated.resources.home_icon_description
 import manhwa_viewer.presentation.generated.resources.home_shortcut_vault
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_home
@@ -42,7 +43,7 @@ fun Breadcrumb(
         if (showHomeIcon) {
             Icon(
                 painter = painterResource(Res.drawable.ic_home),
-                contentDescription = "홈",
+                contentDescription = stringResource(Res.string.home_icon_description),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(20.dp)
