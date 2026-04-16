@@ -109,14 +109,14 @@ fun FileMoveSelectScreen(
                 ) {
                     Text(
                         text = stringResource(Res.string.file_move_cancel),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable(onClick = onBack),
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = stringResource(Res.string.file_move_title),
-                        style = MaterialTheme.typography.headlineMedium.copy(
+                        style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                         ),
                         color = MangaLensColors.onSurface,
@@ -130,7 +130,7 @@ fun FileMoveSelectScreen(
                             painter = painterResource(Res.drawable.ic_plus),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(32.dp),
                         )
                     }
                 }

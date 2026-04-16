@@ -128,7 +128,10 @@ fun HomeScreen(
                                 contentDescription = null,
                                 tint = MangaLensColors.primary,
                             )
-                            Text(stringResource(Res.string.app_name))
+                            Text(
+                                text = stringResource(Res.string.app_name),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
                         }
                     },
                     actions = {
@@ -139,7 +142,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(Res.drawable.ic_search),
                                 contentDescription = stringResource(Res.string.home_search),
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(32.dp),
                             )
                         }
                         Spacer(Modifier.width(8.dp))
@@ -150,7 +153,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(Res.drawable.ic_settings),
                                 contentDescription = stringResource(Res.string.home_settings),
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(32.dp),
                             )
                         }
                     },

@@ -55,7 +55,7 @@ fun BaseTopBar(
             title = {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineMedium.copy(
+                    style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                     ),
                 )
@@ -73,11 +73,11 @@ fun BaseTopBar(
                             painter = painterResource(Res.drawable.ic_chevron_left),
                             contentDescription = stringResource(Res.string.back_short),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(32.dp),
                         )
                         Text(
                             text = stringResource(Res.string.back_short),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -92,7 +92,7 @@ fun BaseTopBar(
                             painter = painterResource(Res.drawable.ic_search),
                             contentDescription = stringResource(Res.string.home_search),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(32.dp),
                         )
                     }
                 }

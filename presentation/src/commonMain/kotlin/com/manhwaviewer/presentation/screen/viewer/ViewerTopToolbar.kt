@@ -61,13 +61,13 @@ fun ViewerTopToolbar(
         // Back button
         IconButton(
             onClick = onBack,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(32.dp),
         ) {
             Icon(
                 painter = painterResource(Res.drawable.ic_arrow_back),
                 contentDescription = stringResource(Res.string.viewer_back),
                 tint = MangaLensColors.onToolbar,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(32.dp),
             )
         }
 
@@ -75,7 +75,7 @@ fun ViewerTopToolbar(
         Text(
             text = title,
             color = MangaLensColors.onToolbar,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
@@ -96,7 +96,7 @@ fun ViewerTopToolbar(
                 Text(
                     text = stringResource(Res.string.viewer_translate_selected),
                     color = MangaLensColors.onToolbar,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
@@ -107,7 +107,7 @@ fun ViewerTopToolbar(
         IconButton(
             onClick = onToggleOverlay,
             enabled = isOverlayButtonEnabled,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(32.dp),
         ) {
             Icon(
                 painter = painterResource(if (isOverlayEnabled) Res.drawable.ic_translate_on else Res.drawable.ic_translate_off),
