@@ -1,7 +1,15 @@
 package com.manhwaviewer.presentation.screen.common
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -54,19 +63,63 @@ fun SelectAllCheckbox(
 fun SelectionCheckbox(
     isSelected: Boolean,
     modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+    uncheckedTint: Color = MangaLensColors.textTertiary,
+    useCrossfade: Boolean = true,
 ) {
-    Crossfade(
-        targetState = isSelected,
-        modifier = modifier.size(24.dp),
-    ) { checked ->
+    if (useCrossfade) {
+        Crossfade(
+            targetState = isSelected,
+            modifier = modifier.size(size),
+        ) { checked ->
+            Icon(
+                painter = painterResource(
+                    if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
+                ),
+                contentDescription = null,
+                tint = if (checked) Color.Unspecified else uncheckedTint,
+                modifier = Modifier.size(size),
+            )
+        }
+    } else {
         Icon(
             painter = painterResource(
-                if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
+                if (isSelected) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
             ),
             contentDescription = null,
-            tint = if (checked) Color.Unspecified else MangaLensColors.textTertiary,
-            modifier = Modifier.size(24.dp),
+            tint = if (isSelected) Color.Unspecified else uncheckedTint,
+            modifier = modifier.size(size),
         )
+    }
+}
+
+// ── 선택 모드 leading content (AnimatedVisibility + Checkbox) ───
+
+@Composable
+fun SelectionLeadingContent(
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    uncheckedTint: Color = MangaLensColors.textTertiary,
+) {
+    AnimatedVisibility(
+        visible = isSelectionMode,
+        enter = scaleIn(
+            initialScale = 0f,
+            animationSpec = tween(durationMillis = 200),
+        ) + expandHorizontally(
+            animationSpec = tween(durationMillis = 200),
+        ),
+        exit = scaleOut(
+            targetScale = 0f,
+            animationSpec = tween(durationMillis = 0),
+        ) + shrinkHorizontally(
+            animationSpec = tween(durationMillis = 200),
+        ),
+    ) {
+        Row {
+            SelectionCheckbox(isSelected = isSelected, uncheckedTint = uncheckedTint)
+            Spacer(modifier = Modifier.width(14.dp))
+        }
     }
 }
 

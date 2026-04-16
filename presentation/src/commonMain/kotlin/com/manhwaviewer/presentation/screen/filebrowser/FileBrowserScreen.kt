@@ -3,12 +3,7 @@ package com.manhwaviewer.presentation.screen.filebrowser
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -80,6 +75,7 @@ import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.RenameDialog
 import com.manhwaviewer.presentation.screen.common.SelectAllCheckbox
 import com.manhwaviewer.presentation.screen.common.SelectionCheckbox
+import com.manhwaviewer.presentation.screen.common.SelectionLeadingContent
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -454,26 +450,10 @@ private fun FileBrowserFileItem(
         insideArchive = insideArchive,
         showDivider = showDivider,
         leadingContent = {
-            AnimatedVisibility(
-                visible = isSelectionMode,
-                enter = scaleIn(
-                    initialScale = 0f,
-                    animationSpec = tween(durationMillis = 200),
-                ) + expandHorizontally(
-                    animationSpec = tween(durationMillis = 200),
-                ),
-                exit = scaleOut(
-                    targetScale = 0f,
-                    animationSpec = tween(durationMillis = 0),
-                ) + shrinkHorizontally(
-                    animationSpec = tween(durationMillis = 200),
-                ),
-            ) {
-                Row {
-                    SelectionCheckbox(isSelected = isSelected)
-                    Spacer(modifier = Modifier.width(14.dp))
-                }
-            }
+            SelectionLeadingContent(
+                isSelectionMode = isSelectionMode,
+                isSelected = isSelected,
+            )
         },
         trailingContent = if (isSelectionMode) {
             {}

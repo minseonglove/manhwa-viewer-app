@@ -30,10 +30,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -50,8 +50,6 @@ import manhwa_viewer.presentation.generated.resources.file_type_has_images
 import manhwa_viewer.presentation.generated.resources.file_type_image
 import manhwa_viewer.presentation.generated.resources.file_type_zip
 import manhwa_viewer.presentation.generated.resources.ic_archive
-import manhwa_viewer.presentation.generated.resources.ic_check_off
-import manhwa_viewer.presentation.generated.resources.ic_check_on
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_file_folder
 import manhwa_viewer.presentation.generated.resources.ic_image_gallery
@@ -177,7 +175,7 @@ fun FileItem(
 }
 
 @Composable
-private fun fileSubtitle(archive: ArchiveFile, insideArchive: Boolean = false): String {
+internal fun fileSubtitle(archive: ArchiveFile, insideArchive: Boolean = false): String {
     if (insideArchive) return stringResource(Res.string.file_type_image)
     return when (archive.type) {
         ArchiveType.FOLDER -> if (archive.hasImages) {
@@ -202,7 +200,17 @@ private fun fileSubtitle(archive: ArchiveFile, insideArchive: Boolean = false): 
 }
 
 @Composable
-private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, showFolderCover: Boolean = false) {
+fun FileIconArea(
+    archive: ArchiveFile,
+    coverModel: ViewerPageModel? = null,
+    showFolderCover: Boolean = false,
+    iconSize: Dp = 48.dp,
+    cornerRadius: Dp = 12.dp,
+) {
+    val shape = RoundedCornerShape(cornerRadius)
+    val innerIconSize = (iconSize * 0.58f) // 비율 유지: 28/48 ≈ 0.58
+    val archiveInnerIconSize = (iconSize * 0.5f) // 24/48 = 0.5
+
     when {
         // Folder with cover thumbnail (opt-in)
         archive.type == ArchiveType.FOLDER && showFolderCover && coverModel != null -> {
@@ -210,8 +218,8 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                 model = coverModel,
                 contentDescription = archive.fileName,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .size(iconSize)
+                    .clip(shape),
                 contentScale = ContentScale.Crop,
             )
         }
@@ -221,8 +229,8 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                 model = coverModel,
                 contentDescription = archive.fileName,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .size(iconSize)
+                    .clip(shape),
                 contentScale = ContentScale.Crop,
             )
         }
@@ -232,8 +240,8 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                 model = archive.filePath,
                 contentDescription = archive.fileName,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .size(iconSize)
+                    .clip(shape),
                 contentScale = ContentScale.Crop,
             )
         }
@@ -241,8 +249,8 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
         archive.type == ArchiveType.FOLDER -> {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(iconSize)
+                    .clip(shape)
                     .background(MangaLensColors.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -250,7 +258,7 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                     painter = painterResource(Res.drawable.ic_file_folder),
                     contentDescription = null,
                     tint = MangaLensColors.primary,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(innerIconSize),
                 )
             }
         }
@@ -258,8 +266,8 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
         else -> {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(iconSize)
+                    .clip(shape)
                     .background(MangaLensColors.archiveIconBg),
                 contentAlignment = Alignment.Center,
             ) {
@@ -267,7 +275,7 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                     painter = painterResource(Res.drawable.ic_archive),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(archiveInnerIconSize),
                 )
             }
         }
@@ -420,7 +428,12 @@ fun FileGridItem(
                             alpha = checkboxScale
                         },
                 ) {
-                    GridSelectionCheckbox(isSelected = isSelected)
+                    SelectionCheckbox(
+                        isSelected = isSelected,
+                        size = 22.dp,
+                        uncheckedTint = MangaLensColors.checkboxUnchecked,
+                        useCrossfade = false,
+                    )
                 }
             }
         }
@@ -436,17 +449,6 @@ fun FileGridItem(
     }
 }
 
-@Composable
-private fun GridSelectionCheckbox(isSelected: Boolean) {
-    Icon(
-        painter = painterResource(
-            if (isSelected) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
-        ),
-        contentDescription = null,
-        tint = if (isSelected) Color.Unspecified else MangaLensColors.checkboxUnchecked,
-        modifier = Modifier.size(22.dp),
-    )
-}
 
 @Composable
 private fun ArchiveTypeBadge(type: ArchiveType, modifier: Modifier = Modifier) {

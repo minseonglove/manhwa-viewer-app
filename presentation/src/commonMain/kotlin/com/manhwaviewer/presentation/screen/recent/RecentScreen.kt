@@ -1,15 +1,9 @@
 package com.manhwaviewer.presentation.screen.recent
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -78,6 +72,8 @@ import com.manhwaviewer.presentation.screen.common.FileGridItem
 import com.manhwaviewer.presentation.screen.common.FileItem
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.BaseTopBar
+import com.manhwaviewer.presentation.screen.common.SelectionCheckbox
+import com.manhwaviewer.presentation.screen.common.SelectionLeadingContent
 import com.manhwaviewer.presentation.screen.common.displayName
 import com.manhwaviewer.presentation.screen.viewer.ViewerPageModel
 import com.manhwaviewer.presentation.theme.MangaLensColors
@@ -89,8 +85,6 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import manhwa_viewer.presentation.generated.resources.Res
-import manhwa_viewer.presentation.generated.resources.ic_check_off
-import manhwa_viewer.presentation.generated.resources.ic_check_on
 import manhwa_viewer.presentation.generated.resources.ic_delete
 import manhwa_viewer.presentation.generated.resources.recent_cancel
 import manhwa_viewer.presentation.generated.resources.recent_clear_all
@@ -374,28 +368,6 @@ fun RecentScreen(
     }
 }
 
-// ── 선택 모드 체크박스 ────────────────────────────────────────────
-
-@Composable
-private fun SelectionCheckbox(
-    isSelected: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Crossfade(
-        targetState = isSelected,
-        modifier = modifier.size(24.dp),
-    ) { checked ->
-        Icon(
-            painter = painterResource(
-                if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
-            ),
-            contentDescription = null,
-            tint = if (checked) Color.Unspecified else MangaLensColors.checkboxUncheckedLight,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
 // ── 최근 화면 전용 파일 아이템 (선택 모드 + 삭제 버튼) ─────────────
 
 @Composable
@@ -419,26 +391,11 @@ private fun RecentFileItem(
         showFolderCover = true,
         showDivider = showDivider,
         leadingContent = {
-            AnimatedVisibility(
-                visible = isSelectionMode,
-                enter = scaleIn(
-                    initialScale = 0f,
-                    animationSpec = tween(durationMillis = 200),
-                ) + expandHorizontally(
-                    animationSpec = tween(durationMillis = 200),
-                ),
-                exit = scaleOut(
-                    targetScale = 0f,
-                    animationSpec = tween(durationMillis = 0),
-                ) + shrinkHorizontally(
-                    animationSpec = tween(durationMillis = 200),
-                ),
-            ) {
-                Row {
-                    SelectionCheckbox(isSelected = isSelected)
-                    Spacer(modifier = Modifier.width(14.dp))
-                }
-            }
+            SelectionLeadingContent(
+                isSelectionMode = isSelectionMode,
+                isSelected = isSelected,
+                uncheckedTint = MangaLensColors.checkboxUncheckedLight,
+            )
         },
         trailingContent = if (isSelectionMode) {
             {}
