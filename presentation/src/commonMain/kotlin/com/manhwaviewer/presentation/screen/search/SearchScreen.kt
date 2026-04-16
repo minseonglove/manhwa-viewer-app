@@ -35,8 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -48,21 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.presentation.screen.common.FileIconArea
 import com.manhwaviewer.presentation.screen.common.displayName
+import com.manhwaviewer.presentation.screen.common.fileSubtitle
 import com.manhwaviewer.presentation.theme.MangaLensColors
 import manhwa_viewer.presentation.generated.resources.Res
-import manhwa_viewer.presentation.generated.resources.file_type_cbr
-import manhwa_viewer.presentation.generated.resources.file_type_cbz
-import manhwa_viewer.presentation.generated.resources.file_type_folder
-import manhwa_viewer.presentation.generated.resources.file_type_folder_with_images
-import manhwa_viewer.presentation.generated.resources.file_type_has_images
-import manhwa_viewer.presentation.generated.resources.file_type_image
-import manhwa_viewer.presentation.generated.resources.file_type_zip
-import manhwa_viewer.presentation.generated.resources.ic_archive
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_close_circle
-import manhwa_viewer.presentation.generated.resources.ic_file_folder
-import manhwa_viewer.presentation.generated.resources.ic_image_gallery
 import manhwa_viewer.presentation.generated.resources.ic_search
 import manhwa_viewer.presentation.generated.resources.search_cancel
 import manhwa_viewer.presentation.generated.resources.search_empty_subtitle
@@ -342,7 +332,11 @@ private fun SearchResultRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SearchIconArea(file)
+            FileIconArea(
+                archive = file,
+                iconSize = 44.dp,
+                cornerRadius = 10.dp,
+            )
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -359,7 +353,7 @@ private fun SearchResultRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = searchSubtitle(file),
+                    text = fileSubtitle(file),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 11.sp,
                         letterSpacing = (-0.2).sp,
@@ -386,55 +380,6 @@ private fun SearchResultRow(
     }
 }
 
-// ── 아이콘 영역 ──────────────────────────────────────────────────────
-
-@Composable
-private fun SearchIconArea(file: ArchiveFile) {
-    when (file.type) {
-        ArchiveType.FOLDER -> {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MangaLensColors.primary.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_file_folder),
-                    contentDescription = null,
-                    tint = MangaLensColors.primary,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-        }
-        ArchiveType.IMAGE -> {
-            AsyncImage(
-                model = file.filePath,
-                contentDescription = file.fileName,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        else -> {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MangaLensColors.archiveIconBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_archive),
-                    contentDescription = null,
-                    tint = MangaLensColors.textSecondary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-    }
-}
 
 // ── 하이라이트 ───────────────────────────────────────────────────────
 
@@ -459,31 +404,6 @@ private fun highlightQuery(text: String, query: String): AnnotatedString {
     }
 }
 
-// ── 서브타이틀 ───────────────────────────────────────────────────────
-
-@Composable
-private fun searchSubtitle(file: ArchiveFile): String {
-    return when (file.type) {
-        ArchiveType.FOLDER -> if (file.hasImages) {
-            stringResource(Res.string.file_type_folder_with_images)
-        } else {
-            stringResource(Res.string.file_type_folder)
-        }
-        ArchiveType.ZIP, ArchiveType.CBZ, ArchiveType.CBR -> {
-            val typeName = when (file.type) {
-                ArchiveType.CBZ -> stringResource(Res.string.file_type_cbz)
-                ArchiveType.CBR -> stringResource(Res.string.file_type_cbr)
-                else -> stringResource(Res.string.file_type_zip)
-            }
-            if (file.hasImages) {
-                "$typeName · ${stringResource(Res.string.file_type_has_images)}"
-            } else {
-                typeName
-            }
-        }
-        ArchiveType.IMAGE -> stringResource(Res.string.file_type_image)
-    }
-}
 
 // ── 빈 상태 ──────────────────────────────────────────────────────────
 
