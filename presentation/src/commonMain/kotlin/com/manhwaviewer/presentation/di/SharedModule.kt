@@ -29,6 +29,7 @@ import com.manhwaviewer.domain.usecase.SavePageOcrCacheUseCase
 import com.manhwaviewer.domain.usecase.SavePageTranslationCacheUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
+import com.manhwaviewer.domain.usecase.SearchFilesUseCase
 import com.manhwaviewer.domain.usecase.TranslateTextUseCase
 import com.manhwaviewer.domain.usecase.UpdateLastReadIndexUseCase
 import com.manhwaviewer.domain.usecase.UpdateViewerPreferenceUseCase
@@ -39,6 +40,7 @@ import com.manhwaviewer.presentation.screen.filemoveselect.MoveRequestHolder
 import com.manhwaviewer.presentation.screen.home.HomeViewModel
 import com.manhwaviewer.presentation.screen.imagegallery.ImageGalleryViewModel
 import com.manhwaviewer.presentation.screen.recent.RecentViewModel
+import com.manhwaviewer.presentation.screen.search.SearchViewModel
 import com.manhwaviewer.presentation.screen.settings.SettingsViewModel
 import com.manhwaviewer.presentation.screen.vault.VaultViewModel
 import com.manhwaviewer.presentation.screen.viewer.ViewerViewModel
@@ -81,6 +83,7 @@ val sharedModule = module {
     factory { RestoreFromVaultUseCase(get(), get()) }
     factory { DeleteVaultFilesUseCase(get(), get()) }
     factory { MoveFilesUseCase(get()) }
+    factory { SearchFilesUseCase(get()) }
     factory { AnalyzeFuriganaUseCase(get()) }
 
     // Holders
@@ -94,5 +97,6 @@ val sharedModule = module {
     viewModel { ImageGalleryViewModel(get(), get(), get()) }
     viewModel { VaultViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(named("vaultPath"))) }
     viewModelOf(::ViewerViewModel)
+    viewModel { SearchViewModel(get(), get(), get(), get(named("defaultScanPath"))) }
     viewModel { SettingsViewModel(get(), get()) }
 }

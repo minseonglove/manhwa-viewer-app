@@ -17,6 +17,7 @@ import com.manhwaviewer.presentation.screen.filebrowser.FileBrowserScreen
 import com.manhwaviewer.presentation.screen.filemoveselect.FileMoveSelectScreen
 import com.manhwaviewer.presentation.screen.recent.RecentScreen
 import com.manhwaviewer.presentation.screen.imagegallery.ImageGalleryScreen
+import com.manhwaviewer.presentation.screen.search.SearchScreen
 import com.manhwaviewer.presentation.screen.vault.VaultScreen
 
 @Composable
@@ -38,10 +39,10 @@ fun NavGraph(navController: NavHostController) {
                     navController.navigate(Route.SETTINGS)
                 },
                 onNavigateToSearch = {
-                    // TODO: 검색 화면 구현 후 네비게이션 연결
+                    navController.navigate(Route.SEARCH)
                 },
                 onNavigateToFiles = {
-                    navController.navigate(Route.FILE_BROWSER)
+                    navController.navigate(Route.fileBrowser())
                 },
                 onNavigateToRecent = {
                     navController.navigate(Route.RECENT)
@@ -90,9 +91,15 @@ fun NavGraph(navController: NavHostController) {
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Route.FILE_BROWSER) { backStackEntry ->
+        composable(
+            route = Route.FILE_BROWSER,
+            arguments = listOf(
+                navArgument("initialPath") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { backStackEntry ->
             val moveCompleted = backStackEntry.savedStateHandle
                 .get<Boolean>("moveCompleted") == true
+            val initialPath = backStackEntry.arguments?.getString("initialPath")
             FileBrowserScreen(
                 onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
                     navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
@@ -104,6 +111,7 @@ fun NavGraph(navController: NavHostController) {
                 onMoveCompletedConsumed = {
                     backStackEntry.savedStateHandle.remove<Boolean>("moveCompleted")
                 },
+                initialPath = initialPath,
             )
         }
         composable(Route.FILE_MOVE_SELECT) {
@@ -133,6 +141,17 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onBack = { navController.popBackStack() },
                 onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
+            )
+        }
+        composable(Route.SEARCH) {
+            SearchScreen(
+                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
+                },
+                onNavigateToFileBrowser = { path ->
+                    navController.navigate(Route.fileBrowser(path))
+                },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Route.VAULT) { backStackEntry ->

@@ -121,11 +121,19 @@ fun FileBrowserScreen(
     onNavigateToMoveSelect: () -> Unit = {},
     moveCompleted: Boolean = false,
     onMoveCompletedConsumed: () -> Unit = {},
+    initialPath: String? = null,
     viewModel: FileBrowserViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val coverModels by viewModel.coverModels.collectAsState()
     val hazeState = rememberHazeState()
+
+    // 초기 경로가 지정된 경우 해당 폴더로 이동
+    LaunchedEffect(initialPath) {
+        if (initialPath != null) {
+            viewModel.onIntent(FileBrowserIntent.NavigateToFolder(initialPath))
+        }
+    }
 
     // 이동 완료 후 복귀 시 새로고침
     LaunchedEffect(moveCompleted) {

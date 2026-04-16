@@ -224,4 +224,16 @@
     <string name="image_gallery_empty">이미지가 없습니다</string>
     <string name="image_gallery_total_prefix">총 </string>
     <string name="image_gallery_total_suffix">개</string>
+
+    <!-- 검색 화면 -->
+    <string name="search_placeholder">검색어 입력</string>
+    <string name="search_cancel">취소</string>
+    <string name="search_empty_title">검색어를 입력하세요</string>
+    <string name="search_empty_subtitle">파일명, 폴더명으로 검색할 수 있어요</string>
+    <string name="search_section_folders">폴더</string>
+    <string name="search_section_archives">압축 파일</string>
+    <string name="search_section_images">이미지</string>
+    <string name="search_result_count">%1$d개</string>
+    <string name="search_no_results_title">검색 결과가 없습니다</string>
+    <string name="search_no_results_subtitle">다른 검색어를 입력해 보세요</string>
 </resources>
