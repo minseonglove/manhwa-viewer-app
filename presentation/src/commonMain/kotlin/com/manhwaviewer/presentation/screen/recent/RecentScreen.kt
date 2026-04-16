@@ -360,7 +360,7 @@ fun RecentScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.48f))
+                        .background(MangaLensColors.scrim)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },
@@ -390,7 +390,7 @@ private fun SelectionCheckbox(
                 if (checked) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
             ),
             contentDescription = null,
-            tint = if (checked) Color.Unspecified else Color.White.copy(alpha = 0.3f),
+            tint = if (checked) Color.Unspecified else MangaLensColors.checkboxUncheckedLight,
             modifier = Modifier.size(24.dp),
         )
     }
@@ -490,7 +490,7 @@ private fun SelectionActionBar(
                     .clip(RoundedCornerShape(14.dp))
                     .background(
                         if (hasSelection) MangaLensColors.red.copy(alpha = 0.14f)
-                        else Color.White.copy(alpha = 0.05f),
+                        else MangaLensColors.cancelButtonBg,
                     )
                     .border(
                         0.5.dp,
@@ -581,7 +581,7 @@ private fun RecentDeleteSheet(
                     append(clearAllDescription)
                 }
                 is RecentBottomSheetType.DeleteSingle -> stringResource(Res.string.recent_delete_single_title) to buildAnnotatedString {
-                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.SemiBold)) {
+                    withStyle(SpanStyle(color = MangaLensColors.textPrimary, fontWeight = FontWeight.SemiBold)) {
                         append(deleteSingleName)
                     }
                     append(deleteSingleSuffix)
@@ -598,7 +598,7 @@ private fun RecentDeleteSheet(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = Color.White,
+                color = MangaLensColors.textPrimary,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -647,7 +647,7 @@ private fun RecentDeleteSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.07f))
+                    .background(MangaLensColors.cancelButtonBg)
                     .border(0.5.dp, MangaLensColors.separator, RoundedCornerShape(14.dp))
                     .clickable(onClick = onDismiss)
                     .padding(vertical = 14.dp),
@@ -656,7 +656,7 @@ private fun RecentDeleteSheet(
                 Text(
                     text = stringResource(Res.string.recent_cancel),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = MangaLensColors.cancelButtonText,
                 )
             }
         }

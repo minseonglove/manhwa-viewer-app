@@ -109,6 +109,42 @@ object MangaLensColors {
     /** rgba(255,255,255,0.20) — Pending/waiting pipeline connector. */
     val fillPending = Color(0x33FFFFFF)
 
+    // ── Viewer toolbar (on dark gradient overlay) ──
+    /** White text/icons on dark toolbar gradient. */
+    val onToolbar = Color(0xFFFFFFFF)
+
+    /** Viewer toolbar icon — enabled state. */
+    val onToolbarEnabled = Color(0xBFFFFFFF) // White 75%
+
+    /** Viewer toolbar icon — disabled state. */
+    val onToolbarDisabled = Color(0x40FFFFFF) // White 25%
+
+    // ── Overlay / Scrim ──
+    /** Black scrim overlay for modal backdrops. */
+    val scrim = Color(0x7A000000) // Black 48%
+
+    /** Handle/grip bar on bottom sheets. */
+    val handleBar = Color(0x38FFFFFF) // White 22%
+
+    /** Subtle cancel button background. */
+    val cancelButtonBg = Color(0x12FFFFFF) // White 7%
+
+    /** Cancel button text on dark surface. */
+    val cancelButtonText = Color(0xD9FFFFFF) // White 85%
+
+    // ── Badge / Chip overlays ──
+    /** Archive type badge overlay background. */
+    val badgeOverlay = Color(0x8C000000) // Black 55%
+
+    /** Archive icon background (iOS systemGray4 · 14%). */
+    val archiveIconBg = Color(0x24787880)
+
+    /** Checkbox tint in unselected state. */
+    val checkboxUnchecked = Color(0x80FFFFFF) // White 50%
+
+    /** Checkbox tint in selection list (lighter). */
+    val checkboxUncheckedLight = Color(0x4DFFFFFF) // White 30%
+
     // ── Tile icon colors (Home screen) ──
     val tileBlue = Color(0xFF3B82F6)
     val tileAmber = Color(0xFFF59E0B)

@@ -215,7 +215,7 @@ fun ViewerBottomPanel(
                     .width(36.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.22f)),
+                    .background(MangaLensColors.handleBar),
             )
         }
 
@@ -358,7 +358,7 @@ private fun ProgressSlider(
                     modifier = Modifier
                         .size(14.dp)
                         .shadow(3.dp, CircleShape)
-                        .background(Color.White, CircleShape),
+                        .background(MangaLensColors.onToolbar, CircleShape),
                 )
             },
             track = { sliderState ->
@@ -372,7 +372,7 @@ private fun ProgressSlider(
                         .clip(RoundedCornerShape(2.dp)),
                 ) {
                     Box(Modifier.fillMaxSize().background(MangaLensColors.fillTrack))
-                    Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(Color.White, RoundedCornerShape(2.dp)))
+                    Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(MangaLensColors.onToolbar, RoundedCornerShape(2.dp)))
                 }
             },
             modifier = Modifier.weight(1f).height(32.dp),
@@ -467,7 +467,7 @@ private fun PreviousVolumeHint(
             )
             Text(
                 text = name,
-                color = Color.White,
+                color = MangaLensColors.onToolbar,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -503,7 +503,7 @@ private fun NextVolumeHint(
             )
             Text(
                 text = name,
-                color = Color.White,
+                color = MangaLensColors.onToolbar,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -923,7 +923,7 @@ private fun TabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val color = if (isActive) BlueHi else Color.White
+    val color = if (isActive) BlueHi else MangaLensColors.onToolbar
     val alpha = if (isActive) 1f else 0.45f
 
     Column(
@@ -983,7 +983,7 @@ private fun SegmentedControl(
             ) {
                 Text(
                     text = label,
-                    color = if (isSelected) Color.White else T2,
+                    color = if (isSelected) MangaLensColors.onToolbar else T2,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )

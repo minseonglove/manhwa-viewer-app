@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +66,7 @@ fun ViewerTopToolbar(
             Icon(
                 painter = painterResource(Res.drawable.ic_arrow_back),
                 contentDescription = stringResource(Res.string.viewer_back),
-                tint = Color.White,
+                tint = MangaLensColors.onToolbar,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -75,7 +74,7 @@ fun ViewerTopToolbar(
         // Title
         Text(
             text = title,
-            color = Color.White,
+            color = MangaLensColors.onToolbar,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -96,7 +95,7 @@ fun ViewerTopToolbar(
             ) {
                 Text(
                     text = stringResource(Res.string.viewer_translate_selected),
-                    color = Color.White,
+                    color = MangaLensColors.onToolbar,
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
@@ -113,7 +112,7 @@ fun ViewerTopToolbar(
             Icon(
                 painter = painterResource(if (isOverlayEnabled) Res.drawable.ic_translate_on else Res.drawable.ic_translate_off),
                 contentDescription = stringResource(Res.string.viewer_toggle_overlay),
-                tint = if (isOverlayButtonEnabled) Color.White.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.25f),
+                tint = if (isOverlayButtonEnabled) MangaLensColors.onToolbarEnabled else MangaLensColors.onToolbarDisabled,
                 modifier = Modifier.size(32.dp),
             )
         }

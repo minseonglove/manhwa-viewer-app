@@ -260,7 +260,7 @@ private fun FileIconArea(archive: ArchiveFile, coverModel: ViewerPageModel?, sho
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0x24787880)),
+                    .background(MangaLensColors.archiveIconBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -286,7 +286,7 @@ private fun LockBadge(modifier: Modifier = Modifier) {
         Icon(
             painter = painterResource(Res.drawable.ic_lock),
             contentDescription = null,
-            tint = Color.White,
+            tint = MangaLensColors.onToolbar,
             modifier = Modifier.size(12.dp),
         )
     }
@@ -383,7 +383,7 @@ fun FileGridItem(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(Color(0x24787880)),
+                            .background(MangaLensColors.archiveIconBg),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -443,7 +443,7 @@ private fun GridSelectionCheckbox(isSelected: Boolean) {
             if (isSelected) Res.drawable.ic_check_on else Res.drawable.ic_check_off,
         ),
         contentDescription = null,
-        tint = if (isSelected) Color.Unspecified else Color.White.copy(alpha = 0.5f),
+        tint = if (isSelected) Color.Unspecified else MangaLensColors.checkboxUnchecked,
         modifier = Modifier.size(22.dp),
     )
 }
@@ -459,14 +459,14 @@ private fun ArchiveTypeBadge(type: ArchiveType, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .padding(4.dp)
-            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+            .background(MangaLensColors.badgeOverlay, RoundedCornerShape(4.dp))
             .padding(horizontal = 5.dp, vertical = 1.dp),
     ) {
         Text(
             text = label,
             fontSize = 8.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = MangaLensColors.onToolbar,
         )
     }
 }
