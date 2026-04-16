@@ -35,9 +35,9 @@ fun SelectAllCheckbox(
     Row(
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         SelectionCheckbox(isSelected = isAllSelected)
         Text(

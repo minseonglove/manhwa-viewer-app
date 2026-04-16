@@ -92,7 +92,7 @@ fun BaseTopBar(
                             painter = painterResource(Res.drawable.ic_search),
                             contentDescription = stringResource(Res.string.home_search),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }

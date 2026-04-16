@@ -73,7 +73,6 @@ import manhwa_viewer.presentation.generated.resources.home_shortcut_images
 import manhwa_viewer.presentation.generated.resources.home_shortcut_images_count
 import manhwa_viewer.presentation.generated.resources.home_shortcut_vault
 import manhwa_viewer.presentation.generated.resources.home_shortcut_vault_sub
-import manhwa_viewer.presentation.generated.resources.ic_app_logo
 import manhwa_viewer.presentation.generated.resources.ic_chevron_right
 import manhwa_viewer.presentation.generated.resources.ic_search
 import manhwa_viewer.presentation.generated.resources.ic_folder_home
@@ -118,21 +117,14 @@ fun HomeScreen(
         topBar = {
             Column {
                 TopAppBar(
+                    modifier = Modifier.padding(
+                        end = 16.dp,
+                    ),
                     title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_app_logo),
-                                contentDescription = null,
-                                tint = MangaLensColors.primary,
-                            )
-                            Text(
-                                text = stringResource(Res.string.app_name),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        }
+                        Text(
+                            text = stringResource(Res.string.app_name),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
                     },
                     actions = {
                         IconButton(
@@ -142,7 +134,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(Res.drawable.ic_search),
                                 contentDescription = stringResource(Res.string.home_search),
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                         Spacer(Modifier.width(8.dp))
@@ -153,7 +145,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(Res.drawable.ic_settings),
                                 contentDescription = stringResource(Res.string.home_settings),
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     },
