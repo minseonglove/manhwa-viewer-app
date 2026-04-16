@@ -33,7 +33,7 @@ class ViewerPreferenceDataStore(
             ViewerPreference(
                 readingDirection = prefs[Keys.READING_DIRECTION]
                     ?.let { runCatching { ReadingDirection.valueOf(it) }.getOrNull() }
-                    ?: ReadingDirection.LTR,
+                    ?: ReadingDirection.RTL,
                 viewMode = prefs[Keys.VIEW_MODE]
                     ?.let { runCatching { ViewMode.valueOf(it) }.getOrNull() }
                     ?: ViewMode.SINGLE_PAGE,
