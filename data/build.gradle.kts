@@ -17,7 +17,7 @@ kotlin {
     }
 
     val xcfBase = "${project.rootDir}/libs/lindera/LinderaFFI.xcframework"
-    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         val linderaLibPath = when (target.name) {
             "iosArm64" -> "$xcfBase/ios-arm64"
             else -> "$xcfBase/ios-arm64_x86_64-simulator"
@@ -120,7 +120,6 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("junit:junit:4.13.2")
     add("kspAndroid", libs.room.compiler)
-    add("kspIosX64", libs.room.compiler)
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
 }
