@@ -39,4 +39,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object Vault : Route
+
+    @Serializable
+    data object OpenSourceLicense : Route
 }

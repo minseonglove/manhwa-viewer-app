@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.aboutlibraries)
 }
 
 kotlin {
@@ -39,6 +40,8 @@ kotlin {
             implementation(libs.telephoto.zoomable)
             implementation(libs.telephoto.sub.sampling.image)
             implementation(libs.haze)
+            implementation(libs.aboutlibraries.core)
+            implementation(libs.aboutlibraries.compose.m3)
         }
         androidMain.dependencies {
         }
@@ -56,6 +59,13 @@ kotlin {
 
 compose.resources {
     publicResClass = true
+}
+
+aboutLibraries {
+    export {
+        outputFile = file("src/commonMain/composeResources/files/aboutlibraries.json")
+        prettyPrint = true
+    }
 }
 
 android {

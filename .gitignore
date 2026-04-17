@@ -52,6 +52,9 @@ DerivedData/
 iosApp/Configuration/Secrets.xcconfig
 iosApp/iosApp.xcodeproj/
 
+# AboutLibraries generated metadata
+presentation/src/commonMain/composeResources/files/aboutlibraries.json
+
 # NDK / CMake build cache
 .cxx/
 *.o

@@ -216,6 +216,9 @@
     <string name="settings_translation_cache_cleared">번역 캐시가 삭제되었습니다</string>
     <string name="settings_image_cache_cleared">이미지 캐시가 삭제되었습니다</string>
 
+    <!-- 오픈소스 라이선스 화면 -->
+    <string name="licenses_title">오픈소스 라이선스</string>
+
     <!-- 보관함 화면 -->
     <string name="vault_empty">보관함이 비어있습니다</string>
     <string name="vault_info_description">보관함에 저장된 콘텐츠는\n기기 갤러리에 노출되지 않습니다.</string>

@@ -16,6 +16,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 
 import com.manhwaviewer.presentation.screen.home.HomeScreen
+import com.manhwaviewer.presentation.screen.license.OpenSourceLicenseScreen
 import com.manhwaviewer.presentation.screen.settings.SettingsScreen
 import com.manhwaviewer.presentation.screen.viewer.ViewerScreen
 import com.manhwaviewer.presentation.screen.filebrowser.FileBrowserScreen
@@ -99,6 +100,13 @@ fun NavGraph(backStack: NavBackStack<NavKey>) {
 
             entry<Route.Settings> {
                 SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToLicense = { backStack.add(Route.OpenSourceLicense) },
+                )
+            }
+
+            entry<Route.OpenSourceLicense> {
+                OpenSourceLicenseScreen(
                     onBack = { backStack.removeLastOrNull() },
                 )
             }

@@ -59,6 +59,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigateToLicense: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -171,7 +172,7 @@ fun SettingsScreen(
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        AppInfoSection()
+                        AppInfoSection(onNavigateToLicense = onNavigateToLicense)
                     }
                 }
             } else {
@@ -186,7 +187,7 @@ fun SettingsScreen(
                         onDeleteImageCache = { showDeleteImageCacheDialog = true },
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    AppInfoSection()
+                    AppInfoSection(onNavigateToLicense = onNavigateToLicense)
                 }
             }
         }
@@ -223,7 +224,9 @@ private fun StorageSection(
 }
 
 @Composable
-private fun AppInfoSection() {
+private fun AppInfoSection(
+    onNavigateToLicense: () -> Unit,
+) {
     SectionHeader(stringResource(Res.string.settings_section_app_info))
 
     ListItem(
@@ -234,7 +237,7 @@ private fun AppInfoSection() {
     SettingsClickable(
         title = stringResource(Res.string.settings_open_source_license),
         value = stringResource(Res.string.settings_view),
-        onClick = { /* 추후 구현 */ },
+        onClick = onNavigateToLicense,
     )
 }
 
