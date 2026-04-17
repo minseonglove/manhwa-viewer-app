@@ -1,29 +1,42 @@
 package com.manhwaviewer.presentation.navigation
 
-object Route {
-    const val HOME = "home"
-    const val VIEWER = "viewer/{archiveId}?startPage={startPage}&sortByDate={sortByDate}&sortAscending={sortAscending}"
-    const val SETTINGS = "settings"
-    const val FILE_BROWSER = "file_browser?initialPath={initialPath}"
-    const val RECENT = "recent"
-    const val IMAGE_GALLERY = "image_gallery"
-    const val VAULT = "vault"
-    const val FILE_MOVE_SELECT = "file_move_select"
-    const val SEARCH = "search"
+import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
 
-    fun fileBrowser(initialPath: String? = null): String =
-        if (initialPath != null) "file_browser?initialPath=${encodePathComponent(initialPath)}"
-        else "file_browser"
+@Serializable
+sealed interface Route : NavKey {
 
-    fun viewer(archiveId: Long, startPage: Int = -1, sortByDate: Boolean = false, sortAscending: Boolean = true): String =
-        "viewer/$archiveId?startPage=$startPage&sortByDate=$sortByDate&sortAscending=$sortAscending"
+    @Serializable
+    data object Home : Route
 
-    private fun encodePathComponent(value: String): String =
-        value.replace("%", "%25")
-            .replace("/", "%2F")
-            .replace("?", "%3F")
-            .replace("#", "%23")
-            .replace("&", "%26")
-            .replace("=", "%3D")
-            .replace(" ", "%20")
+    @Serializable
+    data class Viewer(
+        val archiveId: Long,
+        val startPage: Int = -1,
+        val sortByDate: Boolean = false,
+        val sortAscending: Boolean = true,
+    ) : Route
+
+    @Serializable
+    data object Settings : Route
+
+    @Serializable
+    data class FileBrowser(
+        val initialPath: String? = null,
+    ) : Route
+
+    @Serializable
+    data object FileMoveSelect : Route
+
+    @Serializable
+    data object Recent : Route
+
+    @Serializable
+    data object ImageGallery : Route
+
+    @Serializable
+    data object Search : Route
+
+    @Serializable
+    data object Vault : Route
 }

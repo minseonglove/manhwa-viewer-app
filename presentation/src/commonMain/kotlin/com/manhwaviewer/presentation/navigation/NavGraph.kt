@@ -2,14 +2,19 @@ package com.manhwaviewer.presentation.navigation
 
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 
-import androidx.savedstate.read
 import com.manhwaviewer.presentation.screen.home.HomeScreen
 import com.manhwaviewer.presentation.screen.settings.SettingsScreen
 import com.manhwaviewer.presentation.screen.viewer.ViewerScreen
@@ -20,155 +25,173 @@ import com.manhwaviewer.presentation.screen.imagegallery.ImageGalleryScreen
 import com.manhwaviewer.presentation.screen.search.SearchScreen
 import com.manhwaviewer.presentation.screen.vault.VaultScreen
 
-@Composable
-fun NavGraph(navController: NavHostController) {
-    NavHost(
-        navController = navController,
-        startDestination = Route.HOME,
-        enterTransition = { slideInHorizontally { it } },
-        exitTransition = { slideOutHorizontally { -it } },
-        popEnterTransition = { slideInHorizontally { -it } },
-        popExitTransition = { slideOutHorizontally { it } },
-    ) {
-        composable(Route.HOME) {
-            HomeScreen(
-                onNavigateToViewer = { archiveId ->
-                    navController.navigate(Route.viewer(archiveId))
-                },
-                onNavigateToSettings = {
-                    navController.navigate(Route.SETTINGS)
-                },
-                onNavigateToSearch = {
-                    navController.navigate(Route.SEARCH)
-                },
-                onNavigateToFiles = {
-                    navController.navigate(Route.fileBrowser())
-                },
-                onNavigateToRecent = {
-                    navController.navigate(Route.RECENT)
-                },
-                onNavigateToImages = {
-                    navController.navigate(Route.IMAGE_GALLERY)
-                },
-                onNavigateToVault = {
-                    navController.navigate(Route.VAULT)
-                },
-            )
-        }
-        composable(
-            route = Route.VIEWER,
-            arguments = listOf(
-                navArgument("archiveId") { type = NavType.LongType },
-                navArgument("startPage") { type = NavType.IntType; defaultValue = -1 },
-                navArgument("sortByDate") { type = NavType.BoolType; defaultValue = false },
-                navArgument("sortAscending") { type = NavType.BoolType; defaultValue = true },
-            ),
-            popEnterTransition = {
-                slideInHorizontally { -it }
-            },
-            popExitTransition = {
-                slideOutHorizontally { it }
-            },
-        ) { backStackEntry ->
-            val args = backStackEntry.arguments
-            val archiveId = args?.read { getLong("archiveId") }
-                ?.takeIf { it > 0L }
-                ?: run { navController.popBackStack(); return@composable }
-            val startPage = args?.read { getIntOrNull("startPage") } ?: 0
-            val sortByDate = args?.read { getBooleanOrNull("sortByDate") } ?: false
-            val sortAscending = args?.read { getBooleanOrNull("sortAscending") } ?: true
-            ViewerScreen(
-                archiveId = archiveId,
-                startPage = startPage,
-                sortByDate = sortByDate,
-                sortAscending = sortAscending,
-                onBack = { navController.popBackStack() },
-                onSettings = { navController.navigate(Route.SETTINGS) },
-            )
-        }
-        composable(Route.SETTINGS) {
-            SettingsScreen(
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = Route.FILE_BROWSER,
-            arguments = listOf(
-                navArgument("initialPath") { type = NavType.StringType; nullable = true; defaultValue = null },
-            ),
-        ) { backStackEntry ->
-            val moveCompleted = backStackEntry.savedStateHandle
-                .get<Boolean>("moveCompleted") == true
-            val initialPath = backStackEntry.arguments?.getString("initialPath")
-            FileBrowserScreen(
-                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
-                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
-                },
-                onBack = { navController.popBackStack() },
-                onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
-                onNavigateToMoveSelect = { navController.navigate(Route.FILE_MOVE_SELECT) },
-                moveCompleted = moveCompleted,
-                onMoveCompletedConsumed = {
-                    backStackEntry.savedStateHandle.remove<Boolean>("moveCompleted")
-                },
-                initialPath = initialPath,
-            )
-        }
-        composable(Route.FILE_MOVE_SELECT) {
-            FileMoveSelectScreen(
-                onMoveCompleted = {
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("moveCompleted", true)
-                    navController.popBackStack()
-                },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Route.RECENT) {
-            RecentScreen(
-                onNavigateToViewer = { archiveId ->
-                    navController.navigate(Route.viewer(archiveId))
-                },
-                onBack = { navController.popBackStack() },
-                onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
-            )
-        }
-        composable(Route.IMAGE_GALLERY) {
-            ImageGalleryScreen(
-                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
-                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
-                },
-                onBack = { navController.popBackStack() },
-                onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
-            )
-        }
-        composable(Route.SEARCH) {
-            SearchScreen(
-                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
-                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
-                },
-                onNavigateToFileBrowser = { path ->
-                    navController.navigate(Route.fileBrowser(path))
-                },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Route.VAULT) { backStackEntry ->
-            val moveCompleted = backStackEntry.savedStateHandle
-                .get<Boolean>("moveCompleted") == true
-            VaultScreen(
-                onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
-                    navController.navigate(Route.viewer(archiveId, startPage, sortByDate, sortAscending))
-                },
-                onBack = { navController.popBackStack() },
-                onNavigateToHome = { navController.popBackStack(Route.HOME, inclusive = false) },
-                onNavigateToMoveSelect = { navController.navigate(Route.FILE_MOVE_SELECT) },
-                moveCompleted = moveCompleted,
-                onMoveCompletedConsumed = {
-                    backStackEntry.savedStateHandle.remove<Boolean>("moveCompleted")
-                },
-            )
-        }
+private fun NavBackStack<NavKey>.popToRoot() {
+    if (size > 1) {
+        subList(1, size).clear()
     }
+}
+
+@Composable
+fun NavGraph(backStack: NavBackStack<NavKey>) {
+    var fileBrowserMoveCompleted by remember { mutableStateOf(false) }
+    var vaultMoveCompleted by remember { mutableStateOf(false) }
+
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        transitionSpec = {
+            slideInHorizontally(initialOffsetX = { it }) togetherWith
+                slideOutHorizontally(targetOffsetX = { -it })
+        },
+        popTransitionSpec = {
+            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                slideOutHorizontally(targetOffsetX = { it })
+        },
+        predictivePopTransitionSpec = {
+            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                slideOutHorizontally(targetOffsetX = { it })
+        },
+        entryProvider = entryProvider {
+            entry<Route.Home> {
+                HomeScreen(
+                    onNavigateToViewer = { archiveId ->
+                        backStack.add(Route.Viewer(archiveId = archiveId))
+                    },
+                    onNavigateToSettings = {
+                        backStack.add(Route.Settings)
+                    },
+                    onNavigateToSearch = {
+                        backStack.add(Route.Search)
+                    },
+                    onNavigateToFiles = {
+                        backStack.add(Route.FileBrowser())
+                    },
+                    onNavigateToRecent = {
+                        backStack.add(Route.Recent)
+                    },
+                    onNavigateToImages = {
+                        backStack.add(Route.ImageGallery)
+                    },
+                    onNavigateToVault = {
+                        backStack.add(Route.Vault)
+                    },
+                )
+            }
+
+            entry<Route.Viewer> { key ->
+                if (key.archiveId <= 0L) {
+                    backStack.removeLastOrNull()
+                    return@entry
+                }
+                ViewerScreen(
+                    archiveId = key.archiveId,
+                    startPage = key.startPage,
+                    sortByDate = key.sortByDate,
+                    sortAscending = key.sortAscending,
+                    onBack = { backStack.removeLastOrNull() },
+                    onSettings = { backStack.add(Route.Settings) },
+                )
+            }
+
+            entry<Route.Settings> {
+                SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Route.FileBrowser> { key ->
+                FileBrowserScreen(
+                    onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                        backStack.add(Route.Viewer(archiveId, startPage, sortByDate, sortAscending))
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToHome = {
+                        backStack.popToRoot()
+                    },
+                    onNavigateToMoveSelect = {
+                        backStack.add(Route.FileMoveSelect)
+                    },
+                    moveCompleted = fileBrowserMoveCompleted,
+                    onMoveCompletedConsumed = {
+                        fileBrowserMoveCompleted = false
+                    },
+                    initialPath = key.initialPath,
+                )
+            }
+
+            entry<Route.FileMoveSelect> {
+                FileMoveSelectScreen(
+                    onMoveCompleted = {
+                        val hasVault = backStack.any { it is Route.Vault }
+                        if (hasVault) {
+                            vaultMoveCompleted = true
+                        } else {
+                            fileBrowserMoveCompleted = true
+                        }
+                        backStack.removeLastOrNull()
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Route.Recent> {
+                RecentScreen(
+                    onNavigateToViewer = { archiveId ->
+                        backStack.add(Route.Viewer(archiveId = archiveId))
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToHome = {
+                        backStack.popToRoot()
+                    },
+                )
+            }
+
+            entry<Route.ImageGallery> {
+                ImageGalleryScreen(
+                    onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                        backStack.add(Route.Viewer(archiveId, startPage, sortByDate, sortAscending))
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToHome = {
+                        backStack.popToRoot()
+                    },
+                )
+            }
+
+            entry<Route.Search> {
+                SearchScreen(
+                    onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                        backStack.add(Route.Viewer(archiveId, startPage, sortByDate, sortAscending))
+                    },
+                    onNavigateToFileBrowser = { path ->
+                        backStack.add(Route.FileBrowser(initialPath = path))
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Route.Vault> {
+                VaultScreen(
+                    onNavigateToViewer = { archiveId, startPage, sortByDate, sortAscending ->
+                        backStack.add(Route.Viewer(archiveId, startPage, sortByDate, sortAscending))
+                    },
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToHome = {
+                        backStack.popToRoot()
+                    },
+                    onNavigateToMoveSelect = {
+                        backStack.add(Route.FileMoveSelect)
+                    },
+                    moveCompleted = vaultMoveCompleted,
+                    onMoveCompletedConsumed = {
+                        vaultMoveCompleted = false
+                    },
+                )
+            }
+        },
+    )
 }
