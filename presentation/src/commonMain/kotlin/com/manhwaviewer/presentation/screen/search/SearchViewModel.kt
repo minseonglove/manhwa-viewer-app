@@ -24,7 +24,7 @@ class SearchViewModel(
     private val upsertArchiveUseCase: UpsertArchiveUseCase,
     private val getImageEntriesUseCase: GetImageEntriesUseCase,
     private val defaultScanPath: String,
-    private val ioDispatcher: CoroutineContext = Dispatchers.IO,
+    private val ioDispatcher: CoroutineContext = com.manhwaviewer.presentation.util.ioDispatcher,
 ) : MviViewModel<SearchState, SearchIntent, SearchSideEffect>(SearchState()) {
 
     private val queryFlow = MutableStateFlow("")

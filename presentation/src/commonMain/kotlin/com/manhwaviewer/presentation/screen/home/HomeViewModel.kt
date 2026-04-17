@@ -39,7 +39,7 @@ class HomeViewModel(
                 }
 
                 coverLoadJob?.cancel()
-                coverLoadJob = launch(Dispatchers.IO) {
+                coverLoadJob = launch(com.manhwaviewer.presentation.util.ioDispatcher) {
                     loadCoverModels(limited, continueTarget)
                 }
             }

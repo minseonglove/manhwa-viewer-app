@@ -38,7 +38,7 @@ class VaultViewModel(
     private val restoreFromVaultUseCase: RestoreFromVaultUseCase,
     private val moveRequestHolder: MoveRequestHolder,
     private val vaultPath: String,
-    private val ioDispatcher: CoroutineContext = Dispatchers.IO,
+    private val ioDispatcher: CoroutineContext = com.manhwaviewer.presentation.util.ioDispatcher,
 ) : MviViewModel<VaultState, VaultIntent, VaultSideEffect>(VaultState()) {
 
     private val archiveExtensions = setOf("zip", "cbz", "cbr")

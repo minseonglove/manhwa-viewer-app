@@ -41,7 +41,7 @@ class FileBrowserViewModel(
     private val moveToVaultUseCase: MoveToVaultUseCase,
     private val moveRequestHolder: MoveRequestHolder,
     private val defaultScanPath: String,
-    private val ioDispatcher: CoroutineContext = Dispatchers.IO,
+    private val ioDispatcher: CoroutineContext = com.manhwaviewer.presentation.util.ioDispatcher,
 ) : MviViewModel<FileBrowserState, FileBrowserIntent, FileBrowserSideEffect>(FileBrowserState()) {
 
     private val archiveExtensions = setOf("zip", "cbz", "cbr")

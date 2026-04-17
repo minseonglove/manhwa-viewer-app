@@ -60,7 +60,7 @@ class FileMoveSelectViewModel(
             updateState { copy(isLoading = true, currentPath = path, navigationDirection = direction) }
             try {
                 val sourcePaths = currentState.sourcePaths.toSet()
-                val folders = withContext(Dispatchers.IO) {
+                val folders = withContext(com.manhwaviewer.presentation.util.ioDispatcher) {
                     scanLocalFilesUseCase(path)
                         .filter { it.type == ArchiveType.FOLDER }
                         .filter { it.filePath !in sourcePaths }
@@ -108,7 +108,7 @@ class FileMoveSelectViewModel(
         if (!currentState.isMoveEnabled) return
         updateState { copy(isMoving = true) }
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
+            val result = withContext(com.manhwaviewer.presentation.util.ioDispatcher) {
                 moveFilesUseCase(currentState.sourcePaths, currentState.currentPath)
             }
             result.onSuccess {
