@@ -72,3 +72,10 @@ libs/lindera/LinderaFFI.xcframework/
 libs/lindera/liblindera_ffi_sim.a
 libs/lindera/lindera_ffi.h
 libs/onnxruntime/
+
+# OCR evaluation (copyrighted pages, ground truth, run outputs)
+eval/ocr/data/
+eval/ocr/runs/
+eval/ocr/.venv/
+__pycache__/
+.pytest_cache/
