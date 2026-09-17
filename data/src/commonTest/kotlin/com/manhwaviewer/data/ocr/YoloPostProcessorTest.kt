@@ -46,6 +46,38 @@ class YoloPostProcessorTest {
     }
 
     @Test
+    fun addPadding_smallBoxUsesMinPadding() {
+        // max(20, 30) * 0.08 = 2.4 -> 2 -> clamp 4
+        val box = DetectedBox(x = 100, y = 100, width = 20, height = 30, confidence = 0.9f, isJapanese = true)
+        val padded = YoloPostProcessor.addPadding(box, imageWidth = 1125, imageHeight = 1600)
+        assertEquals(DetectedBox(x = 96, y = 96, width = 28, height = 38, confidence = 0.9f, isJapanese = true), padded)
+    }
+
+    @Test
+    fun addPadding_mediumBoxUsesRatioPadding() {
+        // max(100, 150) * 0.08 = 12
+        val box = DetectedBox(x = 200, y = 300, width = 100, height = 150, confidence = 0.9f, isJapanese = true)
+        val padded = YoloPostProcessor.addPadding(box, imageWidth = 1125, imageHeight = 1600)
+        assertEquals(DetectedBox(x = 188, y = 288, width = 124, height = 174, confidence = 0.9f, isJapanese = true), padded)
+    }
+
+    @Test
+    fun addPadding_largeBoxUsesMaxPadding() {
+        // max(300, 500) * 0.08 = 40 -> clamp 20
+        val box = DetectedBox(x = 200, y = 300, width = 300, height = 500, confidence = 0.9f, isJapanese = true)
+        val padded = YoloPostProcessor.addPadding(box, imageWidth = 1125, imageHeight = 1600)
+        assertEquals(DetectedBox(x = 180, y = 280, width = 340, height = 540, confidence = 0.9f, isJapanese = true), padded)
+    }
+
+    @Test
+    fun addPadding_isClampedToImageEdges() {
+        // pad 12: x=5-12 -> 0, w=100+24=124 but limited to 1125-0
+        val box = DetectedBox(x = 5, y = 1500, width = 100, height = 150, confidence = 0.9f, isJapanese = true)
+        val padded = YoloPostProcessor.addPadding(box, imageWidth = 1125, imageHeight = 1600)
+        assertEquals(DetectedBox(x = 0, y = 1488, width = 124, height = 112, confidence = 0.9f, isJapanese = true), padded)
+    }
+
+    @Test
     fun computeTransform_landscape() {
         val t = YoloPostProcessor.computeTransform(1280, 720, 640)
         assertEquals(0.5f, t.scale)
