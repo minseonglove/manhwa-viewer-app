@@ -1,0 +1,10 @@
+torch>=2.6
+torchvision
+transformers>=5.13,<6
+rfdetr==1.7.0
+safetensors>=0.5
+huggingface_hub>=1.0
+manga-ocr==0.1.16
+pillow>=10
+numpy
+pytest
