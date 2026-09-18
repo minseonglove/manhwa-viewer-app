@@ -7,4 +7,7 @@ huggingface_hub>=1.0
 manga-ocr==0.1.16
 pillow>=10
 numpy
+onnxruntime==1.30.0
+hayai-ocr==2.1.0
+torchao==0.18.0
 pytest

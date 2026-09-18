@@ -1,0 +1,12 @@
+# Separate venv (.venv-paddleocr_vl_manga): the model's remote code targets transformers 4.57.1
+# (pinned in the author's demo Space requirements), which would downgrade the main .venv.
+torch==2.14.0
+torchvision==0.29.0
+transformers==4.57.1
+accelerate==1.15.0
+einops==0.8.2
+sentencepiece==0.2.2
+protobuf==7.36.1
+huggingface_hub==0.36.2
+pillow==12.3.0
+numpy==2.5.3

@@ -76,6 +76,6 @@ libs/onnxruntime/
 # OCR evaluation (copyrighted pages, ground truth, run outputs)
 eval/ocr/data/
 eval/ocr/runs/
-eval/ocr/.venv/
+eval/ocr/.venv*/
 __pycache__/
 .pytest_cache/
