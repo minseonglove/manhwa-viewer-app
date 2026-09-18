@@ -1,0 +1,27 @@
+# Environment for ocr_eval.models.hayai_litert (LiteRT/TFLite mobile artifacts).
+#
+# Kept separate from requirements.txt: this adapter needs `ai-edge-litert`, which
+# the main venv does not carry. Create with python3.13:
+#
+#   python3.13 -m venv .venv-hayai-litert
+#   .venv-hayai-litert/bin/pip install -r requirements-hayai-litert.txt
+#
+# Run (quant selected by env var; see the adapter docstring):
+#   HAYAI_LITERT_QUANT=wi8_afp32 .venv-hayai-litert/bin/python -m ocr_eval.run_model \
+#       --model hayai_litert --device cpu
+#   .venv/bin/python -m ocr_eval.score runs/<run>
+#
+# ai-edge-litert ships macosx_12_0_arm64 wheels for cp310-cp314 from 2.1.6 onward;
+# 2.1.0 is Linux-only. torch/transformers are pulled in only because `hayai_ocr`
+# imports them at package level (hayai_ocr/ocr.py) -- the litert backend itself
+# does not use torch at inference time.
+ai-edge-litert==2.2.0
+hayai-ocr==2.1.0
+tokenizers==0.23.2
+huggingface_hub==1.32.0
+pillow==12.3.0
+numpy==2.5.3
+loguru==0.7.3
+torch==2.14.0
+transformers==5.17.0
+jaconv==0.5.0

@@ -19,9 +19,46 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | 앱(실기기) 인식 + 파이프라인 | `./run_device.sh` |
 | 앱 인식만 | `./run_device.sh recognition` |
 | Mac 기준 모델 | `.venv/bin/python -m ocr_eval.run_reference [--model ID] [--device cpu|mps]` 후 `.venv/bin/python -m ocr_eval.score <run>` |
+| Mac 모델 어댑터 | `.venv/bin/python -m ocr_eval.run_model --model <adapter> [--device auto|cpu|mps]` 후 `.venv/bin/python -m ocr_eval.score <run>` — `<adapter>`는 `ocr_eval/models/` 아래 모듈 이름 (예: `baberu`) |
 | 두 실행 비교 | `.venv/bin/python -m ocr_eval.score <run B> --compare <run A>` |
 
-결과는 `runs/<시각>-<실행기>/report.md`. 첫 줄의 분모(`pages`, `items`, `missing`, `unknown`)부터 확인한다. `--device`는 기본값이 `cpu`이며 Apple Silicon Mac에서는 `mps`로 GPU를 쓸 수 있다.
+결과는 `runs/<시각>-<실행기>/report.md`. 첫 줄의 분모(`pages`, `items`, `missing`, `unknown`)부터 확인한다.
+
+### 모델 어댑터
+
+새 모델 어댑터를 추가할 때 지켜야 할 계약은 `ocr_eval/models/__init__.py`의 모듈 docstring에 정의되어 있다.
+
+| 어댑터 | 모델 | 실행 venv | 비고 |
+|---|---|---|---|
+| `baberu` | `genshiai-daichi/baberu-ocr` | `.venv` | 공식 ONNX(무손실 등급), CPU 전용 (`--device mps` 거부) |
+| `hayai` | `JustANormalTinkerer/hayai-ocr-v2` | `.venv` | 공식 `hayai-ocr` 라이브러리, MPS. 매 load마다 `google/siglip2-base-patch16-naflex` 상류 revision을 온라인으로 확인하며 이동했으면 실행을 거부한다 |
+| `paddleocr_vl_manga` | `jzhang533/PaddleOCR-VL-For-Manga` | `.venv-paddleocr_vl_manga` | transformers 4.57.1 필요, MPS |
+| `hayai_litert_export` | 직접 내보낸 LiteRT 그래프 | `.venv-hayai-litert` | `HAYAI_EXPORT_DIR`의 `.tflite`를 잰다. `HAYAI_EXPORT_MODE=split`은 저자와 같은 3파일 구성, `merged`는 prefill/decode를 시그니처 둘로 합친 1파일 구성 |
+
+`paddleocr_vl_manga`는 전용 venv에서 실행하고, 채점은 `.venv`로 한다.
+
+```bash
+python3 -m venv .venv-paddleocr_vl_manga
+.venv-paddleocr_vl_manga/bin/pip install -r requirements-paddleocr_vl_manga.txt
+.venv-paddleocr_vl_manga/bin/python -m ocr_eval.run_model --model paddleocr_vl_manga
+.venv/bin/python -m ocr_eval.score runs/<run>
+```
+
+`hayai_litert_export`가 재는 `.tflite`는 `requirements-hayai-export.txt`의 `.venv-hayai-export`에서 만든다(내보내기 전용 venv이며 측정에는 쓰지 않는다).
+
+```bash
+HAYAI_EXPORT_DIR=<dir> HAYAI_EXPORT_MODE=split \
+  .venv-hayai-litert/bin/python -m ocr_eval.run_model --model hayai_litert_export --device cpu
+.venv/bin/python -m ocr_eval.score runs/<run>
+
+HAYAI_EXPORT_DIR=<dir> HAYAI_EXPORT_MODE=merged \
+  .venv-hayai-litert/bin/python -m ocr_eval.run_model --model hayai_litert_export --device cpu
+.venv/bin/python -m ocr_eval.score runs/<run>
+```
+
+두 실행을 `.venv/bin/python -m ocr_eval.score runs/<merged> --compare runs/<split>`로 비교하는 것이 이 어댑터가 존재하는 이유다 -- 디코더 두 그래프를 한 파일로 합쳐도 모델이 읽는 내용이 바뀌지 않는지 확인한다.
+
+`run_model`의 `--device` 기본값은 `auto`(MPS가 있으면 MPS)이고, `run_reference`의 기본값은 `cpu`다.
 
 ### Android 실행 대상
 
