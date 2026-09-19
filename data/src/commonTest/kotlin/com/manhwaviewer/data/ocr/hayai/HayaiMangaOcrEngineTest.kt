@@ -15,8 +15,12 @@ import kotlin.test.assertTrue
  */
 class HayaiMangaOcrEngineTest {
 
-    private object Visual : HayaiVisualFeatures
-    private object Cache : HayaiKvCache
+    private object Visual : HayaiVisualFeatures {
+        override fun close() = Unit
+    }
+    private object Cache : HayaiKvCache {
+        override fun close() = Unit
+    }
 
     private val BOS = 2
     private val EOS = 3

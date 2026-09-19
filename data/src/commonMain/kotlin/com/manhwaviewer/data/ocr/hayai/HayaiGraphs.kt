@@ -4,8 +4,13 @@ package com.manhwaviewer.data.ocr.hayai
  * The encoder's output, held in whatever form the platform runtime produced it.
  *
  * Opaque on purpose: at (1, 256, 768) it is 786 KB, and prefill is the only thing that reads it.
+ *
+ * [close] exists because the runtime may be holding native memory that garbage collection does
+ * not see. Whoever receives one owns it.
  */
-interface HayaiVisualFeatures
+interface HayaiVisualFeatures {
+    fun close()
+}
 
 /**
  * One decode step's KV cache, held in whatever form the platform runtime produced it.
@@ -13,8 +18,13 @@ interface HayaiVisualFeatures
  * Opaque on purpose, and more sharply than [HayaiVisualFeatures]: the cache is 24 tensors of
  * (1, 2, 320, 64), about 3.9 MB, and it is read and rewritten on *every* step. Copying it into
  * Kotlin arrays per step would cost more than the graphs themselves.
+ *
+ * Each step releases the cache it consumed, but the last step's cache has no consumer — the
+ * caller must release that one, or a recognition's worth of native memory stays behind.
  */
-interface HayaiKvCache
+interface HayaiKvCache {
+    fun close()
+}
 
 /** Logits for the next token, plus the cache to carry into the following step. */
 class HayaiStepResult(val logits: FloatArray, val cache: HayaiKvCache)

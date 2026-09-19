@@ -35,28 +35,39 @@ class HayaiOcrEngine(
         )
         val (cos, sin) = HayaiHost.rope(patchRows, patchCols)
 
-        var step = graphs.prefill(visual, bosId, cos, sin, HayaiHost.prefillMask())
-
-        val generated = mutableListOf<Int>()
-        val seen = mutableSetOf(bosId)
-        var next = pickNext(step.logits, seen, repetitionPenalty)
-
-        while (next != eosId && next != padId && generated.size < maxNewTokens) {
-            generated += next
-            seen += next
-            if (generated.size >= maxNewTokens) break
-            val pos = HayaiHost.MAX_PATCHES + generated.size
-            step = graphs.decodeStep(
-                tokenId = next,
-                cos = rowAt(cos, pos),
-                sin = rowAt(sin, pos),
-                mask = HayaiHost.decodeMask(pos),
-                pos = pos,
-                cache = step.cache,
-            )
-            next = pickNext(step.logits, seen, repetitionPenalty)
+        // prefill 이 성공하면 visual 은 그쪽이 가져간다. 실패하면 여기서 놓아줘야 남지 않는다.
+        var step = try {
+            graphs.prefill(visual, bosId, cos, sin, HayaiHost.prefillMask())
+        } catch (t: Throwable) {
+            visual.close()
+            throw t
         }
-        return tokenizer.decode(generated)
+
+        try {
+            val generated = mutableListOf<Int>()
+            val seen = mutableSetOf(bosId)
+            var next = pickNext(step.logits, seen, repetitionPenalty)
+
+            while (next != eosId && next != padId && generated.size < maxNewTokens) {
+                generated += next
+                seen += next
+                if (generated.size >= maxNewTokens) break
+                val pos = HayaiHost.MAX_PATCHES + generated.size
+                step = graphs.decodeStep(
+                    tokenId = next,
+                    cos = rowAt(cos, pos),
+                    sin = rowAt(sin, pos),
+                    mask = HayaiHost.decodeMask(pos),
+                    pos = pos,
+                    cache = step.cache,
+                )
+                next = pickNext(step.logits, seen, repetitionPenalty)
+            }
+            return tokenizer.decode(generated)
+        } finally {
+            // 마지막 스텝의 캐시는 소비하는 다음 스텝이 없다.
+            step.cache.close()
+        }
     }
 
     /** Releases the graphs this engine was given. */

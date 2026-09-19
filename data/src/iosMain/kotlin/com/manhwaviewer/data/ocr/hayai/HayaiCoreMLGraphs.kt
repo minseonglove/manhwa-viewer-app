@@ -21,8 +21,13 @@ class HayaiCoreMLGraphs(
     private val subdirectory: String = "hayai",
 ) : HayaiGraphs {
 
-    private class Features(val provider: MLFeatureProviderProtocol) : HayaiVisualFeatures
-    private class Cache(val provider: MLFeatureProviderProtocol) : HayaiKvCache
+    /** CoreML 출력은 ARC 가 회수하므로 놓아줄 것이 따로 없다. 계약만 만족시킨다. */
+    private class Features(val provider: MLFeatureProviderProtocol) : HayaiVisualFeatures {
+        override fun close() = Unit
+    }
+    private class Cache(val provider: MLFeatureProviderProtocol) : HayaiKvCache {
+        override fun close() = Unit
+    }
 
     private var encoder: MLModel? = null
     private var prefillModel: MLModel? = null

@@ -32,6 +32,16 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
      * the one it just consumed and never the one it is handing forward.
      */
     private class Result(val result: OrtSession.Result) : HayaiKvCache, HayaiVisualFeatures {
+        private var closed = false
+
+        /** 소비한 쪽과 호출자가 같은 것을 닫으러 올 수 있어 멱등이어야 한다. */
+        override fun close() {
+            if (!closed) {
+                closed = true
+                result.close()
+            }
+        }
+
         fun tensor(name: String): OnnxTensor =
             result.get(name).orElseThrow {
                 IllegalStateException("output '$name' is missing; the graph's IO does not match")
@@ -114,7 +124,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         } finally {
             owned.values.forEach(OnnxTensor::close)
         }
-        encoded.result.close() // consumed; the encoder output is not needed again
+        encoded.close() // consumed; the encoder output is not needed again
         val step = Result(result)
         return HayaiStepResult(logitsOf(step), step)
     }
@@ -148,7 +158,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         } finally {
             owned.values.forEach(OnnxTensor::close)
         }
-        previous.result.close() // consumed by the run above; safe only now
+        previous.close() // consumed by the run above; safe only now
         val step = Result(result)
         return HayaiStepResult(logitsOf(step), step)
     }
