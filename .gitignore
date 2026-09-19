@@ -79,3 +79,7 @@ eval/ocr/runs/
 eval/ocr/.venv*/
 __pycache__/
 .pytest_cache/
+
+# Translation evaluation (copyrighted text in run outputs)
+eval/translation/runs/
+eval/translation/.venv*/
