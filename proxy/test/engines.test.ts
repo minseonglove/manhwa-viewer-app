@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { deepseekEngine, gemmaEngine, googleEngine } from "../src/engines";
+import { expectedMs, timeoutMs } from "../src/chain";
+import { CHAIN_DEADLINE_MS, deepseekEngine, gemmaEngine, googleEngine } from "../src/engines";
+import { REQUEST_LIMITS } from "../src/limits";
 
 const items = [{ id: "t01", kind: "bubble" as const, text: "南雲？" }, { id: "t02", kind: "sfx" as const, text: "ドン" }];
 const glossary = [{ src: "南雲", ko: "나구모" }];
@@ -84,5 +86,20 @@ describe("googleEngine", () => {
   it("fails when the number of translations differs from the number of texts", async () => {
     const { fn } = fakeFetch(() => new Response(JSON.stringify({ data: { translations: [{ translatedText: "하나뿐" }] } })));
     await expect(googleEngine({ apiKey: "k" }, fn).translate(items, [], never)).rejects.toThrow("1 translations for 2 texts");
+  });
+});
+
+describe("time budget", () => {
+  const gemma = gemmaEngine(fakeAi(null).ai);
+  const deepseek = deepseekEngine({ apiKey: "k" }, fakeFetch(() => new Response("")).fn);
+  const google = googleEngine({ apiKey: "k" }, fakeFetch(() => new Response("")).fn);
+
+  it("expects the first engine to finish even the largest allowed page before the fallback has to start", () => {
+    const n = REQUEST_LIMITS.maxItems;
+    expect(expectedMs(gemma.latency, n)).toBeLessThanOrEqual(CHAIN_DEADLINE_MS - timeoutMs(google.latency, n));
+  });
+  it("does not skip the second engine on a dense page when the first one failed at once", () => {
+    const n = 38; // the densest page in the 30-page evaluation set
+    expect(expectedMs(deepseek.latency, n)).toBeLessThanOrEqual(CHAIN_DEADLINE_MS - timeoutMs(google.latency, n));
   });
 });

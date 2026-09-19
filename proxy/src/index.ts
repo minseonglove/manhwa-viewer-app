@@ -1,6 +1,6 @@
 import { deviceHash, verifyAttestation } from "./attestation";
 import { ChainError, runChain } from "./chain";
-import { deepseekEngine, gemmaEngine, googleEngine } from "./engines";
+import { CHAIN_DEADLINE_MS, deepseekEngine, gemmaEngine, googleEngine } from "./engines";
 import { filterGlossary } from "./glossary";
 import { validateTranslateRequest } from "./limits";
 import { issueSessionToken, verifySessionToken } from "./session";
@@ -51,7 +51,7 @@ export function createHandler(fetchFn: typeof fetch) {
 
     const meter = { did: session.did, tier: session.tier, items: items.length, chars: items.reduce((n, it) => n + [...it.text].length, 0), glossary: glossary.length };
     try {
-      const result = await runChain(engines, items, glossary);
+      const result = await runChain(engines, items, glossary, CHAIN_DEADLINE_MS);
       console.log(JSON.stringify({ ...meter, engine: result.engine, attempts: result.attempts }));
       return json(200, { translations: result.translations, engine: result.engine });
     } catch (e) {

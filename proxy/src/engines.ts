@@ -1,16 +1,24 @@
-import type { Engine } from "./chain";
+import type { Engine, LatencyModel } from "./chain";
 import { applyGlossaryToSource } from "./glossary";
 import { parseOutput } from "./parse";
 import { buildMessages } from "./prompt";
 import type { AiBinding, Item } from "./types";
 
-// Starting points taken from the measured latency distributions (30 pages each):
-// Gemma on Workers AI mean 3.4s / max 7.8s, DeepSeek on DeepInfra mean 3-6s / p90 9-12s, Google NMT mean 0.4s / max 0.6s.
-const TIMEOUTS = { gemma: 8_000, deepseek: 12_000, google: 3_000 } as const;
+// Fitted to measured page latencies against the number of items (3-38 items per page); the margin is about three residual standard deviations.
+// Gemma on Workers AI: 45 pages over two runs. DeepSeek on DeepInfra: 60 pages over two runs an evening apart, pooled because its speed
+// swings by a factor of two between them. Google NMT does not depend on the item count: mean 0.4s, max 0.6s.
+const LATENCY = {
+  gemma: { baseMs: 1_500, perItemMs: 170, marginMs: 3_500 },
+  deepseek: { baseMs: 1_200, perItemMs: 200, marginMs: 5_500 },
+  google: { baseMs: 400, perItemMs: 0, marginMs: 2_600 },
+} as const satisfies Record<string, LatencyModel>;
+
+// The longest one page may keep a reader waiting, fallback included. Without it the engines' timeouts simply add up.
+export const CHAIN_DEADLINE_MS = 16_000;
 
 interface ChatEngineConfig {
   name: string;
-  timeoutMs: number;
+  latency: LatencyModel;
   url: string;
   apiKey: string;
   model: string;
@@ -33,7 +41,7 @@ function readChatCompletion(completion: ChatCompletion, items: Item[]): Record<s
 function chatEngine(config: ChatEngineConfig, fetchFn: typeof fetch): Engine {
   return {
     name: config.name,
-    timeoutMs: config.timeoutMs,
+    latency: config.latency,
     async translate(items, glossary, signal) {
       const response = await fetchFn(config.url, {
         method: "POST",
@@ -57,7 +65,7 @@ function chatEngine(config: ChatEngineConfig, fetchFn: typeof fetch): Engine {
 export function gemmaEngine(ai: AiBinding): Engine {
   return {
     name: "gemma",
-    timeoutMs: TIMEOUTS.gemma,
+    latency: LATENCY.gemma,
     async translate(items, glossary) {
       const completion = await ai.run("@cf/google/gemma-4-26b-a4b-it", {
         messages: buildMessages(items, glossary),
@@ -76,7 +84,7 @@ export function deepseekEngine(config: { apiKey: string }, fetchFn: typeof fetch
   return chatEngine(
     {
       name: "deepseek",
-      timeoutMs: TIMEOUTS.deepseek,
+      latency: LATENCY.deepseek,
       url: "https://api.deepinfra.com/v1/openai/chat/completions",
       apiKey: config.apiKey,
       model: "deepseek-ai/DeepSeek-V4-Flash",
@@ -88,7 +96,7 @@ export function deepseekEngine(config: { apiKey: string }, fetchFn: typeof fetch
 export function googleEngine(config: { apiKey: string }, fetchFn: typeof fetch): Engine {
   return {
     name: "google",
-    timeoutMs: TIMEOUTS.google,
+    latency: LATENCY.google,
     async translate(items, glossary, signal) {
       const response = await fetchFn("https://translation.googleapis.com/language/translate/v2", {
         method: "POST",

@@ -1,10 +1,20 @@
 import type { GlossaryEntry, Item } from "./types";
 
+// Latency grows with the number of items on the page, so a fixed timeout is either too short for a dense page or too long for a sparse one.
+export interface LatencyModel {
+  baseMs: number;
+  perItemMs: number;
+  marginMs: number;
+}
+
 export interface Engine {
   name: string;
-  timeoutMs: number;
+  latency: LatencyModel;
   translate(items: Item[], glossary: GlossaryEntry[], signal: AbortSignal): Promise<Record<string, string>>;
 }
+
+export const expectedMs = (latency: LatencyModel, itemCount: number) => latency.baseMs + latency.perItemMs * itemCount;
+export const timeoutMs = (latency: LatencyModel, itemCount: number) => expectedMs(latency, itemCount) + latency.marginMs;
 
 export interface Attempt {
   engine: string;
@@ -25,16 +35,16 @@ export class ChainError extends Error {
   }
 }
 
-async function attempt(engine: Engine, items: Item[], glossary: GlossaryEntry[]): Promise<Record<string, string>> {
+async function attempt(engine: Engine, items: Item[], glossary: GlossaryEntry[], limitMs: number): Promise<Record<string, string>> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       // Reject before aborting: abort() makes the engine's own promise reject in the same tick,
       // and whichever rejection comes first is the reason that gets recorded.
-      reject(new Error(`timeout after ${engine.timeoutMs}ms`));
+      reject(new Error(`timeout after ${limitMs}ms`));
       controller.abort();
-    }, engine.timeoutMs);
+    }, limitMs);
   });
   try {
     const translations = await Promise.race([engine.translate(items, glossary, controller.signal), timeout]);
@@ -47,12 +57,27 @@ async function attempt(engine: Engine, items: Item[], glossary: GlossaryEntry[])
   }
 }
 
-export async function runChain(engines: Engine[], items: Item[], glossary: GlossaryEntry[]): Promise<ChainResult> {
+export async function runChain(engines: Engine[], items: Item[], glossary: GlossaryEntry[], deadlineMs: number): Promise<ChainResult> {
   const attempts: Attempt[] = [];
+  const chainStarted = Date.now();
+  const last = engines[engines.length - 1];
+  // The last engine is the one that has to answer when nothing else did, so the others must be done early enough to leave it its whole timeout.
+  const othersEndBy = deadlineMs - (last ? timeoutMs(last.latency, items.length) : 0);
   for (const engine of engines) {
     const started = Date.now();
+    let limitMs = timeoutMs(engine.latency, items.length);
+    if (engine !== last) {
+      const left = Math.max(0, othersEndBy - (started - chainStarted));
+      const expected = expectedMs(engine.latency, items.length);
+      // Starting an engine that will most likely be cut off only makes the reader wait longer for the same fallback.
+      if (left < expected) {
+        attempts.push({ engine: engine.name, ok: false, ms: 0, reason: `skipped: ${left}ms left, expects ${expected}ms` });
+        continue;
+      }
+      limitMs = Math.min(limitMs, left);
+    }
     try {
-      const translations = await attempt(engine, items, glossary);
+      const translations = await attempt(engine, items, glossary, limitMs);
       attempts.push({ engine: engine.name, ok: true, ms: Date.now() - started });
       return { translations, engine: engine.name, attempts };
     } catch (e) {
