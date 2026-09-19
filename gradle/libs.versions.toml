@@ -70,6 +70,8 @@ haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 # AboutLibraries
 aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
+# Compose UI BackHandler
+compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose-multiplatform" }
 # Test
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 androidx-arch-core-testing = { module = "androidx.arch.core:core-testing", version.ref = "arch-core-testing" }
