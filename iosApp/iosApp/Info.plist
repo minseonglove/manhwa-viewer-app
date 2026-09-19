@@ -33,9 +33,7 @@
     <string>UIStatusBarStyleLightContent</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
-    <key>PapagoClientId</key>
-    <string>$(PAPAGO_CLIENT_ID)</string>
-    <key>PapagoClientSecret</key>
-    <string>$(PAPAGO_CLIENT_SECRET)</string>
+    <key>GoogleTranslateApiKey</key>
+    <string>$(GOOGLE_TRANSLATE_API_KEY)</string>
 </dict>
 </plist>

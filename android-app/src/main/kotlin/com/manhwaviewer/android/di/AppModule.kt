@@ -18,7 +18,8 @@ import com.manhwaviewer.data.ocr.inference.YoloRunner
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.data.translation.PapagoTranslationService
+import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.TranslationService
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
@@ -59,7 +60,7 @@ private val androidPlatformModule = module {
             platformRecognizer = MlKitTextRecognizer(),
         )
     }
-    single { PapagoTranslationService(BuildConfig.PAPAGO_CLIENT_ID, BuildConfig.PAPAGO_CLIENT_SECRET) }
+    single<TranslationService> { GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY) }
 }
 
 val appModule = listOf(androidPlatformModule, commonDataModule, sharedModule)

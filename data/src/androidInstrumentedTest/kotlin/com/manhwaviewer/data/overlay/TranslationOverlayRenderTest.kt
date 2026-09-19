@@ -21,7 +21,7 @@ import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
 import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
 import com.manhwaviewer.data.ocr.inference.YoloRunner
-import com.manhwaviewer.data.translation.PapagoTranslationService
+import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
@@ -69,12 +69,9 @@ class TranslationOverlayRenderTest {
         }
         assertTrue("OCR should detect at least one text block", textBlocks.isNotEmpty())
 
-        // 3. 번역 실행 (실제 Papago API)
+        // 3. 번역 실행 (실제 번역 API)
         val translationRepo = TranslationRepositoryImpl(
-            papagoService = PapagoTranslationService(
-                BuildConfig.PAPAGO_CLIENT_ID,
-                BuildConfig.PAPAGO_CLIENT_SECRET,
-            ),
+            translationService = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY),
             cacheDao = InMemoryCacheDao(),
         )
 
@@ -143,10 +140,7 @@ class TranslationOverlayRenderTest {
             ),
         )
         val translationRepo = TranslationRepositoryImpl(
-            papagoService = PapagoTranslationService(
-                BuildConfig.PAPAGO_CLIENT_ID,
-                BuildConfig.PAPAGO_CLIENT_SECRET,
-            ),
+            translationService = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY),
             cacheDao = InMemoryCacheDao(),
         )
 

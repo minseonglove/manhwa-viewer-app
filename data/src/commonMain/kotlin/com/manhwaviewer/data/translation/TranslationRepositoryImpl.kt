@@ -11,13 +11,9 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 class TranslationRepositoryImpl(
-    private val papagoService: PapagoTranslationService,
+    private val translationService: TranslationService,
     private val cacheDao: TranslationCacheDao,
 ) : TranslationRepository {
-
-    companion object {
-        private const val BATCH_DELIMITER = "\n"
-    }
 
     override suspend fun translate(
         text: String,
@@ -69,12 +65,11 @@ class TranslationRepositoryImpl(
             return@withContext results.map { it!! }
         }
 
-        // 3. 미캐시 텍스트를 합쳐서 1회 API 호출
+        // 3. 미캐시 텍스트를 1회 호출로 번역
         val uncachedTexts = uncachedIndices.map { texts[it] }
-        val joinedText = uncachedTexts.joinToString(BATCH_DELIMITER)
 
-        val (translatedJoined, engine) = try {
-            callTranslationApi(joinedText, sourceLanguage, targetLanguage)
+        val translatedTexts = try {
+            translationService.translate(uncachedTexts, sourceLanguage, targetLanguage)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -86,13 +81,12 @@ class TranslationRepositoryImpl(
             return@withContext results.map { it!! }
         }
 
-        // 4. 결과를 구분자로 split → 개별 캐시 저장
-        val translatedParts = translatedJoined.split(BATCH_DELIMITER)
+        // 4. 개별 캐시 저장
         val now = Clock.System.now().toEpochMilliseconds()
 
         for ((i, idx) in uncachedIndices.withIndex()) {
             val original = texts[idx]
-            val translated = translatedParts.getOrElse(i) { original }
+            val translated = translatedTexts[i]
             results[idx] = TranslationResult(original, translated)
 
             cacheDao.insertCache(
@@ -101,20 +95,12 @@ class TranslationRepositoryImpl(
                     translatedText = translated,
                     sourceLanguage = sourceLanguage,
                     targetLanguage = targetLanguage,
-                    engine = engine,
+                    engine = translationService.engineName,
                     createdAt = now,
                 )
             )
         }
 
         results.map { it!! }
-    }
-
-    private suspend fun callTranslationApi(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-    ): Pair<String, String> {
-        return papagoService.translate(text, sourceLanguage, targetLanguage) to "PAPAGO"
     }
 }

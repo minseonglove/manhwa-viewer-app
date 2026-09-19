@@ -17,14 +17,10 @@ android {
         versionName = "1.0"
 
         val localFile = rootProject.file("local.properties")
-        val papagoClientId = if (localFile.exists()) {
-            localFile.readLines().find { it.startsWith("papago.client.id=") }?.substringAfter("=") ?: ""
+        val googleTranslateApiKey = if (localFile.exists()) {
+            localFile.readLines().find { it.startsWith("google.translate.api.key=") }?.substringAfter("=") ?: ""
         } else ""
-        val papagoClientSecret = if (localFile.exists()) {
-            localFile.readLines().find { it.startsWith("papago.client.secret=") }?.substringAfter("=") ?: ""
-        } else ""
-        buildConfigField("String", "PAPAGO_CLIENT_ID", "\"$papagoClientId\"")
-        buildConfigField("String", "PAPAGO_CLIENT_SECRET", "\"$papagoClientSecret\"")
+        buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"$googleTranslateApiKey\"")
     }
 
     buildFeatures {

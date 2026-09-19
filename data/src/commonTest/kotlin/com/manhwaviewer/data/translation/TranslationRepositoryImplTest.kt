@@ -6,189 +6,130 @@ import kotlin.test.assertEquals
 
 class TranslationRepositoryImplTest {
 
-    private fun createRepo(
-        papagoResult: String = "번역됨",
-        papagoShouldFail: Boolean = false,
-    ): TranslationRepositoryImpl {
-        val papago = FakePapagoService(papagoResult, papagoShouldFail)
-        val cacheDao = FakeTranslationCacheDao()
-        return TranslationRepositoryImpl(papago, cacheDao)
-    }
-
     @Test
-    fun translateReturnsPapagoResult() = runTest {
-        val repo = createRepo(papagoResult = "번역 결과")
-        val result = repo.translate("テスト")
-        assertEquals("번역 결과", result)
+    fun translateReturnsServiceResult() = runTest {
+        val repo = TranslationRepositoryImpl(FakeTranslationService(), FakeTranslationCacheDao())
+
+        assertEquals("번역:テスト", repo.translate("テスト"))
     }
 
     @Test
     fun translateUsesCacheOnSecondCall() = runTest {
-        val papago = FakePapagoService("번역됨")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
+        val service = FakeTranslationService()
+        val repo = TranslationRepositoryImpl(service, FakeTranslationCacheDao())
 
         repo.translate("テスト")
-        assertEquals(1, papago.callCount)
-
-        // 두번째 호출은 캐시 사용
         val cached = repo.translate("テスト")
-        assertEquals("번역됨", cached)
-        assertEquals(1, papago.callCount) // API 호출 증가 없음
+
+        assertEquals("번역:テスト", cached)
+        assertEquals(listOf(listOf("テスト")), service.requests)
     }
 
     @Test
-    fun translateReturnsOriginalTextOnPapagoFailure() = runTest {
-        val papago = FakePapagoService(shouldFail = true)
+    fun translateReturnsOriginalTextOnServiceFailure() = runTest {
+        val repo = TranslationRepositoryImpl(FakeTranslationService(shouldFail = true), FakeTranslationCacheDao())
+
+        assertEquals("テスト", repo.translate("テスト"))
+    }
+
+    @Test
+    fun failedTranslationIsNotCached() = runTest {
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
-        val result = try {
-            repo.translate("テスト")
-        } catch (_: Exception) {
-            "テスト"
-        }
-        assertEquals("テスト", result)
+        val repo = TranslationRepositoryImpl(FakeTranslationService(shouldFail = true), cacheDao)
+
+        repo.translate("テスト")
+
+        assertEquals(0, cacheDao.getCacheCount())
     }
 
     @Test
     fun translateSkipsBlankText() = runTest {
-        val repo = createRepo()
-        val result = repo.translate("  ")
-        assertEquals("  ", result)
+        val service = FakeTranslationService()
+        val repo = TranslationRepositoryImpl(service, FakeTranslationCacheDao())
+
+        assertEquals("  ", repo.translate("  "))
+        assertEquals(emptyList(), service.requests)
     }
 
     @Test
-    fun translateBatchTranslatesAllTexts() = runTest {
-        val repo = createRepo(papagoResult = "번역A\n번역B\n번역C")
+    fun translateBatchKeepsResultsAlignedWithInputs() = runTest {
+        val repo = TranslationRepositoryImpl(FakeTranslationService(), FakeTranslationCacheDao())
+
         val results = repo.translateBatch(listOf("a", "b", "c"))
-        assertEquals(3, results.size)
-        assertEquals("a", results[0].originalText)
-        assertEquals("번역A", results[0].translatedText)
-        assertEquals("번역C", results[2].translatedText)
+
+        assertEquals(listOf("a", "b", "c"), results.map { it.originalText })
+        assertEquals(listOf("번역:a", "번역:b", "번역:c"), results.map { it.translatedText })
     }
 
     @Test
-    fun translateBatchMakesSingleApiCall() = runTest {
-        val papago = FakePapagoService("X\nY\nZ")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
+    fun translateBatchSendsUncachedTextsInSingleCall() = runTest {
+        val service = FakeTranslationService()
+        val repo = TranslationRepositoryImpl(service, FakeTranslationCacheDao())
 
         repo.translateBatch(listOf("a", "b", "c"))
-        assertEquals(1, papago.callCount)
+
+        assertEquals(listOf(listOf("a", "b", "c")), service.requests)
     }
 
     @Test
-    fun translateBatchUsesCacheForDuplicates() = runTest {
-        val papago = FakePapagoService("번역됨")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
+    fun multiLineTextIsTranslatedAsOneItem() = runTest {
+        val service = FakeTranslationService()
+        val repo = TranslationRepositoryImpl(service, FakeTranslationCacheDao())
 
-        // 첫 번째 배치: 1회 API 호출, 3개 모두 캐시 저장
-        repo.translateBatch(listOf("same", "same", "same"))
-        assertEquals(1, papago.callCount)
+        val results = repo.translateBatch(listOf("一行目\n二行目", "b"))
 
-        // 두 번째 배치: 캐시 히트, API 호출 없음
-        repo.translateBatch(listOf("same"))
-        assertEquals(1, papago.callCount)
+        assertEquals(listOf(listOf("一行目\n二行目", "b")), service.requests)
+        assertEquals("번역:一行目\n二行目", results[0].translatedText)
+        assertEquals("번역:b", results[1].translatedText)
     }
 
     @Test
-    fun translateBatchReturnsCachedAndFresh() = runTest {
-        val papago = FakePapagoService("번역됨")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
-
-        // "a"를 미리 캐시
-        repo.translate("a")
-        assertEquals(1, papago.callCount)
-
-        // 배치: "a"는 캐시, "b"만 API 호출
-        val results = repo.translateBatch(listOf("a", "b"))
-        assertEquals(2, papago.callCount) // "b"만 추가 호출
-        assertEquals("번역됨", results[0].translatedText) // 캐시
-        assertEquals("번역됨", results[1].translatedText) // API
-    }
-
-    @Test
-    fun translateSavesCacheWithCorrectEngine() = runTest {
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(
-            FakePapagoService("결과"),
-            cacheDao,
-        )
-        repo.translate("テスト")
-        assertEquals(1, cacheDao.getCacheCount())
-        val cached = cacheDao.findCache("テスト", "ja", "ko")
-        assertEquals("PAPAGO", cached?.engine)
-    }
-
-    @Test
-    fun translateDelegatesToTranslateBatchAndUsesCache() = runTest {
-        val papago = FakePapagoService("번역됨")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
-
-        // translate()로 캐시 저장
-        repo.translate("テスト")
-        assertEquals(1, papago.callCount)
-
-        // translateBatch()에서 같은 텍스트 캐시 히트
-        val results = repo.translateBatch(listOf("テスト"))
-        assertEquals(1, papago.callCount) // API 추가 호출 없음
-        assertEquals("번역됨", results[0].translatedText)
-    }
-
-    @Test
-    fun translateBatchPartialCacheHit() = runTest {
-        val papago = FakePapagoService("번역A")
-        val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
-
-        // "a"를 미리 캐시
+    fun translateBatchRequestsOnlyUncachedTexts() = runTest {
+        val service = FakeTranslationService()
+        val repo = TranslationRepositoryImpl(service, FakeTranslationCacheDao())
         repo.translateBatch(listOf("a"))
-        assertEquals(1, papago.callCount)
 
-        // "a"는 캐시 히트, "b"와 "c"만 API 호출
-        papago.updateResult("번역B\n번역C")
         val results = repo.translateBatch(listOf("a", "b", "c"))
-        assertEquals(2, papago.callCount)
-        assertEquals("번역A", results[0].translatedText) // 캐시
-        assertEquals("번역B", results[1].translatedText) // API
-        assertEquals("번역C", results[2].translatedText) // API
+
+        assertEquals(listOf(listOf("a"), listOf("b", "c")), service.requests)
+        assertEquals(listOf("번역:a", "번역:b", "번역:c"), results.map { it.translatedText })
     }
 
     @Test
-    fun translateBatchCrossBatchCacheHit() = runTest {
-        val papago = FakePapagoService("X\nY")
+    fun cachedTranslationSurvivesServiceChange() = runTest {
         val cacheDao = FakeTranslationCacheDao()
-        val repo = TranslationRepositoryImpl(papago, cacheDao)
+        TranslationRepositoryImpl(FakeTranslationService { "이전:$it" }, cacheDao).translateBatch(listOf("a"))
+        val service = FakeTranslationService { "새:$it" }
+        val repo = TranslationRepositoryImpl(service, cacheDao)
 
-        // 배치1: "a", "b" 번역 → 캐시 저장
-        repo.translateBatch(listOf("a", "b"))
-        assertEquals(1, papago.callCount)
-
-        // 배치2: "a"는 캐시 히트, "c"만 API 호출
-        papago.updateResult("Z")
         val results = repo.translateBatch(listOf("a", "c"))
-        assertEquals(2, papago.callCount)
-        assertEquals("X", results[0].translatedText) // 배치1에서 캐시된 값
-        assertEquals("Z", results[1].translatedText) // 새 API 호출
+
+        assertEquals(listOf("이전:a", "새:c"), results.map { it.translatedText })
+        assertEquals(listOf(listOf("c")), service.requests)
+    }
+
+    @Test
+    fun translateSavesCacheWithServiceEngineName() = runTest {
+        val cacheDao = FakeTranslationCacheDao()
+        val repo = TranslationRepositoryImpl(FakeTranslationService(), cacheDao)
+
+        repo.translate("テスト")
+
+        assertEquals(1, cacheDao.getCacheCount())
+        assertEquals("FAKE", cacheDao.findCache("テスト", "ja", "ko")?.engine)
     }
 }
 
-class FakePapagoService(
-    private var result: String = "번역됨",
+class FakeTranslationService(
     private val shouldFail: Boolean = false,
-) : PapagoTranslationService("fake-id", "fake-secret") {
-    var callCount = 0
+    private val translateText: (String) -> String = { "번역:$it" },
+) : TranslationService {
+    override val engineName = "FAKE"
+    val requests = mutableListOf<List<String>>()
 
-    fun updateResult(newResult: String) {
-        result = newResult
-    }
-
-    override suspend fun translate(text: String, source: String, target: String): String {
-        callCount++
-        if (shouldFail) throw RuntimeException("Papago API error")
-        return result
+    override suspend fun translate(texts: List<String>, source: String, target: String): List<String> {
+        requests += texts
+        if (shouldFail) throw RuntimeException("translation failed")
+        return texts.map(translateText)
     }
 }

@@ -22,7 +22,8 @@ import platform.Foundation.stringWithContentsOfFile
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.data.translation.PapagoTranslationService
+import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.TranslationService
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
@@ -66,10 +67,8 @@ val iosPlatformModule = module {
         )
     }
 
-    single {
-        val bundle = NSBundle.mainBundle
-        val clientId = bundle.objectForInfoDictionaryKey("PapagoClientId") as? String ?: ""
-        val clientSecret = bundle.objectForInfoDictionaryKey("PapagoClientSecret") as? String ?: ""
-        PapagoTranslationService(clientId, clientSecret)
+    single<TranslationService> {
+        val apiKey = NSBundle.mainBundle.objectForInfoDictionaryKey("GoogleTranslateApiKey") as? String ?: ""
+        GoogleTranslationService(apiKey)
     }
 }
