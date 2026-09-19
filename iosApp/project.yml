@@ -18,8 +18,6 @@ targets:
     resources:
       - path: ../data/src/iosMain/resources/mangaocr
         buildPhase: resources
-      - path: ../data/src/iosMain/resources/paddleocr
-        buildPhase: resources
     dependencies:
       - framework: ../libs/lindera/LinderaFFI.xcframework
         embed: false
