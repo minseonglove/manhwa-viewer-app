@@ -83,3 +83,9 @@ __pycache__/
 # Translation evaluation (copyrighted text in run outputs)
 eval/translation/runs/
 eval/translation/.venv*/
+
+# Translation proxy (Cloudflare Worker)
+proxy/node_modules/
+proxy/.wrangler/
+proxy/.dev.vars
+proxy/dist/

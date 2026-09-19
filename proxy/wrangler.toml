@@ -1,0 +1,11 @@
+name = "manhwa-viewer-translation-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Secrets (set with `wrangler secret put <NAME>`; never commit values):
+#   SESSION_SIGNING_KEY, DEEPINFRA_API_KEY, GOOGLE_TRANSLATE_API_KEY
+# Gemma runs through the [ai] binding on this account, so it needs no credential.
+#   DEV_ATTESTATION_SECRET  (development only; leave unset in production)
+
+[ai]
+binding = "AI"
