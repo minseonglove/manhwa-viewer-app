@@ -120,3 +120,18 @@ actual fun cropToPlatformImage(
 actual fun getImageDimensions(image: PlatformImage): Pair<Int, Int> {
     return image.width to image.height
 }
+
+actual fun readRgbHwc(image: PlatformImage): IntArray {
+    val width = image.width
+    val height = image.height
+    val pixels = IntArray(width * height)
+    image.getPixels(pixels, 0, width, 0, 0, width, height)
+    val rgb = IntArray(width * height * 3)
+    for (i in pixels.indices) {
+        val p = pixels[i]
+        rgb[i * 3] = (p shr 16) and 0xFF
+        rgb[i * 3 + 1] = (p shr 8) and 0xFF
+        rgb[i * 3 + 2] = p and 0xFF
+    }
+    return rgb
+}

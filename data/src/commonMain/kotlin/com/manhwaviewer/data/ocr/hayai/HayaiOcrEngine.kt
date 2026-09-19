@@ -59,6 +59,11 @@ class HayaiOcrEngine(
         return tokenizer.decode(generated)
     }
 
+    /** Releases the graphs this engine was given. */
+    fun close() {
+        graphs.close()
+    }
+
     /** One rotary row, the slice the decode graph takes for the slot it is writing. */
     private fun rowAt(table: FloatArray, pos: Int): FloatArray =
         table.copyOfRange(pos * HayaiHost.D_AXIS, (pos + 1) * HayaiHost.D_AXIS)

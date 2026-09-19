@@ -37,3 +37,17 @@ expect fun cropToPlatformImage(
 ): PlatformImage
 
 expect fun getImageDimensions(image: PlatformImage): Pair<Int, Int>
+
+/**
+ * The image's pixels as HWC uint8 RGB — row-major, three values per pixel, 0..255.
+ *
+ * This is the layout `HayaiHost.resizeRgb` and the reference implementation both work in.
+ *
+ * A non-opaque source does not give the same answer on both platforms. Android reads the
+ * stored colour and ignores alpha, which is what the reference's `Image.convert("RGB")`
+ * does; iOS goes through Core Graphics, which can only composite, so transparent areas
+ * come out as the white it composites onto. Scanning accepts png/webp/gif, so this is
+ * reachable — it is bounded to "transparent reads as page white on iOS" rather than left
+ * as whatever the buffer held.
+ */
+expect fun readRgbHwc(image: PlatformImage): IntArray

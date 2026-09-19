@@ -1,6 +1,5 @@
 package com.manhwaviewer.data.ocr.eval
 
-import android.graphics.Bitmap
 import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.DetectedBox
 import com.manhwaviewer.data.ocr.YoloPostProcessor
@@ -10,6 +9,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
+import com.manhwaviewer.data.ocr.image.readRgbHwc
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Test
@@ -25,19 +25,6 @@ import org.junit.Test
 class HayaiHostProbe {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-
-    private fun rgbOf(bitmap: Bitmap): IntArray {
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        return IntArray(pixels.size * 3) { i ->
-            val p = pixels[i / 3]
-            when (i % 3) {
-                0 -> (p shr 16) and 0xFF
-                1 -> (p shr 8) and 0xFF
-                else -> p and 0xFF
-            }
-        }
-    }
 
     private fun sample(values: IntArray, count: Int = 12): JSONArray {
         val out = JSONArray()
@@ -80,7 +67,7 @@ class HayaiHostProbe {
                     image.width, image.height,
                 )
                 val crop = cropToPlatformImage(image, padded.x, padded.y, padded.width, padded.height)
-                val rgb = rgbOf(crop)
+                val rgb = readRgbHwc(crop)
                 val (th, tw) = HayaiHost.scaledSize(crop.height, crop.width)
                 val resized = HayaiHost.resizeRgb(rgb, crop.height, crop.width, th, tw)
                 val pixels = HayaiHost.encoderInput(

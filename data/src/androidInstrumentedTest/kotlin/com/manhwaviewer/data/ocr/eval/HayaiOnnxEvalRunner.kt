@@ -1,16 +1,16 @@
 package com.manhwaviewer.data.ocr.eval
 
-import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.DetectedBox
 import com.manhwaviewer.data.ocr.YoloPostProcessor
-import com.manhwaviewer.data.ocr.hayai.HayaiHost
+import com.manhwaviewer.data.ocr.hayai.HayaiMangaOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOnnxGraphs
 import com.manhwaviewer.data.ocr.hayai.HayaiTokenizer
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
+import com.manhwaviewer.data.ocr.image.readRgbHwc
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -56,35 +56,23 @@ class HayaiOnnxEvalRunner {
         return FloatArray(expected).also { buffer.get(it) }
     }
 
-    /** The crop as HWC uint8, which is what the reference resizes. */
-    private fun rgbOf(bitmap: Bitmap): IntArray {
-        val width = bitmap.width
-        val height = bitmap.height
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        val rgb = IntArray(width * height * 3)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            rgb[i * 3] = (p shr 16) and 0xFF
-            rgb[i * 3 + 1] = (p shr 8) and 0xFF
-            rgb[i * 3 + 2] = p and 0xFF
-        }
-        return rgb
-    }
-
     @Test
     fun recognition() {
         val dataset = EvalDataset.loadOrSkip(context)
         val dir = modelDir()
         val graphs = HayaiOnnxGraphs(dir).apply { initialize() }
         val tokenizer = HayaiTokenizer.fromTokenizerJson(File(dir, "tokenizer.json").readText())
-        val engine = HayaiOcrEngine(
-            graphs = graphs,
-            tokenizer = tokenizer,
-            positionBase = positionBase(dir),
-            bosId = requireToken(tokenizer, "<bos>"),
-            eosId = requireToken(tokenizer, "<eos>"),
-            padId = requireToken(tokenizer, "<pad>"),
+        // Through the adapter, because the grid choice and the resize it performs are part of
+        // what this run measures.
+        val engine = HayaiMangaOcrEngine(
+            HayaiOcrEngine(
+                graphs = graphs,
+                tokenizer = tokenizer,
+                positionBase = positionBase(dir),
+                bosId = requireToken(tokenizer, "<bos>"),
+                eosId = requireToken(tokenizer, "<eos>"),
+                padId = requireToken(tokenizer, "<pad>"),
+            )
         )
         val results = JSONObject()
         try {
@@ -100,16 +88,9 @@ class HayaiOnnxEvalRunner {
                         image.height,
                     )
                     val crop = cropToPlatformImage(image, padded.x, padded.y, padded.width, padded.height)
-                    val (targetHeight, targetWidth) = HayaiHost.scaledSize(crop.height, crop.width)
+                    val rgb = readRgbHwc(crop)
                     val start = SystemClock.elapsedRealtime()
-                    val resized = HayaiHost.resizeRgb(
-                        rgbOf(crop), crop.height, crop.width, targetHeight, targetWidth,
-                    )
-                    val text = engine.recognize(
-                        FloatArray(resized.size) { resized[it].toFloat() },
-                        targetHeight / HayaiHost.PATCH_SIZE,
-                        targetWidth / HayaiHost.PATCH_SIZE,
-                    )
+                    val text = engine.recognizeRgb(rgb, crop.height, crop.width)
                     val elapsed = SystemClock.elapsedRealtime() - start
                     results.put(
                         "${page.name}/${item.id}",
@@ -118,7 +99,7 @@ class HayaiOnnxEvalRunner {
                 }
             }
         } finally {
-            graphs.close()
+            engine.close()
         }
         dataset.writeOutput("recognition.json", results)
         assertEquals(dataset.itemCount, results.length())

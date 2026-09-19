@@ -194,3 +194,39 @@ actual fun getImageDimensions(image: PlatformImage): Pair<Int, Int> {
     val cgImage = image.CGImage ?: throw IllegalArgumentException("Failed to get CGImage from UIImage")
     return CGImageGetWidth(cgImage).toInt() to CGImageGetHeight(cgImage).toInt()
 }
+
+actual fun readRgbHwc(image: PlatformImage): IntArray {
+    val cgImage = image.CGImage ?: throw IllegalArgumentException("Failed to get CGImage from UIImage")
+    val width = CGImageGetWidth(cgImage).toInt()
+    val height = CGImageGetHeight(cgImage).toInt()
+
+    val bytesPerRow = 4 * width
+    val raw = ByteArray(height * bytesPerRow)
+    raw.usePinned { pinned ->
+        val colorSpace = CGColorSpaceCreateDeviceRGB()
+        val context = CGBitmapContextCreate(
+            pinned.addressOf(0),
+            width.toULong(),
+            height.toULong(),
+            8u,
+            bytesPerRow.toULong(),
+            colorSpace,
+            CGImageAlphaInfo.kCGImageAlphaNoneSkipLast.value or kCGBitmapByteOrder32Big,
+        ) ?: error("Failed to create bitmap context")
+        // Core Graphics composites rather than dropping alpha, and an uninitialised context
+        // is black, which reads as ink to the recogniser.
+        CGContextSetRGBFillColor(context, 1.0, 1.0, 1.0, 1.0)
+        CGContextFillRect(context, CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble()))
+        CGContextDrawImage(context, CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble()), cgImage)
+        CGContextRelease(context)
+        CGColorSpaceRelease(colorSpace)
+    }
+
+    val rgb = IntArray(width * height * 3)
+    for (i in 0 until width * height) {
+        rgb[i * 3] = raw[i * 4].toInt() and 0xFF
+        rgb[i * 3 + 1] = raw[i * 4 + 1].toInt() and 0xFF
+        rgb[i * 3 + 2] = raw[i * 4 + 2].toInt() and 0xFF
+    }
+    return rgb
+}
