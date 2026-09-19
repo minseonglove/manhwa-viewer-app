@@ -13,7 +13,7 @@ from translation_eval.dataset import Page, latest_recognition_run, load_pages, p
 from translation_eval.paths import GT_DIR, OCR_RUNS_DIR, PAGES_DIR, REPO_ROOT, RUNS_DIR
 from translation_eval.prompt import PROMPTS, PROMPT_VERSIONS, build_messages, parse_output
 
-PROVIDER_CHOICES = ("luna", "gemma_cf", "gemma_cf_think", "gemma31_fp4", "gemma31_fp8", "gemma31_bf16")
+PROVIDER_CHOICES = ("luna", "gemma_cf", "gemma_cf_think", "gemma31_fp4", "gemma31_fp8", "gemma31_bf16", *providers.OPENROUTER_MODELS)
 
 
 def git_commit() -> str | None:
@@ -43,9 +43,21 @@ def run_provider(spec: providers.ProviderSpec, pages: list[Page], source: str, d
         if dry_run:
             fake = json.dumps({"items": [{"id": i.id, "ko": f"[dry] {i.text(source)}"} for i in items]}, ensure_ascii=False)
             result = providers.PageResult(content=fake, finish_reason="stop", settings={"dry_run": True})
+            translations, problems = parse_output(result.content, expected)
+        elif spec.segment_mode:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                seg = list(pool.map(lambda it: providers.translate_segment(client, spec, it.text(source)), items))
+            translations = {it.id: r.content for it, r in zip(items, seg) if r.content}
+            problems = [f"{it.id}: {r.error[:60]}" for it, r in zip(items, seg) if r.error]
+            result = providers.PageResult(
+                content=None, finish_reason="stop", latency_ms=max(r.latency_ms for r in seg),
+                prompt_tokens=sum(r.prompt_tokens or 0 for r in seg), completion_tokens=sum(r.completion_tokens or 0 for r in seg),
+                settings={"segment_mode": True, "served_by": seg[0].settings.get("served_by"), "billed_usd": sum(r.settings.get("billed_usd") or 0 for r in seg)},
+            )
         else:
             result = providers.translate_page(client, spec, messages, PROMPTS[prompt][2])
-        translations, problems = parse_output(result.content, expected) if not result.error else ({}, [])
+            translations, problems = parse_output(result.content, expected) if not result.error else ({}, [])
         out[page.name] = {
             "items": {item.id: translations.get(item.id) for item in items},
             "problems": problems,

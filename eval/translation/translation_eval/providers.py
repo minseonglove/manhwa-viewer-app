@@ -10,6 +10,18 @@ from translation_eval.prompt import OUTPUT_SCHEMA
 
 CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Generic OpenRouter models: name -> (model id, translation-only model that needs one call per segment).
+OPENROUTER_MODELS = {
+    "hymt2_30b": ("tencent/hy-mt2-30b-a3b", True),
+    "hymt2_7b": ("tencent/hy-mt2-7b", True),
+    "qwen3_235b": ("qwen/qwen3-235b-a22b-2507", False),
+    "qwen37_flash": ("qwen/qwen3.7-flash", False),
+    "deepseek_v4_flash": ("deepseek/deepseek-v4-flash", False),
+    "solar_pro4": ("upstage/solar-pro4", False),
+    "mistral_small32": ("mistralai/mistral-small-3.2-24b-instruct", False),
+}
+MT_TEMPLATE = "Translate the following segment into Korean, without additional explanation.\n\n{text}"
+
 # name -> (provider order, quantizations). Pinned so that a run measures one serving precision.
 OPENROUTER_ROUTES = {
     "gemma31_fp4": (["DeepInfra"], ["fp4"]),
@@ -25,6 +37,13 @@ PRICES = {
     "gemma31_fp4": (0.09, 0.34),
     "gemma31_fp8": (0.13, 0.38),
     "gemma31_bf16": (0.14, 0.40),
+    "hymt2_30b": (0.074, 0.295),
+    "hymt2_7b": (0.074, 0.295),
+    "qwen3_235b": (0.087, 0.35),
+    "qwen37_flash": (0.03, 0.13),
+    "deepseek_v4_flash": (0.046, 0.091),
+    "solar_pro4": (0.09, 0.36),
+    "mistral_small32": (0.094, 0.25),
 }
 
 
@@ -42,6 +61,7 @@ class ProviderSpec:
     response_format_modes: tuple[str, ...] = ("json_schema", "json_object", "none")
     extra_body: dict = field(default_factory=dict)
     max_completion_tokens: int | None = None
+    segment_mode: bool = False
 
 
 @dataclass
@@ -131,6 +151,26 @@ def build_specs(names: list[str], props: dict[str, str] | None = None) -> list[P
                     },
                 )
             )
+        elif name in OPENROUTER_MODELS:
+            key = config_value("OPENROUTER_API_KEY", "openrouter.api.key", props)
+            if not key:
+                raise SystemExit(f"{name}: OPENROUTER_API_KEY or openrouter.api.key in local.properties is required")
+            model, segment_mode = OPENROUTER_MODELS[name]
+            specs.append(
+                ProviderSpec(
+                    name=name,
+                    model=model,
+                    base_url=OPENROUTER_BASE_URL,
+                    api_key=key,
+                    extra_body={
+                        "provider": {"data_collection": "deny"},
+                        "reasoning": {"enabled": False},
+                        "usage": {"include": True},
+                    },
+                    segment_mode=segment_mode,
+                    response_format_modes=("none",) if segment_mode else ("json_object", "none"),
+                )
+            )
         else:
             raise SystemExit(f"unknown provider: {name}")
     return specs
@@ -207,3 +247,29 @@ def translate_page(client, spec: ProviderSpec, messages: list[dict], response_fo
                 settings={"response_format": mode, "reasoning_effort": effort, **({"served_by": served_by} if served_by else {}), **({"billed_usd": billed_cost} if billed_cost is not None else {})},
             )
     return PageResult(error=last_error or "all settings rejected")
+
+
+def translate_segment(client, spec: ProviderSpec, text: str) -> PageResult:
+    """One call for one segment with the MT prompt template (translation-only models)."""
+    started = time.perf_counter()
+    kwargs: dict = {"model": spec.model, "messages": [{"role": "user", "content": MT_TEMPLATE.format(text=text)}], "temperature": 0.2}
+    if spec.extra_body:
+        kwargs["extra_body"] = spec.extra_body
+    try:
+        response = client.chat.completions.create(**kwargs)
+    except Exception as exc:  # noqa: BLE001
+        return PageResult(error=f"{type(exc).__name__}: {exc}", latency_ms=int((time.perf_counter() - started) * 1000))
+    choice = response.choices[0] if response.choices else None
+    message = choice.message if choice else None
+    usage = response.usage
+    extra = getattr(usage, "model_extra", None) or {}
+    return PageResult(
+        content=(message.content or "").strip() if message else None,
+        finish_reason=choice.finish_reason if choice else None,
+        refusal=getattr(message, "refusal", None) if message else None,
+        latency_ms=int((time.perf_counter() - started) * 1000),
+        prompt_tokens=usage.prompt_tokens if usage else None,
+        completion_tokens=usage.completion_tokens if usage else None,
+        neurons=None,
+        settings={"segment_mode": True, "served_by": (getattr(response, "model_extra", None) or {}).get("provider"), "billed_usd": extra.get("cost") if isinstance(extra, dict) else None},
+    )
