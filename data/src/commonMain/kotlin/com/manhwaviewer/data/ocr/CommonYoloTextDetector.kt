@@ -9,6 +9,7 @@ import com.manhwaviewer.data.ocr.inference.YoloRunner
 
 class CommonYoloTextDetector(
     private val yolo: YoloRunner,
+    private val confThreshold: Float = YoloPostProcessor.CONF_THRESHOLD,
 ) : TextDetector {
 
     private var initialized = false
@@ -40,6 +41,7 @@ class CommonYoloTextDetector(
             padY = transform.padY,
             originalWidth = origW,
             originalHeight = origH,
+            confThreshold = confThreshold,
         )
         val boxes = YoloPostProcessor.nonMaxSuppression(rawBoxes)
 

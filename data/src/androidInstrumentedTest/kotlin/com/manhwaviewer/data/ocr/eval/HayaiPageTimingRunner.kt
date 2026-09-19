@@ -8,6 +8,7 @@ import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
+import com.manhwaviewer.data.ocr.YoloPostProcessor
 import com.manhwaviewer.data.ocr.hayai.HayaiMangaOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOnnxGraphs
@@ -32,8 +33,16 @@ import org.junit.Test
  * `TextDetectionRepositoryImpl`'s semaphore, and only on the regions YOLO found, not on all
  * 499 ground-truth items. So this drives the real repository and times the whole call.
  *
- * Both engines are measured on the same device over the same pages, alternating which one goes
- * first per page so warm-up and thermal drift do not land on one of them.
+ * Three configurations are measured over the same pages in one run, rotating which one goes first
+ * per page so warm-up and thermal drift do not land on any of them:
+ * the app as it was (manga-ocr at the old 0.3 detection threshold), the threshold change alone,
+ * and the app as it is now. Each one also writes the blocks it produced, so the same run yields
+ * both the page time and the pipeline accuracy — measured together rather than multiplied
+ * together from separate runs.
+ *
+ * One YOLO session and one OCR engine per model are shared across configurations; only the
+ * detector's threshold differs. Holding a separate session per configuration got an earlier
+ * sweep reaped by lowmemorykiller.
  */
 class HayaiPageTimingRunner {
 
@@ -74,41 +83,69 @@ class HayaiPageTimingRunner {
         },
     )
 
-    private fun repository(engine: MangaOcrEngine) = TextDetectionRepositoryImpl(
-        CommonYoloTextDetector(YoloRunner(context)),
-        verticalOcr = engine,
-        platformRecognizer = MlKitTextRecognizer(),
-    )
+    private fun repository(yolo: YoloRunner, threshold: Float, engine: MangaOcrEngine) =
+        TextDetectionRepositoryImpl(
+            CommonYoloTextDetector(yolo, threshold),
+            verticalOcr = engine,
+            platformRecognizer = MlKitTextRecognizer(),
+        )
 
     @Test
     fun pageTiming() = runBlocking {
         val dataset = EvalDataset.loadOrSkip(context)
         val dir = modelDir()
-        val engines = linkedMapOf("hayai" to hayai(dir), "mangaocr" to mangaOcr())
-        val repos = engines.mapValues { repository(it.value) }
+        val yolo = YoloRunner(context)
+        val mangaOcr = mangaOcr()
+        val hayai = hayai(dir)
+        val repos = linkedMapOf(
+            "before" to repository(yolo, OLD_THRESHOLD, mangaOcr),
+            "mangaocr" to repository(yolo, YoloPostProcessor.CONF_THRESHOLD, mangaOcr),
+            "hayai" to repository(yolo, YoloPostProcessor.CONF_THRESHOLD, hayai),
+        )
+        val names = repos.keys.toList()
 
-        // 첫 페이지는 두 엔진 모두 모델 로딩이 섞이므로 계측에서 제외한다.
-        val warmUp = dataset.pages.first()
-        for (repo in repos.values) repo.detectAndRecognize(warmUp.imageFile.readBytes())
+        // 첫 페이지는 모델 로딩이 섞이므로 계측에서 제외한다.
+        val warmUp = dataset.pages.first().imageFile.readBytes()
+        for (repo in repos.values) repo.detectAndRecognize(warmUp)
 
         val rows = JSONArray()
+        val pipelines = names.associateWith { JSONObject() }
         try {
             for ((index, page) in dataset.pages.withIndex()) {
                 val bytes = page.imageFile.readBytes()
-                val order = if (index % 2 == 0) engines.keys.toList() else engines.keys.reversed()
-                val row = JSONObject().put("page", page.name)
+                val shift = index % names.size
+                val order = names.drop(shift) + names.take(shift)
+                val row = JSONObject().put("page", page.name).put("first", order.first())
                 for (name in order) {
                     val start = SystemClock.elapsedRealtime()
                     val blocks = repos.getValue(name).detectAndRecognize(bytes)
                     row.put("${name}_ms", SystemClock.elapsedRealtime() - start)
                     row.put("${name}_blocks", blocks.size)
+                    val encoded = JSONArray()
+                    for (b in blocks) {
+                        encoded.put(
+                            JSONObject()
+                                .put("bbox", JSONArray(listOf(b.x, b.y, b.width, b.height)))
+                                .put("text", b.text),
+                        )
+                    }
+                    pipelines.getValue(name).put(
+                        page.name,
+                        JSONObject().put("ms", row.getLong("${name}_ms")).put("blocks", encoded),
+                    )
                 }
-                row.put("first", order.first())
                 rows.put(row)
             }
         } finally {
-            for (engine in engines.values) engine.close()
+            mangaOcr.close()
+            hayai.close()
         }
         dataset.writeOutput("page-timing.json", JSONObject().put("pages", rows))
+        for ((name, pipeline) in pipelines) dataset.writeOutput("pipeline-$name.json", pipeline)
+    }
+
+    private companion object {
+        /** 개선 전 앱이 쓰던 검출 임계값. */
+        const val OLD_THRESHOLD = 0.3f
     }
 }

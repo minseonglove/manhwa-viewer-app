@@ -9,7 +9,7 @@ object YoloPostProcessor {
      * 제안은 사실상 전부 0.07 이하다. 그 사이의 빈 구간 위에 놓는 값 — 작은(3,000px² 미만)
      * 말풍선과 가늘고 긴 나레이션이 이 구간에 떨어지고, 더 내리면 잡히는 것보다 쓰레기가 빨리 는다.
      */
-    private const val CONF_THRESHOLD = 0.1f
+    const val CONF_THRESHOLD = 0.1f
     private const val TEXT_CLASS_ID = 1f
     private const val PADDING_RATIO = 0.08f
     private const val MIN_PADDING_PX = 4
@@ -23,6 +23,7 @@ object YoloPostProcessor {
         padY: Int,
         originalWidth: Int,
         originalHeight: Int,
+        confThreshold: Float = CONF_THRESHOLD,
     ): List<DetectedBox> {
         val boxes = mutableListOf<DetectedBox>()
         for (i in 0 until MangaOcrConfig.YOLO_MAX_DETECTIONS) {
@@ -34,7 +35,7 @@ object YoloPostProcessor {
             val y2 = rawOutput[offset + 3]
             val confidence = rawOutput[offset + 4]
             val classId = rawOutput[offset + 5]
-            if (confidence < CONF_THRESHOLD) continue
+            if (confidence < confThreshold) continue
             if (classId != TEXT_CLASS_ID) continue
             val bx = ((x1 - padX) / scale).roundToInt().coerceIn(0, originalWidth)
             val by = ((y1 - padY) / scale).roundToInt().coerceIn(0, originalHeight)

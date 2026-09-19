@@ -26,6 +26,24 @@ class YoloPostProcessorTest {
         assertEquals(1, result.size, "0.15 detections must survive the confidence filter")
     }
 
+    /**
+     * 임계값을 밖에서 줄 수 있어야 같은 기기에서 예전 설정(0.3)과 지금 설정을 나란히 잴 수 있다.
+     */
+    @Test
+    fun parseAndFilter_honoursAnExplicitThreshold() {
+        val raw = floatArrayOf(10f, 20f, 100f, 200f, 0.2f, 1f) +
+            FloatArray((MangaOcrConfig.YOLO_MAX_DETECTIONS - 1) * 6)
+        assertEquals(
+            1,
+            YoloPostProcessor.parseAndFilter(raw, 1f, 0, 0, 640, 640, confThreshold = 0.1f).size,
+            "0.2 must survive a 0.1 threshold",
+        )
+        assertTrue(
+            YoloPostProcessor.parseAndFilter(raw, 1f, 0, 0, 640, 640, confThreshold = 0.3f).isEmpty(),
+            "0.2 must be filtered by a 0.3 threshold",
+        )
+    }
+
     @Test
     fun parseAndFilter_filtersNonTextClass() {
         val raw = floatArrayOf(10f, 20f, 100f, 200f, 0.9f, 0f) +
