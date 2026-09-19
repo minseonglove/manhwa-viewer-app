@@ -8,10 +8,22 @@ class YoloPostProcessorTest {
 
     @Test
     fun parseAndFilter_filtersLowConfidence() {
-        val raw = floatArrayOf(10f, 20f, 100f, 200f, 0.1f, 1f) +
+        val raw = floatArrayOf(10f, 20f, 100f, 200f, 0.05f, 1f) +
             FloatArray((MangaOcrConfig.YOLO_MAX_DETECTIONS - 1) * 6)
         val result = YoloPostProcessor.parseAndFilter(raw, 1f, 0, 0, 640, 640)
         assertTrue(result.isEmpty(), "Low confidence detection should be filtered out")
+    }
+
+    /**
+     * 0.15 는 정답셋에서 실제 말풍선들이 받은 점수 구간이다. 이 구간을 버리면 작은 말풍선과
+     * 가늘고 긴 나레이션이 통째로 사라지므로, 임계값이 다시 올라가면 여기서 잡힌다.
+     */
+    @Test
+    fun parseAndFilter_keepsWeakButRealDetections() {
+        val raw = floatArrayOf(10f, 20f, 100f, 200f, 0.15f, 1f) +
+            FloatArray((MangaOcrConfig.YOLO_MAX_DETECTIONS - 1) * 6)
+        val result = YoloPostProcessor.parseAndFilter(raw, 1f, 0, 0, 640, 640)
+        assertEquals(1, result.size, "0.15 detections must survive the confidence filter")
     }
 
     @Test

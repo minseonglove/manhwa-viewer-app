@@ -4,7 +4,12 @@ import kotlin.math.roundToInt
 
 object YoloPostProcessor {
 
-    private const val CONF_THRESHOLD = 0.3f
+    /**
+     * 정답셋 30페이지에서 말풍선·나레이션이 받은 점수는 0.9 이상에 몰려 있고, 정답과 맞지 않는
+     * 제안은 사실상 전부 0.07 이하다. 그 사이의 빈 구간 위에 놓는 값 — 작은(3,000px² 미만)
+     * 말풍선과 가늘고 긴 나레이션이 이 구간에 떨어지고, 더 내리면 잡히는 것보다 쓰레기가 빨리 는다.
+     */
+    private const val CONF_THRESHOLD = 0.1f
     private const val TEXT_CLASS_ID = 1f
     private const val PADDING_RATIO = 0.08f
     private const val MIN_PADDING_PX = 4
