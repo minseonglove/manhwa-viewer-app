@@ -23,3 +23,15 @@ def test_summarize_counts_missing_errors_and_cost():
     meta = {"providers": {"luna": {"model": "gpt-5.6-luna"}}}
     row = summarize(results, meta)[-1]
     assert "| luna | gpt-5.6-luna | 2 | 3 | 2 | 1 | 0 | 100 | 1000000 | 1000000 | 0 | - | 1.4000 |" == row
+
+
+def test_summarize_prices_nmt_by_characters():
+    results = {
+        "google_nmt": {
+            "p1": {"items": {"t01": "a"}, "problems": [], "error": None, "refusal": None, "finish_reason": "stop", "latency_ms": 100,
+                    "prompt_tokens": None, "completion_tokens": None, "reasoning_tokens": None, "settings": {"nmt": True, "characters": 500_000}},
+        }
+    }
+    meta = {"providers": {"google_nmt": {"model": "google-nmt-v2"}}}
+    row = summarize(results, meta)[-1]
+    assert row.endswith("| 10.0000 |")

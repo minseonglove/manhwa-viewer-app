@@ -7,7 +7,7 @@ from pathlib import Path
 
 from translation_eval.dataset import load_pages
 from translation_eval.paths import GT_DIR
-from translation_eval.providers import price_for
+from translation_eval.providers import PRICES_PER_MILLION_CHARS, price_for
 
 LABELS = "ABCD"
 
@@ -46,7 +46,12 @@ def summarize(results: dict[str, dict], meta: dict) -> list[str]:
         neurons = sum(p.get("neurons") or 0 for p in pages.values())
         neurons_s = f"{neurons:.0f}" if neurons else "-"
         price = price_for(model, name)
-        cost = f"{(p_tok * price[0] + c_tok * price[1]) / 1_000_000:.4f}" if price else "-"
+        char_price = PRICES_PER_MILLION_CHARS.get(name)
+        if char_price is not None:
+            chars = sum((p.get("settings") or {}).get("characters") or 0 for p in pages.values())
+            cost = f"{chars * char_price / 1_000_000:.4f}"
+        else:
+            cost = f"{(p_tok * price[0] + c_tok * price[1]) / 1_000_000:.4f}" if price else "-"
         lines.append(
             f"| {name} | {model} | {n_pages} | {n_items} | {n_missing} | {n_errors} | {n_refusals} | {avg_latency} | {p_tok} | {c_tok} | {r_tok} | {neurons_s} | {cost} |"
         )

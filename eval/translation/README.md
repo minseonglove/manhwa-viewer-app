@@ -16,6 +16,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 |---|---|---|---|
 | `luna` | `gpt-5.6-luna` (OpenAI) | `OPENAI_API_KEY` | `openai.api.key` |
 | `gemma_cf` | `@cf/google/gemma-4-26b-a4b-it` (Cloudflare Workers AI) | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | `cloudflare.account.id`, `cloudflare.api.token` |
+| `google_nmt` | Google Cloud Translation Basic v2 (NMT, 프롬프트 없이 항목 배열을 그대로 전송) | `GOOGLE_TRANSLATE_API_KEY` | `google.translate.api.key` |
 
 ## 실행
 

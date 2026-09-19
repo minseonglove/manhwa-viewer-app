@@ -13,7 +13,7 @@ from translation_eval.dataset import Page, latest_recognition_run, load_pages, p
 from translation_eval.paths import GT_DIR, OCR_RUNS_DIR, PAGES_DIR, REPO_ROOT, RUNS_DIR
 from translation_eval.prompt import PROMPTS, PROMPT_VERSIONS, build_messages, parse_output
 
-PROVIDER_CHOICES = ("luna", "gemma_cf", "gemma_cf_think", "gemma31_fp4", "gemma31_fp8", "gemma31_bf16", *providers.OPENROUTER_MODELS)
+PROVIDER_CHOICES = ("luna", "gemma_cf", "gemma_cf_think", *providers.OPENROUTER_ROUTES, *providers.OPENROUTER_MODELS, "deepseek_v4_flash_direct", "gemma_deepinfra", "google_nmt", "m2m100_cf", "proxy")
 
 
 def git_commit() -> str | None:
@@ -30,8 +30,9 @@ def new_run_dir(label: str, now: datetime | None = None) -> Path:
     return path
 
 
-def run_provider(spec: providers.ProviderSpec, pages: list[Page], source: str, dry_run: bool, log, with_image: bool = False, prompt: str = "v1") -> dict:
-    client = None if dry_run else providers.make_client(spec)
+def run_provider(spec: providers.ProviderSpec, pages: list[Page], source: str, dry_run: bool, log, with_image: bool = False, prompt: str = "v1", segment_workers: int = 6) -> dict:
+    client = None if dry_run or spec.kind in ("nmt", "proxy", "m2m100") else providers.make_client(spec)
+    proxy_session: dict = {}
     out: dict[str, dict] = {}
     for page in pages:
         items = [item for item in page.items if item.text(source)]
@@ -44,9 +45,20 @@ def run_provider(spec: providers.ProviderSpec, pages: list[Page], source: str, d
             fake = json.dumps({"items": [{"id": i.id, "ko": f"[dry] {i.text(source)}"} for i in items]}, ensure_ascii=False)
             result = providers.PageResult(content=fake, finish_reason="stop", settings={"dry_run": True})
             translations, problems = parse_output(result.content, expected)
+        elif spec.kind == "m2m100":
+            translated, result = providers.translate_m2m100(spec, [it.text(source) for it in items])
+            translations = {i: t for i, t in zip(expected, translated) if t is not None}
+            problems = [f"failed segments: {result.settings['failed_segments']} ({result.settings.get('first_error')})"] if result.settings["failed_segments"] else []
+        elif spec.kind == "proxy":
+            translations, result = providers.translate_proxy(spec, [{"id": it.id, "kind": it.category, "text": it.text(source)} for it in items], proxy_session)
+            problems = [f"missing ids: {','.join(i for i in expected if i not in translations)}"] if not result.error and any(i not in translations for i in expected) else []
+        elif spec.kind == "nmt":
+            translated, result = providers.translate_nmt(spec, [it.text(source) for it in items])
+            translations = dict(zip(expected, translated))
+            problems = []
         elif spec.segment_mode:
             from concurrent.futures import ThreadPoolExecutor
-            with ThreadPoolExecutor(max_workers=6) as pool:
+            with ThreadPoolExecutor(max_workers=segment_workers) as pool:
                 seg = list(pool.map(lambda it: providers.translate_segment(client, spec, it.text(source)), items))
             translations = {it.id: r.content for it, r in zip(items, seg) if r.content}
             problems = [f"{it.id}: {r.error[:60]}" for it, r in zip(items, seg) if r.error]
@@ -86,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="no API calls; echoes the source text")
     parser.add_argument("--into", type=Path, default=None, help="add these providers to an existing run dir instead of creating a new one")
     parser.add_argument("--with-image", action="store_true", help="attach the page image to every request")
+    parser.add_argument("--segment-workers", type=int, default=6, help="concurrent calls per page for segment-mode (translation-only) models; lower it when the host answers 429")
     parser.add_argument("--prompt", choices=tuple(PROMPTS), default="v2.1", help="prompt variant (v1 = original JSON prompt, v2 = compact, v2.1 = compact + sfx/background emphasis)")
     args = parser.parse_args(argv)
 
@@ -125,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     log(f"pages: {len(pages)}, items: {sum(len([i for i in p.items if i.text(args.source)]) for p in pages)}")
 
     with ThreadPoolExecutor(max_workers=len(specs)) as pool:
-        futures = {spec.name: pool.submit(run_provider, spec, pages, args.source, args.dry_run, log, args.with_image, args.prompt) for spec in specs}
+        futures = {spec.name: pool.submit(run_provider, spec, pages, args.source, args.dry_run, log, args.with_image, args.prompt, args.segment_workers) for spec in specs}
         results = {name: fut.result() for name, fut in futures.items()}
 
     meta = existing_meta or {
