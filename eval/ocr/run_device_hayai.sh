@@ -58,7 +58,13 @@ cat > "$PARTIAL_DIR/meta.json" <<EOF
 EOF
 
 echo "== running $TEST_CLASS#recognition"
-adb shell am instrument -w -e class "$TEST_CLASS#recognition" "$TEST_PKG/$RUNNER" \
+XNNPACK_ARG=""
+if [ -n "${HAYAI_XNNPACK:-}" ]; then
+  XNNPACK_ARG="-e xnnpack $HAYAI_XNNPACK"
+  echo "== XNNPACK execution provider, $HAYAI_XNNPACK threads"
+fi
+# shellcheck disable=SC2086
+adb shell am instrument -w -e class "$TEST_CLASS#recognition" $XNNPACK_ARG "$TEST_PKG/$RUNNER" \
   | tee "$PARTIAL_DIR/instrument-recognition.log"
 if grep -qE "FAILURES|Process crashed|INSTRUMENTATION_FAILED" "$PARTIAL_DIR/instrument-recognition.log"; then
   echo "instrumentation failed: $PARTIAL_DIR/instrument-recognition.log" >&2; exit 1
@@ -67,6 +73,23 @@ fi
 if grep -q "OK (0 tests)" "$PARTIAL_DIR/instrument-recognition.log"; then
   echo "test was skipped, not run: $PARTIAL_DIR/instrument-recognition.log" >&2; exit 1
 fi
+adb exec-out "run-as $TEST_PKG cat $DEVICE_DIR/out/runtime.json" > "$PARTIAL_DIR/runtime.json"
+if ! "$EVAL_DIR/.venv/bin/python" -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" "$PARTIAL_DIR/runtime.json" 2>/dev/null; then
+  echo "missing or invalid runtime.json -- the run cannot be attributed to a runtime version" >&2; exit 1
+fi
+"$EVAL_DIR/.venv/bin/python" - "$PARTIAL_DIR" <<'PYEOF'
+import json, sys
+from pathlib import Path
+d = Path(sys.argv[1])
+meta = json.loads((d / "meta.json").read_text())
+rt = json.loads((d / "runtime.json").read_text())
+meta["onnxruntime"] = rt["onnxruntime"]
+meta["available_providers"] = rt["available_providers"]
+meta["providers_used"] = rt["providers_used"]
+meta["settings"] = f"onnxruntime-android {rt['onnxruntime']} (providers available: {rt['available_providers']}; used: {rt['providers_used']}); " + meta["settings"].split("; ", 1)[1]
+(d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"   runtime: onnxruntime {rt['onnxruntime']} / providers {rt['available_providers']}")
+PYEOF
 adb exec-out "run-as $TEST_PKG cat $DEVICE_DIR/out/recognition.json" > "$PARTIAL_DIR/recognition.json"
 if ! "$EVAL_DIR/.venv/bin/python" -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" "$PARTIAL_DIR/recognition.json" 2>/dev/null; then
   echo "missing or invalid recognition.json: $PARTIAL_DIR/instrument-recognition.log" >&2; exit 1

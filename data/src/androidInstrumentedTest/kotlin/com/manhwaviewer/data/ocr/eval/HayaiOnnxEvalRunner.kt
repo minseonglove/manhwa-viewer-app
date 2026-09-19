@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.ocr.eval
 
+import ai.onnxruntime.OrtEnvironment
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.DetectedBox
@@ -60,7 +61,10 @@ class HayaiOnnxEvalRunner {
     fun recognition() {
         val dataset = EvalDataset.loadOrSkip(context)
         val dir = modelDir()
-        val graphs = HayaiOnnxGraphs(dir).apply { initialize() }
+        // `-e xnnpack <threads>` 로 실행 공급자를 바꿔 같은 기기에서 A/B 한다.
+        val xnnpackThreads = InstrumentationRegistry.getArguments()
+            .getString("xnnpack")?.toIntOrNull() ?: 0
+        val graphs = HayaiOnnxGraphs(dir).apply { initialize(xnnpackThreads) }
         val tokenizer = HayaiTokenizer.fromTokenizerJson(File(dir, "tokenizer.json").readText())
         // Through the adapter, because the grid choice and the resize it performs are part of
         // what this run measures.
@@ -102,6 +106,18 @@ class HayaiOnnxEvalRunner {
             engine.close()
         }
         dataset.writeOutput("recognition.json", results)
+        // 런타임이 스스로 보고하는 버전과 공급자. 빌드 설정이 아니라 실제로 실행한 것을 남긴다 --
+        // 이 값이 없으면 같은 모델·같은 입력의 두 실행이 왜 다른지 사후에 귀속시킬 수 없다.
+        dataset.writeOutput(
+            "runtime.json",
+            JSONObject()
+                .put("onnxruntime", OrtEnvironment.getEnvironment().version)
+                .put(
+                    "available_providers",
+                    OrtEnvironment.getAvailableProviders().joinToString(",") { it.name },
+                )
+                .put("providers_used", if (xnnpackThreads > 0) "XnnpackExecutionProvider($xnnpackThreads),CPUExecutionProvider" else "CPUExecutionProvider"),
+        )
         assertEquals(dataset.itemCount, results.length())
     }
 

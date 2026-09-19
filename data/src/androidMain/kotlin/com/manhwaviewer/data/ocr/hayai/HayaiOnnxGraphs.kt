@@ -43,10 +43,18 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
     private var prefillSession: OrtSession? = null
     private var decodeSession: OrtSession? = null
 
-    fun initialize() {
+    /**
+     * [xnnpackThreads] 가 0 이면 CPU 실행 공급자만 쓴다. 양수면 XNNPACK 을 그 스레드 수로 얹는다.
+     * XNNPACK 은 감지된 CPU 기능(i8mm, sve2 등)에 따라 int8 마이크로커널을 고르므로, 어느 쪽이
+     * 빠른지는 기기마다 다르고 실기기에서 재야 한다.
+     */
+    fun initialize(xnnpackThreads: Int = 0) {
         val environment = OrtEnvironment.getEnvironment()
         val options = OrtSession.SessionOptions().apply {
             setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+            if (xnnpackThreads > 0) {
+                addXnnpack(mapOf("intra_op_num_threads" to xnnpackThreads.toString()))
+            }
         }
         env = environment
         encoderSession = open(environment, options, "hayai_encoder.onnx")
