@@ -3,6 +3,7 @@ package com.manhwaviewer.data.ocr.hayai
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import com.manhwaviewer.data.ocr.inference.OrtMemoryOptions
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
@@ -49,6 +50,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
     }
 
     private var env: OrtEnvironment? = null
+    private var runOptions: OrtSession.RunOptions? = null
     private var encoderSession: OrtSession? = null
     private var prefillSession: OrtSession? = null
     private var decodeSession: OrtSession? = null
@@ -64,27 +66,43 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
      * 2스레드 0.981배, **4스레드 0.925배**, 6스레드 1.192배로 4가 가장 빨랐다. 6에서 급격히
      * 나빠지는 것은 big 클러스터를 넘어 little 코어까지 쓰게 되기 때문으로 보인다.
      * 기기마다 다를 수 있는 값이고, `YoloRunner` 도 같은 이유로 4를 쓴다.
+     *
+     * [memory] 의 기본값이 아레나를 끄는 이유는 [OrtMemoryOptions.NO_ARENA] 에 있다. [encoderMemory] 와
+     * [prefillMemory] 는 그 두 그래프에만 다른 값을 줄 때 쓴다 — decode 는 토큰마다 돌아 가장 뜨겁고,
+     * 나머지 둘은 인식당 한 번이라 메모리와 시간의 교환 비율이 다르다.
      */
-    fun initialize(xnnpackThreads: Int = 0, intraOpThreads: Int = DEFAULT_INTRA_OP_THREADS) {
-        val environment = OrtEnvironment.getEnvironment()
-        val options = OrtSession.SessionOptions().apply {
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
-            if (intraOpThreads > 0) setIntraOpNumThreads(intraOpThreads)
-            if (xnnpackThreads > 0) {
-                addXnnpack(mapOf("intra_op_num_threads" to xnnpackThreads.toString()))
-            }
-        }
+    fun initialize(
+        xnnpackThreads: Int = 0,
+        intraOpThreads: Int = DEFAULT_INTRA_OP_THREADS,
+        memory: OrtMemoryOptions = OrtMemoryOptions.NO_ARENA,
+        encoderMemory: OrtMemoryOptions = memory,
+        prefillMemory: OrtMemoryOptions = memory,
+    ) {
+        val environment = memory.environment(intraOpThreads)
+        runOptions = memory.newRunOptions()
         env = environment
-        encoderSession = open(environment, options, "hayai_encoder.onnx")
-        prefillSession = open(environment, options, "hayai_prefill.onnx")
-        decodeSession = open(environment, options, "hayai_decode.onnx")
+        encoderSession = open(environment, encoderMemory, intraOpThreads, xnnpackThreads, "hayai_encoder.onnx")
+        prefillSession = open(environment, prefillMemory, intraOpThreads, xnnpackThreads, "hayai_prefill.onnx")
+        decodeSession = open(environment, memory, intraOpThreads, xnnpackThreads, "hayai_decode.onnx")
     }
 
-    private fun open(environment: OrtEnvironment, options: OrtSession.SessionOptions, name: String):
-        OrtSession {
+    private fun open(
+        environment: OrtEnvironment,
+        memory: OrtMemoryOptions,
+        intraOpThreads: Int,
+        xnnpackThreads: Int,
+        name: String,
+    ): OrtSession {
         val file = File(modelDir, name)
         require(file.isFile) { "$name is missing from ${modelDir.absolutePath}" }
-        return environment.createSession(file.absolutePath, options)
+        return OrtSession.SessionOptions().use { options ->
+            options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+            memory.configure(options, intraOpThreads)
+            if (xnnpackThreads > 0) {
+                options.addXnnpack(mapOf("intra_op_num_threads" to xnnpackThreads.toString()))
+            }
+            environment.createSession(file.absolutePath, options)
+        }
     }
 
     override fun encode(
@@ -120,7 +138,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         )
         val feeds = owned + ("visual_features" to encoded.tensor("visual_features"))
         val result = try {
-            (prefillSession ?: error("initialize() has not run")).run(feeds)
+            run(prefillSession ?: error("initialize() has not run"), feeds)
         } finally {
             owned.values.forEach(OnnxTensor::close)
         }
@@ -154,7 +172,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
             feeds["past_v_$layer"] = previous.tensor("new_v_$layer")
         }
         val result = try {
-            (decodeSession ?: error("initialize() has not run")).run(feeds)
+            run(decodeSession ?: error("initialize() has not run"), feeds)
         } finally {
             owned.values.forEach(OnnxTensor::close)
         }
@@ -167,15 +185,22 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         encoderSession?.close()
         prefillSession?.close()
         decodeSession?.close()
+        runOptions?.close()
         encoderSession = null
         prefillSession = null
         decodeSession = null
+        runOptions = null
         env = null
+    }
+
+    private fun run(session: OrtSession, feeds: Map<String, OnnxTensor>): OrtSession.Result {
+        val options = runOptions
+        return if (options == null) session.run(feeds) else session.run(feeds, options)
     }
 
     private fun runAndRelease(session: OrtSession, feeds: Map<String, OnnxTensor>): OrtSession.Result =
         try {
-            session.run(feeds)
+            run(session, feeds)
         } finally {
             feeds.values.forEach(OnnxTensor::close)
         }
