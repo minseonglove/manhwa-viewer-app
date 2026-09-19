@@ -2,6 +2,7 @@ package com.manhwaviewer.data.scanner
 
 import com.manhwaviewer.domain.entity.ArchiveFile
 import com.manhwaviewer.domain.entity.ArchiveType
+import kotlinx.cinterop.*
 import kotlin.time.Clock
 import kotlin.time.Instant
 import platform.Foundation.NSDate
@@ -190,8 +191,8 @@ actual class MediaScanner {
 
     actual fun isDirectory(path: String): Boolean {
         val fileManager = NSFileManager.defaultManager
-        return kotlinx.cinterop.memScoped {
-            val isDir = alloc<kotlinx.cinterop.BooleanVar>()
+        return memScoped {
+            val isDir = alloc<BooleanVar>()
             fileManager.fileExistsAtPath(path, isDirectory = isDir.ptr) && isDir.value
         }
     }
@@ -204,8 +205,8 @@ actual class MediaScanner {
         while (item != null) {
             val relativePath = item as String
             val fullPath = "$directoryPath/$relativePath"
-            val isDir = kotlinx.cinterop.memScoped {
-                val dir = alloc<kotlinx.cinterop.BooleanVar>()
+            val isDir = memScoped {
+                val dir = alloc<BooleanVar>()
                 fileManager.fileExistsAtPath(fullPath, isDirectory = dir.ptr) && dir.value
             }
             if (!isDir) {

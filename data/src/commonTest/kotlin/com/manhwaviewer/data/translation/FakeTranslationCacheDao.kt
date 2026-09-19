@@ -44,4 +44,12 @@ class FakeTranslationCacheDao : TranslationCacheDao {
     }
 
     override suspend fun getCacheCount(): Int = cache.size
+
+    // Room 쿼리와 같은 컬럼 집합을 센다 -- 둘이 어긋나면 fake 가 실제 크기를 가린다.
+    override suspend fun getTotalDataSize(): Long = cache.sumOf {
+        (
+            it.sourceText.length + it.translatedText.length +
+                it.sourceLanguage.length + it.targetLanguage.length + it.engine.length
+            ).toLong()
+    }
 }

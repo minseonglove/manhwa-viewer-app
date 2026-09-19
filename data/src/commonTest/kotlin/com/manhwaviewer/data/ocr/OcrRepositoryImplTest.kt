@@ -1,5 +1,6 @@
 package com.manhwaviewer.data.ocr
 
+import com.manhwaviewer.data.ocr.image.PlatformImage
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -42,6 +43,8 @@ private class FakeMangaOcrEngine(private val result: String) : MangaOcrEngine {
 
     override suspend fun recognizeText(imageBytes: ByteArray): String = result
 
+    override suspend fun recognizeText(image: PlatformImage): String = result
+
     override fun close() {
         closed = true
     }
@@ -52,6 +55,10 @@ private class FailingMangaOcrEngine : MangaOcrEngine {
         private set
 
     override suspend fun recognizeText(imageBytes: ByteArray): String {
+        throw RuntimeException("OCR failed")
+    }
+
+    override suspend fun recognizeText(image: PlatformImage): String {
         throw RuntimeException("OCR failed")
     }
 
