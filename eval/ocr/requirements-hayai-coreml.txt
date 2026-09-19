@@ -1,0 +1,29 @@
+# Environment for ocr_eval.models.hayai_coreml (CoreML .mlpackage graphs).
+#
+# Kept separate from requirements.txt: this adapter needs `coremltools`, which the
+# main venv does not carry, and it pins torch 2.14 alongside it. Create with python3.13:
+#
+#   python3.13 -m venv .venv-hayai-coreml
+#   .venv-hayai-coreml/bin/pip install -r requirements-hayai-coreml.txt
+#
+# macOS only -- coremltools' model loading and MLComputePlan need the system Core ML.
+#
+# scikit-learn is required by the k-means palettizer; without it `palettize_weights`
+# fails per graph. coremltools prints a version warning for 1.9.1 and for torch 2.14
+# (it has been tested to 1.5.1 / 2.7.0); the conversions and the 499-item scores were
+# verified with these versions regardless.
+#
+# The full freeze is 52 packages; only the ones the adapter and the conversion
+# scripts import directly are pinned here, the rest resolve transitively.
+
+coremltools==9.0
+hayai-ocr==2.1.0
+numpy==2.5.3
+pillow==12.3.0
+protobuf==7.36.2
+safetensors==0.8.0
+scikit-learn==1.9.1
+scipy==1.18.1
+tokenizers==0.23.2
+torch==2.14.0
+transformers==5.17.0

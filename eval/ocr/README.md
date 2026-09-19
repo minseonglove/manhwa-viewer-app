@@ -33,7 +33,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | `baberu` | `genshiai-daichi/baberu-ocr` | `.venv` | 공식 ONNX(무손실 등급), CPU 전용 (`--device mps` 거부) |
 | `hayai` | `JustANormalTinkerer/hayai-ocr-v2` | `.venv` | 공식 `hayai-ocr` 라이브러리, MPS. 매 load마다 `google/siglip2-base-patch16-naflex` 상류 revision을 온라인으로 확인하며 이동했으면 실행을 거부한다 |
 | `paddleocr_vl_manga` | `jzhang533/PaddleOCR-VL-For-Manga` | `.venv-paddleocr_vl_manga` | transformers 4.57.1 필요, MPS |
+| `hayai_litert` | 저자가 **배포한** LiteRT 그래프 | `.venv-hayai-litert` | `HAYAI_LITERT_DIR`의 배포본 `.tflite`를 잰다. 배포본 디코더는 토큰 임베딩 테이블이 `tie_weights()`로 뭉개져 있어 torch 기준과 90/499 다르다 — 비교 대상일 뿐 채택 후보가 아니다 |
 | `hayai_litert_export` | 직접 내보낸 LiteRT 그래프 | `.venv-hayai-litert` | `HAYAI_EXPORT_DIR`의 `.tflite`를 잰다. `HAYAI_EXPORT_MODE=split`은 저자와 같은 3파일 구성, `merged`는 prefill/decode를 시그니처 둘로 합친 1파일 구성 |
+| `hayai_coreml` | 직접 변환한 CoreML 그래프 | `.venv-hayai-coreml` | `HAYAI_COREML_DIR`의 `.mlpackage`를 잰다. `HAYAI_COREML_UNITS`로 compute units, `HAYAI_COREML_MODE=split\|merged`로 3패키지/2함수 병합 구성을 고른다. macOS 전용 |
 
 `paddleocr_vl_manga`는 전용 venv에서 실행하고, 채점은 `.venv`로 한다.
 
@@ -57,6 +59,25 @@ HAYAI_EXPORT_DIR=<dir> HAYAI_EXPORT_MODE=merged \
 ```
 
 두 실행을 `.venv/bin/python -m ocr_eval.score runs/<merged> --compare runs/<split>`로 비교하는 것이 이 어댑터가 존재하는 이유다 -- 디코더 두 그래프를 한 파일로 합쳐도 모델이 읽는 내용이 바뀌지 않는지 확인한다.
+
+`hayai_coreml`은 `requirements-hayai-coreml.txt`의 전용 venv에서 실행한다. `--device`는 무시되며(CoreML이 스스로 고른다) `mps`를 주면 거부한다 — 대신 `HAYAI_COREML_UNITS`로 지정한다.
+
+```bash
+python3 -m venv .venv-hayai-coreml
+.venv-hayai-coreml/bin/pip install -r requirements-hayai-coreml.txt
+
+HAYAI_COREML_DIR=<models-palette6> HAYAI_COREML_UNITS=CPU_AND_NE \
+  .venv-hayai-coreml/bin/python -m ocr_eval.run_model --model hayai_coreml
+.venv/bin/python -m ocr_eval.score runs/<run>
+
+# prefill+decode를 두 함수로 합친 multifunction 패키지 (iOS18 이상)
+HAYAI_COREML_DIR=<models-...-merged> HAYAI_COREML_MODE=merged \
+  .venv-hayai-coreml/bin/python -m ocr_eval.run_model --model hayai_coreml
+```
+
+`merged` 모드는 `hayai_encoder.mlpackage` + `hayai_decoder.mlpackage`(함수 `prefill`/`decode`)를 찾고, `split` 모드는 그래프별 3개 패키지를 찾는다. 두 모드 모두 `hayai_{encoder,prefill,decode}.io.json` 과 `position_base.npy`, `tokenizer.json` 이 함께 있어야 한다.
+
+어느 레시피를 쟀는지는 운영자가 준 라벨이 아니라 실행 메타의 `graph_spec_version`, `graph_compression_ops`, `graph_palette_bits`, `artifact_sha256` 으로 식별한다.
 
 `run_model`의 `--device` 기본값은 `auto`(MPS가 있으면 MPS)이고, `run_reference`의 기본값은 `cpu`다.
 

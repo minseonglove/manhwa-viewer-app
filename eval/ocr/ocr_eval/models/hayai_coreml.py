@@ -53,21 +53,14 @@ from hayai_ocr.litert import TOTAL, LitertOcrEngine
 from PIL import Image
 from tokenizers import Tokenizer
 
-SOURCE_MODEL = "JustANormalTinkerer/hayai-ocr-v2"
-REVISION = "4cf1398f8d9a56a2d4bd7c1d2fb7648773660a62"  # checkpoint snapshot the graphs were converted from
-GRAPHS = ("encoder", "prefill", "decode")
+from ._hayai_graph_io import (  # the IO contract every Hayai backend shares
+    CACHE_OUTPUTS, DECODE_CACHE_INPUTS, DECODE_POS_INPUT, DECODE_SCALAR_INPUTS,
+    ENCODER_INPUTS, GRAPHS, N_LAYERS, REVISION, SOURCE_MODEL,
+    check_io_order as _check_io_order, pos_to_write_mask as _slot_one_hot,
+)
+
 MODES = ("split", "merged")
 MERGED_DECODER = "hayai_decoder.mlpackage"  # prefill+decode as two functions of one package
-DECODE_POS_INPUT = 4  # index of `pos` in LitertOcrEngine.generate's decode input order
-N_LAYERS = 12
-
-# The IO `LitertOcrEngine.generate` addresses positionally, in its order.
-ENCODER_INPUTS = ("pixel_values", "attention_mask", "pos_embeds")
-DECODE_SCALAR_INPUTS = ("token_ids", "cos", "sin", "mask", "write_mask")
-DECODE_CACHE_INPUTS = tuple(
-    [f"past_k_{i}" for i in range(N_LAYERS)] + [f"past_v_{i}" for i in range(N_LAYERS)]
-)
-CACHE_OUTPUTS = tuple(name.replace("past_", "new_", 1) for name in DECODE_CACHE_INPUTS)
 
 # coremltools ArrayFeatureType.ArrayDataType -> numpy. Total on purpose: an
 # unmapped code means the graph declares something the shim has never cast to.
@@ -81,15 +74,8 @@ _ARRAY_DTYPE = {
 
 
 def pos_to_write_mask(pos: int) -> np.ndarray:
-    """The cache slot `pos` names, as the one-hot (1,1,320,1) the decode graph takes.
-
-    `export_kv.DecodeDecoderKV` computes `arange(320) == pos` in-graph and selects
-    with it; the converted graph takes the result instead.
-    """
-    pos = int(pos)
-    if not 0 <= pos < TOTAL:
-        raise ValueError(f"pos {pos} is outside the cache [0, {TOTAL}); no slot would be written")
-    return (np.arange(TOTAL) == pos).reshape(1, 1, TOTAL, 1)
+    """The cache slot `pos` names, as the one-hot (1,1,320,1) the decode graph takes."""
+    return _slot_one_hot(pos, TOTAL)
 
 
 def _mil_operations(spec):
@@ -224,30 +210,6 @@ class _DecodeGraph(_CoreMLGraph):
         if index == DECODE_POS_INPUT:
             value = pos_to_write_mask(np.asarray(value).item())
         super().set_tensor(index, value)
-
-
-def _check_io_order(io: dict[str, dict]) -> None:
-    """Refuse IO that `generate`'s positional addressing would silently misread."""
-    enc_in, enc_out = tuple(io["encoder"]["inputs"]), tuple(io["encoder"]["outputs"])
-    pre_out = tuple(io["prefill"]["outputs"])
-    dec_in, dec_out = tuple(io["decode"]["inputs"]), tuple(io["decode"]["outputs"])
-    expected_dec_in = DECODE_SCALAR_INPUTS + DECODE_CACHE_INPUTS
-    expected_out = ("logits",) + CACHE_OUTPUTS
-
-    if enc_in != ENCODER_INPUTS:
-        raise ValueError(f"encoder inputs are {enc_in}, expected {ENCODER_INPUTS}")
-    if len(enc_out) != 1:
-        raise ValueError(f"encoder outputs are {enc_out}; generate reads exactly one")
-    if dec_in != expected_dec_in:
-        raise ValueError(f"decode inputs are {dec_in}, expected {expected_dec_in}")
-    if pre_out != expected_out:
-        raise ValueError(f"prefill outputs are {pre_out}, expected {expected_out}")
-    if dec_out != expected_out:
-        raise ValueError(f"decode outputs are {dec_out}, expected {expected_out}")
-    if len(pre_out) - 1 != len(DECODE_CACHE_INPUTS):
-        raise ValueError(
-            f"prefill emits {len(pre_out) - 1} caches but decode takes {len(DECODE_CACHE_INPUTS)}"
-        )
 
 
 class CoreMLOcrEngine(LitertOcrEngine):
