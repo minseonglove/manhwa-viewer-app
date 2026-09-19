@@ -16,6 +16,7 @@ class TextDetectionRepositoryImpl(
     private val textDetector: TextDetector,
     private val verticalOcr: MangaOcrEngine,
     private val platformRecognizer: PlatformTextRecognizer? = null,
+    maxConcurrentOcr: Int = MAX_CONCURRENT_OCR,
 ) : TextDetectionRepository {
 
     companion object {
@@ -27,7 +28,7 @@ class TextDetectionRepositoryImpl(
         private const val NEAR_SQUARE_LOW = 0.8f
     }
 
-    private val ocrSemaphore = Semaphore(MAX_CONCURRENT_OCR)
+    private val ocrSemaphore = Semaphore(maxConcurrentOcr)
 
     override suspend fun detectAndRecognize(imageBytes: ByteArray): List<TextBlock> =
         detectAndRecognizeInternal(imageBytes, onStageChanged = null)
