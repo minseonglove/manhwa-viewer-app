@@ -47,11 +47,19 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
      * [xnnpackThreads] 가 0 이면 CPU 실행 공급자만 쓴다. 양수면 XNNPACK 을 그 스레드 수로 얹는다.
      * XNNPACK 은 감지된 CPU 기능(i8mm, sve2 등)에 따라 int8 마이크로커널을 고르므로, 어느 쪽이
      * 빠른지는 기기마다 다르고 실기기에서 재야 한다.
+     *
+     * [intraOpThreads] 가 0 이면 ORT 기본값(코어 수)을 쓴다. 기본값을 4 로 둔 것은 이 앱이
+     * 영역 네 개를 동시에 인식하기 때문이다 — 추론 하나가 코어를 다 쥐면 넷이 같은 코어를
+     * 나눠 쓰고 동기화 비용만 붙는다. 플립7(10코어)에서 페이지당 중앙값 기준 1스레드 1.037배,
+     * 2스레드 0.981배, **4스레드 0.925배**, 6스레드 1.192배로 4가 가장 빨랐다. 6에서 급격히
+     * 나빠지는 것은 big 클러스터를 넘어 little 코어까지 쓰게 되기 때문으로 보인다.
+     * 기기마다 다를 수 있는 값이고, `YoloRunner` 도 같은 이유로 4를 쓴다.
      */
-    fun initialize(xnnpackThreads: Int = 0) {
+    fun initialize(xnnpackThreads: Int = 0, intraOpThreads: Int = DEFAULT_INTRA_OP_THREADS) {
         val environment = OrtEnvironment.getEnvironment()
         val options = OrtSession.SessionOptions().apply {
             setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+            if (intraOpThreads > 0) setIntraOpNumThreads(intraOpThreads)
             if (xnnpackThreads > 0) {
                 addXnnpack(mapOf("intra_op_num_threads" to xnnpackThreads.toString()))
             }
@@ -195,5 +203,6 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
 
     private companion object {
         const val LAYERS = 12
+        const val DEFAULT_INTRA_OP_THREADS = 4
     }
 }
