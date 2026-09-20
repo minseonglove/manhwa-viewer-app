@@ -15,8 +15,12 @@ targets:
     platform: iOS
     sources:
       - path: iosApp
-    resources:
+      # 모델은 코드가 번들의 하위 폴더(subdirectory)로 찾으므로 그룹이 아니라 폴더 참조로 넣어 구조를 보존한다.
       - path: ../data/src/iosMain/resources/mangaocr
+        type: folder
+        buildPhase: resources
+      - path: ../data/src/iosMain/resources/hayai
+        type: folder
         buildPhase: resources
     dependencies:
       - framework: ../libs/lindera/LinderaFFI.xcframework
