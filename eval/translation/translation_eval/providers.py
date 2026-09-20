@@ -340,8 +340,17 @@ def translate_segment(client, spec: ProviderSpec, text: str) -> PageResult:
     )
 
 
+# Cloudflare answers urllib's default "Python-urllib/x.y" signature with 403 (error code 1010) on workers.dev.
+_USER_AGENT = "manhwa-viewer-translation-eval/1.0"
+
+
 def _http_post_json(url: str, headers: dict[str, str], body: dict) -> tuple[int, str]:
-    request = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={**headers, "Content-Type": "application/json"}, method="POST")
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"User-Agent": _USER_AGENT, **headers, "Content-Type": "application/json"},
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             return response.status, response.read().decode("utf-8")

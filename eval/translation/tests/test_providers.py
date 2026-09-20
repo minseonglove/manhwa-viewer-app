@@ -267,3 +267,29 @@ def test_gemma_deepinfra_spec_pins_thinking_off_on_the_second_host(monkeypatch):
     assert providers.price_for(spec.model, spec.name) == (0.07, 0.34)
     with pytest.raises(SystemExit):
         providers.build_specs(["gemma_deepinfra"], {})
+
+
+def test_http_post_names_its_client_so_cloudflare_does_not_reject_the_default_urllib_signature(monkeypatch):
+    seen = {}
+
+    class FakeResponse:
+        status = 200
+
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(request, timeout):
+        seen["user_agent"] = request.get_header("User-agent")
+        return FakeResponse()
+
+    monkeypatch.setattr(providers.urllib.request, "urlopen", fake_urlopen)
+
+    providers._http_post_json("https://example.invalid/v1/session", {}, {"deviceId": "d"})
+
+    assert seen["user_agent"] and not seen["user_agent"].lower().startswith("python-urllib")
