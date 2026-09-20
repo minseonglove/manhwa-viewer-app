@@ -8,6 +8,7 @@ import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.YoloPostProcessor
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
+import com.manhwaviewer.data.ocr.image.cropRegion
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
 import com.manhwaviewer.data.ocr.inference.YoloRunner
@@ -49,6 +50,34 @@ class OcrEvalRunner {
             engine.close()
         }
         dataset.writeOutput("recognition.json", results)
+        assertEquals(dataset.itemCount, results.length())
+    }
+
+    /**
+     * The platform recognizer on the same ground-truth crops, as the reference for what the OCR
+     * model has to match before horizontal text can be routed to it instead.
+     */
+    @Test
+    fun recognitionPlatform() = runBlocking {
+        val dataset = EvalDataset.loadOrSkip(context)
+        val recognizer = MlKitTextRecognizer()
+        val results = JSONObject()
+        for (page in dataset.pages) {
+            val image = decodeImage(page.imageFile.readBytes())
+            for (item in page.items) {
+                val padded = YoloPostProcessor.addPadding(
+                    DetectedBox(item.x, item.y, item.width, item.height, confidence = 1f, isJapanese = true),
+                    image.width,
+                    image.height,
+                )
+                val crop = cropRegion(image, padded.x, padded.y, padded.width, padded.height)
+                val start = SystemClock.elapsedRealtime()
+                val text = recognizer.recognizeText(crop)
+                val elapsed = SystemClock.elapsedRealtime() - start
+                results.put("${page.name}/${item.id}", JSONObject().put("text", text).put("ms", elapsed))
+            }
+        }
+        dataset.writeOutput("recognition-mlkit.json", results)
         assertEquals(dataset.itemCount, results.length())
     }
 
