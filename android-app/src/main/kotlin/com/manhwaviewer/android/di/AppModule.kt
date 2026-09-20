@@ -5,15 +5,12 @@ import com.manhwaviewer.data.cache.AndroidCacheRepository
 import com.manhwaviewer.data.db.getDatabaseBuilder
 import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.di.commonDataModule
-import com.manhwaviewer.data.ocr.CommonMangaOcrEngine
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.ManagedOcrEngine
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.MangaOcrEngine
-import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
-import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
-import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
+import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
@@ -42,16 +39,7 @@ private val androidPlatformModule = module {
     single<ImageFileRepository> { ImageFileRepositoryImpl(androidContext()) }
     single<CacheRepository> { AndroidCacheRepository(androidContext(), get(), get()) }
     single<MangaOcrEngine> {
-        ManagedOcrEngine {
-            CommonMangaOcrEngine(
-                encoder = OcrEncoderRunner(androidContext()),
-                decoder = OcrDecoderRunner(androidContext()),
-                vocabLoader = {
-                    androidContext().assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
-                        .bufferedReader().readLines()
-                },
-            )
-        }
+        ManagedOcrEngine { HayaiEngineFactory.fromAssets(androidContext()) }
     }
     single<TextDetectionRepository> {
         TextDetectionRepositoryImpl(
