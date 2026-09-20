@@ -15,8 +15,8 @@ import kotlinx.serialization.json.jsonPrimitive
  * and converts once at the end — decoding token by token and concatenating produces mojibake.
  * Special tokens are literal and bypass that mapping.
  *
- * Construction takes the parsed vocabulary rather than a file, mirroring [MangaOcrTokenizer],
- * so reading the asset stays in the platform layer.
+ * Construction takes the parsed vocabulary rather than a file, so reading the asset stays in
+ * the platform layer.
  */
 class HayaiTokenizer(
     private val idToToken: Map<Int, String>,

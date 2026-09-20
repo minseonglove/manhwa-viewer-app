@@ -2,8 +2,7 @@ package com.manhwaviewer.data.ocr
 
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
-import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
+import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
@@ -23,18 +22,13 @@ class TextDetectorComparisonTest {
         val imageBytes = InstrumentationRegistry.getInstrumentation()
             .context.assets.open(TEST_IMAGE).readBytes()
         val fileName = TEST_IMAGE.substringAfterLast("/")
+        // 모델이 150MB 라 파이프라인마다 따로 올리면 기기에서 메모리 부족으로 죽는다.
+        val ocr = HayaiEngineFactory.fromAssets(context)
 
         // === 1. YOLO pipeline ===
         val yoloPipeline = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context)),
-            verticalOcr = CommonMangaOcrEngine(
-                encoder = OcrEncoderRunner(context),
-                decoder = OcrDecoderRunner(context),
-                vocabLoader = {
-                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
-                        .bufferedReader().readLines()
-                },
-            ),
+            verticalOcr = ocr,
         )
         val yoloStart = System.currentTimeMillis()
         val yoloBlocks = yoloPipeline.detectAndRecognize(imageBytes)
@@ -49,14 +43,7 @@ class TextDetectorComparisonTest {
         // === 2. YOLO + MLKit hybrid pipeline ===
         val hybridPipeline = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context)),
-            verticalOcr = CommonMangaOcrEngine(
-                encoder = OcrEncoderRunner(context),
-                decoder = OcrDecoderRunner(context),
-                vocabLoader = {
-                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
-                        .bufferedReader().readLines()
-                },
-            ),
+            verticalOcr = ocr,
             platformRecognizer = MlKitTextRecognizer(),
         )
         val hybridStart = System.currentTimeMillis()
@@ -74,6 +61,8 @@ class TextDetectorComparisonTest {
         Log.d(TAG, "YOLO:         ${yoloElapsed}ms, ${yoloBlocks.size} blocks")
         Log.d(TAG, "YOLO+MLKit:   ${hybridElapsed}ms, ${hybridBlocks.size} blocks")
         Log.d(TAG, "===================================")
+
+        ocr.close()
 
         assertTrue("YOLO should detect blocks", yoloBlocks.isNotEmpty())
         assertTrue("YOLO+MLKit should detect blocks", hybridBlocks.isNotEmpty())

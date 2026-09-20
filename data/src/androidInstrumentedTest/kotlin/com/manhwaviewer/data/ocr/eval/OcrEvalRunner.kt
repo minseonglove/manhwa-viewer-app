@@ -2,17 +2,14 @@ package com.manhwaviewer.data.ocr.eval
 
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
-import com.manhwaviewer.data.ocr.CommonMangaOcrEngine
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.DetectedBox
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
-import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.YoloPostProcessor
+import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
-import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
-import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -24,18 +21,12 @@ class OcrEvalRunner {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun newMangaOcrEngine() = CommonMangaOcrEngine(
-        encoder = OcrEncoderRunner(context),
-        decoder = OcrDecoderRunner(context),
-        vocabLoader = {
-            context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH).bufferedReader().readLines()
-        },
-    )
+    private fun newOcrEngine() = HayaiEngineFactory.fromAssets(context)
 
     @Test
     fun recognition() = runBlocking {
         val dataset = EvalDataset.loadOrSkip(context)
-        val engine = newMangaOcrEngine()
+        val engine = newOcrEngine()
         val results = JSONObject()
         try {
             for (page in dataset.pages) {
@@ -64,7 +55,7 @@ class OcrEvalRunner {
     @Test
     fun pipeline() = runBlocking {
         val dataset = EvalDataset.loadOrSkip(context)
-        val engine = newMangaOcrEngine()
+        val engine = newOcrEngine()
         val repository = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context)),
             verticalOcr = engine,

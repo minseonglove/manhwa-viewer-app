@@ -9,12 +9,10 @@ import android.os.Debug
 import android.os.SystemClock
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import com.manhwaviewer.data.ocr.CommonMangaOcrEngine
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.MangaOcrConfig
 import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.MlKitTextRecognizer
-import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiMangaOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOcrEngine
@@ -22,8 +20,6 @@ import com.manhwaviewer.data.ocr.hayai.HayaiOnnxGraphs
 import com.manhwaviewer.data.ocr.hayai.HayaiTokenizer
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
-import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
-import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
 import com.manhwaviewer.data.ocr.inference.OrtMemoryOptions
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import java.io.File
@@ -39,9 +35,8 @@ import org.junit.Test
 /**
  * How much memory a page of OCR costs, for one engine at a time.
  *
- * One engine per invocation (`-e engine hayai|mangaocr`) because the app only ever holds one,
- * and because holding several at once is what got an earlier sweep reaped by lowmemorykiller —
- * a two-engine number would not describe anything the app does.
+ * One engine per process, because the app only ever holds one and holding several at once is
+ * what got an earlier sweep reaped by lowmemorykiller.
  *
  * PSS rather than heap: ORT's weights and arenas are native, and the graphs are mmapped from
  * disk, so the JVM heap says almost nothing about the real cost.
@@ -111,14 +106,6 @@ class OcrMemoryRunner {
         )
     }
 
-    private fun mangaOcr(): MangaOcrEngine = CommonMangaOcrEngine(
-        encoder = OcrEncoderRunner(context),
-        decoder = OcrDecoderRunner(context),
-        vocabLoader = {
-            context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH).bufferedReader().readLines()
-        },
-    )
-
     /**
      * `-e variant` 의 쉼표 구분 토큰을 옵션으로 옮긴다. 토큰 하나가 손잡이 하나를 ORT 기본값의
      * 반대로 돌리므로, 조합을 재컴파일 없이 시험할 수 있다.
@@ -163,7 +150,6 @@ class OcrMemoryRunner {
     @Test
     fun memory() = runBlocking {
         val args = InstrumentationRegistry.getArguments()
-        val which = args.getString("engine") ?: error("pass -e engine hayai|mangaocr")
         val spec = args.getString("variant") ?: "default"
         val yoloSpec = args.getString("yolo") ?: "default"
         val concurrency = args.getString("concurrency")?.toInt() ?: DEFAULT_CONCURRENCY
@@ -172,7 +158,7 @@ class OcrMemoryRunner {
         val device = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
 
         val baseline = snapshot()
-        val engine = if (which == "hayai") hayai(hayaiSpec(spec)) else mangaOcr()
+        val engine = hayai(hayaiSpec(spec))
         // Hayai 는 여기서 이미 그래프를 열었다. 실행 전, 가중치만 올라간 값.
         val opened = snapshot()
         val repo = TextDetectionRepositoryImpl(
@@ -211,14 +197,14 @@ class OcrMemoryRunner {
         val after = snapshot()
 
         val suffix = buildString {
-            if (which == "hayai" && spec != "default") append("-").append(spec.replace(',', '+'))
+            if (spec != "default") append("-").append(spec.replace(',', '+'))
             if (yoloSpec != "default") append("-yolo=").append(yoloSpec.replace(',', '+'))
             if (concurrency != DEFAULT_CONCURRENCY) append("-c").append(concurrency)
         }
         dataset.writeOutput(
-            "memory-$which$suffix.json",
+            "memory-hayai$suffix.json",
             JSONObject()
-                .put("engine", which)
+                .put("engine", "hayai")
                 .put("variant", spec)
                 .put("yolo", yoloSpec)
                 .put("concurrency", concurrency)

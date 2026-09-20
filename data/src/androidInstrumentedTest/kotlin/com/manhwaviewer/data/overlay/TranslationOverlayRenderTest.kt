@@ -14,12 +14,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.db.TranslationCacheDao
 import com.manhwaviewer.data.db.TranslationCacheEntity
-import com.manhwaviewer.data.ocr.CommonMangaOcrEngine
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
-import com.manhwaviewer.data.ocr.PlatformModelPaths
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
-import com.manhwaviewer.data.ocr.inference.OcrDecoderRunner
-import com.manhwaviewer.data.ocr.inference.OcrEncoderRunner
+import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
@@ -49,14 +46,7 @@ class TranslationOverlayRenderTest {
         // 2. OCR 실행 (실제 엔진)
         val ocrRepo = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context)),
-            verticalOcr = CommonMangaOcrEngine(
-                encoder = OcrEncoderRunner(context),
-                decoder = OcrDecoderRunner(context),
-                vocabLoader = {
-                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
-                        .bufferedReader().readLines()
-                },
-            ),
+            verticalOcr = HayaiEngineFactory.fromAssets(context),
         )
 
         val ocrStart = System.currentTimeMillis()
@@ -130,14 +120,7 @@ class TranslationOverlayRenderTest {
 
         val ocrRepo = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context)),
-            verticalOcr = CommonMangaOcrEngine(
-                encoder = OcrEncoderRunner(context),
-                decoder = OcrDecoderRunner(context),
-                vocabLoader = {
-                    context.assets.open(PlatformModelPaths.VOCAB_FILE_PATH)
-                        .bufferedReader().readLines()
-                },
-            ),
+            verticalOcr = HayaiEngineFactory.fromAssets(context),
         )
         val translationRepo = TranslationRepositoryImpl(
             translationService = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY),
