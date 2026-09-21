@@ -6,9 +6,6 @@ import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.DetectedRegion
 import com.manhwaviewer.data.ocr.MangaOcrEngine
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
-import com.manhwaviewer.data.ocr.PlatformTextRecognizer
-import com.manhwaviewer.data.ocr.RecognizedHorizontalRegion
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.TextDetector
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
@@ -24,10 +21,10 @@ import org.junit.Test
 /**
  * Where a page's time goes, stage by stage, through the repository the app actually uses.
  *
- * `HayaiPageTimingRunner` times the whole `detectAndRecognize` call. This one wraps the detector,
- * the platform recognizer and the OCR engine in timing decorators, so the same call also yields
- * detection, MLKit and per-region recognition times without touching production code, and then
- * sends the recognized text through the translation service the app is wired to.
+ * `HayaiPageTimingRunner` times the whole `detectAndRecognize` call. This one wraps the detector
+ * and the OCR engine in timing decorators, so the same call also yields detection and per-region
+ * recognition times without touching production code, and then sends the recognized text through
+ * the translation service the app is wired to.
  */
 class PageStageTimingRunner {
 
@@ -36,11 +33,10 @@ class PageStageTimingRunner {
     private class StageClock {
         @Volatile var detectMs = 0L
         @Volatile var detectRegions = 0
-        @Volatile var mlkitMs = 0L
         val regionSpans: MutableList<LongArray> = Collections.synchronizedList(mutableListOf())
 
         fun reset() {
-            detectMs = 0; detectRegions = 0; mlkitMs = 0; regionSpans.clear()
+            detectMs = 0; detectRegions = 0; regionSpans.clear()
         }
     }
 
@@ -51,18 +47,6 @@ class PageStageTimingRunner {
                 clock.detectMs = SystemClock.elapsedRealtime() - start
                 clock.detectRegions = it.size
             }
-        }
-    }
-
-    private class TimedPlatformRecognizer(
-        private val delegate: PlatformTextRecognizer,
-        private val clock: StageClock,
-    ) : PlatformTextRecognizer {
-        override suspend fun recognizeText(imageBytes: ByteArray): String = delegate.recognizeText(imageBytes)
-
-        override suspend fun detectHorizontalText(imageBytes: ByteArray): List<RecognizedHorizontalRegion> {
-            val start = SystemClock.elapsedRealtime()
-            return delegate.detectHorizontalText(imageBytes).also { clock.mlkitMs = SystemClock.elapsedRealtime() - start }
         }
     }
 
@@ -87,7 +71,6 @@ class PageStageTimingRunner {
             TextDetectionRepositoryImpl(
                 TimedDetector(CommonYoloTextDetector(yolo), clock),
                 verticalOcr = TimedOcrEngine(engine, clock),
-                platformRecognizer = TimedPlatformRecognizer(MlKitTextRecognizer(), clock),
             )
         }
         val names = repos.keys.toList()
@@ -122,7 +105,6 @@ class PageStageTimingRunner {
                             .put("total_ms", totalMs)
                             .put("detect_ms", clock.detectMs)
                             .put("detect_regions", clock.detectRegions)
-                            .put("mlkit_ms", clock.mlkitMs)
                             .put("recognized_regions", spans.size)
                             .put("recognition_wall_ms", if (spans.isEmpty()) 0 else spans.maxOf { it[1] } - spans.minOf { it[0] })
                             .put("recognition_sum_ms", spans.sumOf { it[1] - it[0] })

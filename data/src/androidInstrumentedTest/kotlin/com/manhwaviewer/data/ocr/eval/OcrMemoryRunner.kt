@@ -12,7 +12,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.MangaOcrConfig
 import com.manhwaviewer.data.ocr.MangaOcrEngine
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiMangaOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOcrEngine
@@ -164,7 +163,6 @@ class OcrMemoryRunner {
         val repo = TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(context, variant(yoloSpec))),
             verticalOcr = engine,
-            platformRecognizer = MlKitTextRecognizer(),
             maxConcurrentOcr = concurrency,
         )
         // 첫 페이지에서 모델이 로드된다. 그 뒤가 '켜져 있는 상태' 의 바닥값.
@@ -224,7 +222,7 @@ class OcrMemoryRunner {
 
     /**
      * Where the "loaded" number actually lives: each ONNX session on its own, then the whole
-     * Hayai engine, then the detector, then MLKit — each opened, exercised and (where it can be)
+     * Hayai engine, then the detector — each opened, exercised and (where it can be)
      * closed before the next, with a snapshot at every edge.
      *
      * The ORT environment is created first and at INFO so the arena's own growth log
@@ -290,14 +288,6 @@ class OcrMemoryRunner {
         yolo.close()
         mark("yolo:closed")
 
-        // 4) MLKit 일본어 인식기: 닫는 API 가 없어 켜 둔 채로 끝낸다.
-        val mlkit = MlKitTextRecognizer()
-        mark("mlkit:created")
-        mlkit.detectHorizontalText(page.imageFile.readBytes())
-        mark("mlkit:run:1")
-        mlkit.detectHorizontalText(dataset.pages[1].imageFile.readBytes())
-        mark("mlkit:run:2")
-
         dataset.writeOutput("memory-breakdown.json", JSONObject().put("steps", steps))
     }
 
@@ -345,8 +335,7 @@ class OcrMemoryRunner {
             name to TextDetectionRepositoryImpl(
                 CommonYoloTextDetector(yolo),
                 verticalOcr = engine,
-                platformRecognizer = MlKitTextRecognizer(),
-            )
+                )
         }
         val result = try {
             paired(dataset, repos[0], repos[1])
@@ -373,7 +362,6 @@ class OcrMemoryRunner {
         fun repo(n: Int) = "c$n" to TextDetectionRepositoryImpl(
             CommonYoloTextDetector(yolo),
             verticalOcr = engine,
-            platformRecognizer = MlKitTextRecognizer(),
             maxConcurrentOcr = n,
         )
         val result = try {

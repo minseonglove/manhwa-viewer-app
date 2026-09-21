@@ -4,7 +4,6 @@ import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.MangaOcrEngine
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiMangaOcrEngine
 import com.manhwaviewer.data.ocr.hayai.HayaiOcrEngine
@@ -76,7 +75,6 @@ class HayaiThreadSweepRunner {
             TextDetectionRepositoryImpl(
                 CommonYoloTextDetector(YoloRunner(context)),
                 verticalOcr = it.value,
-                platformRecognizer = MlKitTextRecognizer(),
             )
         }
         val warmUp = dataset.pages.first().imageFile.readBytes()

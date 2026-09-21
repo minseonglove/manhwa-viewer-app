@@ -4,8 +4,6 @@ import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.MangaOcrEngine
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
-import com.manhwaviewer.data.ocr.PlatformTextRecognizer
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.YoloPostProcessor
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
@@ -25,11 +23,9 @@ import org.junit.Test
  * `TextDetectionRepositoryImpl`'s semaphore, and only on the regions YOLO found, not on all
  * 499 ground-truth items. So this drives the real repository and times the whole call.
  *
- * Two configurations run over the same pages, alternating which goes first so warm-up and
- * thermal drift do not land on either: the app as it is (the platform recognizer reads wide
- * regions) and the OCR model reading every region on its own. Each writes the blocks it produced,
- * so the same run yields both the page time and the pipeline accuracy — measured together rather
- * than multiplied together from separate runs.
+ * The run also writes the blocks each page produced, so the same run yields both the page time
+ * and the pipeline accuracy — measured together rather than multiplied together from separate
+ * runs.
  */
 class HayaiPageTimingRunner {
 
@@ -41,12 +37,8 @@ class HayaiPageTimingRunner {
         return dir
     }
 
-    private fun repository(yolo: YoloRunner, engine: MangaOcrEngine, platformRecognizer: PlatformTextRecognizer?) =
-        TextDetectionRepositoryImpl(
-            CommonYoloTextDetector(yolo, YoloPostProcessor.CONF_THRESHOLD),
-            verticalOcr = engine,
-            platformRecognizer = platformRecognizer,
-        )
+    private fun repository(yolo: YoloRunner, engine: MangaOcrEngine) =
+        TextDetectionRepositoryImpl(CommonYoloTextDetector(yolo, YoloPostProcessor.CONF_THRESHOLD), verticalOcr = engine)
 
     @Test
     fun pageTiming() = runBlocking {
@@ -54,11 +46,7 @@ class HayaiPageTimingRunner {
         val dir = modelDir()
         val yolo = YoloRunner(context)
         val hayai = HayaiEngineFactory.fromDirectory(dir)
-        // 같은 YOLO 세션과 같은 엔진을 공유하고 플랫폼 인식기만 다르다. 세션을 구성마다 따로 열면 메모리 부족으로 죽는다.
-        val repos = linkedMapOf(
-            "platform" to repository(yolo, hayai, MlKitTextRecognizer()),
-            "ocronly" to repository(yolo, hayai, platformRecognizer = null),
-        )
+        val repos = linkedMapOf("hayai" to repository(yolo, hayai))
         val names = repos.keys.toList()
 
         // 첫 페이지는 모델 로딩이 섞이므로 계측에서 제외한다.
