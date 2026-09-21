@@ -43,3 +43,36 @@ targets:
           cd "$SRCROOT/.."
           ./gradlew :ios-app:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
+  # 기기에서 OCR 파이프라인을 재는 벤치 앱. 앱과 같은 프레임워크·모델을 쓰고, 스토어에 나가는 타깃이 아니다.
+  OcrEvalBench:
+    type: application
+    platform: iOS
+    sources:
+      - path: OcrEvalBench
+      - path: ../data/src/iosMain/resources/mangaocr
+        type: folder
+        buildPhase: resources
+      - path: ../data/src/iosMain/resources/hayai
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: ../libs/lindera/LinderaFFI.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.manhwaviewer.ocrevalbench
+        INFOPLIST_FILE: OcrEvalBench/Info.plist
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(SRCROOT)/../ios-app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LINKER_FLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "ComposeApp"
+          - "-larchive"
+          - "-lz"
+    preBuildScripts:
+      - name: "Build KMP Framework"
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :ios-app:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false
