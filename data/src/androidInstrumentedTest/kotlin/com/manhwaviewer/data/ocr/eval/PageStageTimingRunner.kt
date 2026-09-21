@@ -12,6 +12,8 @@ import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.image.PlatformImage
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.ProxyTranslationService
+import com.manhwaviewer.data.translation.TranslationService
 import java.util.Collections
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -74,7 +76,11 @@ class PageStageTimingRunner {
             )
         }
         val names = repos.keys.toList()
-        val translator = BuildConfig.GOOGLE_TRANSLATE_API_KEY.takeIf { it.isNotBlank() }?.let { GoogleTranslationService(it) }
+        // `-e proxyUrl <url> [-e proxySecret <dev secret>]` times the translation proxy instead of Google directly.
+        val args = InstrumentationRegistry.getArguments()
+        val translator: TranslationService? = args.getString("proxyUrl")
+            ?.let { ProxyTranslationService(it, deviceId = { "page-stage-timing-runner" }, devSecret = args.getString("proxySecret")) }
+            ?: BuildConfig.GOOGLE_TRANSLATE_API_KEY.takeIf { it.isNotBlank() }?.let { GoogleTranslationService(it) }
 
         // 첫 페이지는 모델 로딩과 TLS 연결 수립이 섞이므로 계측에서 제외한다.
         val warmUp = dataset.pages.first().imageFile.readBytes()
