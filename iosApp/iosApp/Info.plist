@@ -35,5 +35,9 @@
     <false/>
     <key>GoogleTranslateApiKey</key>
     <string>$(GOOGLE_TRANSLATE_API_KEY)</string>
+    <key>TranslationProxyHost</key>
+    <string>$(TRANSLATION_PROXY_HOST)</string>
+    <key>TranslationProxyDevSecret</key>
+    <string>$(TRANSLATION_PROXY_DEV_SECRET)</string>
 </dict>
 </plist>

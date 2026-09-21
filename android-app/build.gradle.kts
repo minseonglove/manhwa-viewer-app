@@ -21,6 +21,12 @@ android {
             localFile.readLines().find { it.startsWith("google.translate.api.key=") }?.substringAfter("=") ?: ""
         } else ""
         buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"$googleTranslateApiKey\"")
+
+        fun localProperty(name: String): String =
+            if (localFile.exists()) localFile.readLines().find { it.startsWith("$name=") }?.substringAfter("=")?.trim() ?: "" else ""
+        buildConfigField("String", "TRANSLATION_PROXY_URL", "\"${localProperty("translation.proxy.url")}\"")
+        // 플랫폼 증명이 붙기 전까지 쓰는 개발용 증명. 릴리스 빌드에는 아래에서 빈 값으로 덮어쓴다.
+        buildConfigField("String", "TRANSLATION_PROXY_DEV_SECRET", "\"${localProperty("proxy.dev.secret")}\"")
     }
 
     buildFeatures {
@@ -43,6 +49,7 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("String", "TRANSLATION_PROXY_DEV_SECRET", "\"\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

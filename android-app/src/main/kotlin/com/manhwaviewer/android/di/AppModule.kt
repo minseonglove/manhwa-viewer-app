@@ -11,10 +11,13 @@ import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.inference.YoloRunner
+import com.manhwaviewer.data.preference.InstallIdStore
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
+import com.manhwaviewer.data.translation.FallbackTranslationService
 import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
@@ -46,7 +49,19 @@ private val androidPlatformModule = module {
             verticalOcr = get(),
         )
     }
-    single<TranslationService> { GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY) }
+    single<TranslationService> {
+        val google = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY)
+        val proxyUrl = BuildConfig.TRANSLATION_PROXY_URL
+        if (proxyUrl.isBlank()) google
+        else FallbackTranslationService(
+            primary = ProxyTranslationService(
+                baseUrl = proxyUrl,
+                deviceId = { get<InstallIdStore>().get() },
+                devSecret = BuildConfig.TRANSLATION_PROXY_DEV_SECRET.ifBlank { null },
+            ),
+            fallback = google,
+        )
+    }
 }
 
 val appModule = listOf(androidPlatformModule, commonDataModule, sharedModule)
