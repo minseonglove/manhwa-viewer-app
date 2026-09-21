@@ -40,7 +40,7 @@ class TextDetectionRepositoryImpl(
         val totalStart = now()
 
         coroutineScope {
-            // 1. YOLO 검출 + MLKit 가로 텍스트 인식을 병렬 실행
+            // 1. YOLO 검출과 플랫폼 인식기(있을 때)의 가로 텍스트 인식을 병렬 실행
             onStageChanged?.invoke(DetectionStage.DETECTING)
 
             val detectionDeferred = async {

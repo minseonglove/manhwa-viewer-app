@@ -7,7 +7,6 @@ import com.manhwaviewer.data.db.getRoomDatabase
 import com.manhwaviewer.data.di.commonDataModule
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.ManagedOcrEngine
-import com.manhwaviewer.data.ocr.MlKitTextRecognizer
 import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
@@ -45,7 +44,6 @@ private val androidPlatformModule = module {
         TextDetectionRepositoryImpl(
             CommonYoloTextDetector(YoloRunner(androidContext())),
             verticalOcr = get(),
-            platformRecognizer = MlKitTextRecognizer(),
         )
     }
     single<TranslationService> { GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY) }
