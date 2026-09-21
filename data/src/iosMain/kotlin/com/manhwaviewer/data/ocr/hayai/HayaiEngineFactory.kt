@@ -3,6 +3,8 @@ package com.manhwaviewer.data.ocr.hayai
 import com.manhwaviewer.data.ocr.MangaOcrEngine
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import platform.CoreML.MLComputeUnits
+import platform.CoreML.MLComputeUnitsCPUAndNeuralEngine
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.NSString
@@ -15,12 +17,15 @@ object HayaiEngineFactory {
 
     private const val POSITION_BASE_FLOATS = 16 * 16 * 768
 
-    fun fromBundle(subdirectory: String = "hayai"): MangaOcrEngine {
+    fun fromBundle(
+        subdirectory: String = "hayai",
+        computeUnits: MLComputeUnits = MLComputeUnitsCPUAndNeuralEngine,
+    ): MangaOcrEngine {
         val tokenizer = HayaiTokenizer.fromTokenizerJson(readText("tokenizer", "json", subdirectory))
         fun id(token: String) = tokenizer.tokenIdOf(token) ?: error("tokenizer.json carries no $token")
         return HayaiMangaOcrEngine(
             HayaiOcrEngine(
-                graphs = HayaiCoreMLGraphs(subdirectory).apply { initialize() },
+                graphs = HayaiCoreMLGraphs(subdirectory).apply { initialize(computeUnits) },
                 tokenizer = tokenizer,
                 positionBase = positionBase(subdirectory),
                 bosId = id("<bos>"), eosId = id("<eos>"), padId = id("<pad>"),

@@ -17,6 +17,8 @@ import platform.posix.memcpy
  * Features and caches are handed back to CoreML as the very objects it produced. Nothing about
  * the 3.9 MB KV cache is copied into Kotlin between steps.
  */
+private const val HALF_SUBNORMAL_STEP = 5.9604645E-8f // 2^-24
+
 class HayaiCoreMLGraphs(
     private val subdirectory: String = "hayai",
 ) : HayaiGraphs {
@@ -125,13 +127,43 @@ class HayaiCoreMLGraphs(
         provider.featureValueForName(name)?.multiArrayValue
             ?: error("output '$name' is missing; the graph's IO does not match what the loop assumes")
 
+    /**
+     * The Neural Engine hands outputs back as float16, often with padded strides, while the CPU
+     * path returns contiguous float32. Reading either as the other yields plausible-looking garbage:
+     * the loop never sees EOS and runs to its length limit.
+     */
     private fun logitsOf(provider: MLFeatureProviderProtocol): FloatArray {
         val array = multiArray(provider, "logits")
         val count = array.count.toInt()
-        val out = FloatArray(count)
         val source = array.dataPointer ?: error("logits carries no data pointer")
-        out.usePinned { memcpy(it.addressOf(0), source, (count * 4).convert()) }
-        return out
+        val shape = array.shape.map { (it as NSNumber).intValue }
+        val strides = array.strides.map { (it as NSNumber).intValue }
+        val vocabulary = shape.last()
+        require(count == vocabulary) { "logits shape $shape holds more than one position" }
+        val stride = strides.last()
+        return when (array.dataType) {
+            MLMultiArrayDataTypeFloat32 -> {
+                val values = source.reinterpret<FloatVar>()
+                FloatArray(vocabulary) { values[it * stride] }
+            }
+            MLMultiArrayDataTypeFloat16 -> {
+                val values = source.reinterpret<UShortVar>()
+                FloatArray(vocabulary) { halfToFloat(values[it * stride].toInt()) }
+            }
+            else -> error("logits come back as data type ${array.dataType}")
+        }
+    }
+
+    private fun halfToFloat(bits: Int): Float {
+        val sign = (bits shr 15) and 0x1
+        val exponent = (bits shr 10) and 0x1F
+        val mantissa = bits and 0x3FF
+        val magnitude = when (exponent) {
+            0 -> mantissa * HALF_SUBNORMAL_STEP
+            0x1F -> if (mantissa == 0) Float.POSITIVE_INFINITY else Float.NaN
+            else -> Float.fromBits(((exponent + 112) shl 23) or (mantissa shl 13))
+        }
+        return if (sign == 1) -magnitude else magnitude
     }
 
     private fun floats(values: FloatArray, shape: List<Int>): MLMultiArray {
