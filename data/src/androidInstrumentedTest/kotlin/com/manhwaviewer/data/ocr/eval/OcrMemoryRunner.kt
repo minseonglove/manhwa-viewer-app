@@ -335,7 +335,7 @@ class OcrMemoryRunner {
             name to TextDetectionRepositoryImpl(
                 CommonYoloTextDetector(yolo),
                 verticalOcr = engine,
-                )
+            )
         }
         val result = try {
             paired(dataset, repos[0], repos[1])

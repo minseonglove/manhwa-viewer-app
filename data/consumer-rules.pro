@@ -51,12 +51,6 @@
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
 
-# ---- ML Kit Text Recognition ----
--keep class com.google.mlkit.** { *; }
--dontwarn com.google.mlkit.**
--keep class com.google.android.gms.internal.mlkit_vision_** { *; }
--dontwarn com.google.android.gms.internal.mlkit_vision_**
-
 # ---- DataStore ----
 -keep class androidx.datastore.** { *; }
 -keep class com.manhwaviewer.data.preferences.** { *; }
