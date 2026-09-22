@@ -27,6 +27,8 @@ android {
         buildConfigField("String", "TRANSLATION_PROXY_URL", "\"${localProperty("translation.proxy.url")}\"")
         // 플랫폼 증명이 붙기 전까지 쓰는 개발용 증명. 릴리스 빌드에는 아래에서 빈 값으로 덮어쓴다.
         buildConfigField("String", "TRANSLATION_PROXY_DEV_SECRET", "\"${localProperty("proxy.dev.secret")}\"")
+        // Play Integrity 토큰을 요청할 Cloud 프로젝트 번호. 없으면 0 이고, 그때 앱은 Play Integrity 를 부르지 않는다.
+        buildConfigField("long", "PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", "${localProperty("play.integrity.cloud.project.number").ifBlank { "0" }}L")
     }
 
     buildFeatures {

@@ -1,5 +1,6 @@
 [versions]
 kotlin = "2.3.20"
+playIntegrity = "1.6.0"
 arch-core-testing = "2.2.0"
 sqlite = "2.6.2"
 compose-multiplatform = "1.10.3"
@@ -71,6 +72,8 @@ aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
 # Okio
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+# Play Integrity
+play-integrity = { module = "com.google.android.play:integrity", version.ref = "playIntegrity" }
 # Compose UI BackHandler
 compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose-multiplatform" }
 # Test

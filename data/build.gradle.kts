@@ -64,6 +64,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.onnxruntime.android)
+            implementation(libs.play.integrity)
         }
     }
 }

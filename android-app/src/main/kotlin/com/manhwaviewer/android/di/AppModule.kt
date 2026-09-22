@@ -19,6 +19,8 @@ import com.manhwaviewer.data.translation.FallbackTranslationService
 import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
+import com.manhwaviewer.data.translation.attestation.DeviceAttestor
+import com.manhwaviewer.data.translation.attestation.PlayIntegrityAttestor
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
@@ -49,6 +51,14 @@ private val androidPlatformModule = module {
             verticalOcr = get(),
         )
     }
+    single<DeviceAttestor> {
+        PlayIntegrityAttestor(
+            context = androidContext(),
+            cloudProjectNumber = BuildConfig.PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER,
+            store = get(),
+            devSecret = BuildConfig.TRANSLATION_PROXY_DEV_SECRET.ifBlank { null },
+        )
+    }
     single<TranslationService> {
         val google = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY)
         val proxyUrl = BuildConfig.TRANSLATION_PROXY_URL
@@ -58,6 +68,7 @@ private val androidPlatformModule = module {
                 baseUrl = proxyUrl,
                 deviceId = { get<InstallIdStore>().get() },
                 devSecret = BuildConfig.TRANSLATION_PROXY_DEV_SECRET.ifBlank { null },
+                attestor = get(),
             ),
             fallback = google,
         )
