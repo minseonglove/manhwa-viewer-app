@@ -21,6 +21,8 @@ import com.manhwaviewer.data.translation.FallbackTranslationService
 import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
+import com.manhwaviewer.data.translation.attestation.AppAttestAttestor
+import com.manhwaviewer.data.translation.attestation.DeviceAttestor
 import com.manhwaviewer.domain.repository.CacheRepository
 import com.manhwaviewer.domain.repository.ImageFileRepository
 import com.manhwaviewer.domain.repository.TextDetectionRepository
@@ -51,6 +53,7 @@ val iosPlatformModule = module {
         )
     }
 
+    single<DeviceAttestor> { AppAttestAttestor(get()) }
     single<TranslationService> {
         fun info(key: String) = (NSBundle.mainBundle.objectForInfoDictionaryKey(key) as? String).orEmpty()
         val google = GoogleTranslationService(info("GoogleTranslateApiKey"))
@@ -63,6 +66,7 @@ val iosPlatformModule = module {
                 deviceId = { get<InstallIdStore>().get() },
                 // 플랫폼 증명이 붙기 전까지 쓰는 개발용 증명. 릴리스 바이너리에서는 보내지 않는다.
                 devSecret = info("TranslationProxyDevSecret").takeIf { it.isNotBlank() && Platform.isDebugBinary },
+                attestor = get(),
             ),
             fallback = google,
         )

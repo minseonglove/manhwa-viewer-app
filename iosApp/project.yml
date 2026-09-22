@@ -29,6 +29,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.manhwaviewer.app
         INFOPLIST_FILE: iosApp/Info.plist
+        DEVELOPMENT_TEAM: PC497J52FF
         FRAMEWORK_SEARCH_PATHS:
           - "$(SRCROOT)/../ios-app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
         OTHER_LINKER_FLAGS:
@@ -41,6 +42,11 @@ targets:
         # Info.plist carries this value in plain text, and the development secret must never ship in a Release build.
         Release:
           TRANSLATION_PROXY_DEV_SECRET: ""
+    entitlements:
+      path: iosApp/iosApp.entitlements
+      properties:
+        # TestFlight and App Store builds ignore this and attest in production.
+        com.apple.developer.devicecheck.appattest-environment: development
     preBuildScripts:
       - name: "Build KMP Framework"
         script: |
