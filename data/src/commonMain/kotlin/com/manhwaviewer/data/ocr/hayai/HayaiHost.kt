@@ -276,6 +276,13 @@ object HayaiHost {
     }
 
     /**
+     * [attentionMask] as an additive mask: 0 where a patch is real, [NEG_INF] where it is padding.
+     * The LiteRT encoder takes it in this form so no int64 comparison stays in the graph.
+     */
+    fun additiveMask(attentionMask: IntArray): FloatArray =
+        FloatArray(attentionMask.size) { if (attentionMask[it] == 0) NEG_INF else 0f }
+
+    /**
      * Block-causal attention mask for prefill, flat `TOTAL * TOTAL`.
      *
      * Vision tokens see each other and nothing else. The one text token being prefilled sees the

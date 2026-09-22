@@ -13,6 +13,14 @@ interface HayaiVisualFeatures {
 }
 
 /**
+ * Encoder output that another runtime produced, handed to prefill as plain floats — flat
+ * `MAX_PATCHES * 768`. Holds no native memory.
+ */
+class HayaiFloatFeatures(val values: FloatArray) : HayaiVisualFeatures {
+    override fun close() = Unit
+}
+
+/**
  * One decode step's KV cache, held in whatever form the platform runtime produced it.
  *
  * Opaque on purpose, and more sharply than [HayaiVisualFeatures]: the cache is 24 tensors of

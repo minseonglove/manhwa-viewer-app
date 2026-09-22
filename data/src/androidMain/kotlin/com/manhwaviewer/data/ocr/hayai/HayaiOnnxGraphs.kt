@@ -9,18 +9,22 @@ import java.nio.FloatBuffer
 import java.nio.LongBuffer
 
 /**
- * [HayaiGraphs] on ONNX Runtime, the inference runtime this app already ships.
+ * [HayaiGraphs] on ONNX Runtime.
  *
- * Measured against LiteRT on the same host: equal recognition quality, ~3x faster, and slightly
- * smaller once prefill and decode share their identical decoder weights through one external
- * data blob — so Hayai runs here rather than pulling a second inference library into the APK.
+ * Measured on the same CPU, ORT runs these graphs ~3x faster than LiteRT at equal recognition
+ * quality, and prefill and decode can share their identical decoder weights through one external
+ * data blob.
  *
- * [modelDir] holds `hayai_{encoder,prefill,decode}.onnx` and, when the weights are shared, the
- * blob they reference. ONNX resolves external data relative to the model file, so the blob has
- * to sit beside them — assets must be extracted to real files, not read from the APK.
+ * [modelDir] holds `hayai_{prefill,decode}.onnx`, `hayai_encoder.onnx` unless the encoder runs
+ * elsewhere, and, when the weights are shared, the blob they reference. ONNX resolves external
+ * data relative to the model file, so the blob has to sit beside them — assets must be extracted
+ * to real files, not read from the APK.
  *
  * The decode graph takes a one-hot `write_mask` rather than a slot index, matching the exported
  * graph; [HayaiHost.writeMask] builds it.
+ *
+ * Opened without its encoder ([initialize]'s `loadEncoder = false`), it serves prefill and decode
+ * for an encoder that runs elsewhere; [prefill] then takes that encoder's [HayaiFloatFeatures].
  */
 class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
 
@@ -65,7 +69,7 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
      * 나눠 쓰고 동기화 비용만 붙는다. 플립7(10코어)에서 페이지당 중앙값 기준 1스레드 1.037배,
      * 2스레드 0.981배, **4스레드 0.925배**, 6스레드 1.192배로 4가 가장 빨랐다. 6에서 급격히
      * 나빠지는 것은 big 클러스터를 넘어 little 코어까지 쓰게 되기 때문으로 보인다.
-     * 기기마다 다를 수 있는 값이고, `YoloRunner` 도 같은 이유로 4를 쓴다.
+     * 기기마다 다를 수 있는 값이다.
      *
      * [memory] 의 기본값이 아레나를 끄는 이유는 [OrtMemoryOptions.NO_ARENA] 에 있다. [encoderMemory] 와
      * [prefillMemory] 는 그 두 그래프에만 다른 값을 줄 때 쓴다 — decode 는 토큰마다 돌아 가장 뜨겁고,
@@ -77,11 +81,14 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         memory: OrtMemoryOptions = OrtMemoryOptions.NO_ARENA,
         encoderMemory: OrtMemoryOptions = memory,
         prefillMemory: OrtMemoryOptions = memory,
+        loadEncoder: Boolean = true,
     ) {
         val environment = memory.environment(intraOpThreads)
         runOptions = memory.newRunOptions()
         env = environment
-        encoderSession = open(environment, encoderMemory, intraOpThreads, xnnpackThreads, "hayai_encoder.onnx")
+        if (loadEncoder) {
+            encoderSession = open(environment, encoderMemory, intraOpThreads, xnnpackThreads, "hayai_encoder.onnx")
+        }
         prefillSession = open(environment, prefillMemory, intraOpThreads, xnnpackThreads, "hayai_prefill.onnx")
         decodeSession = open(environment, memory, intraOpThreads, xnnpackThreads, "hayai_decode.onnx")
     }
@@ -127,22 +134,29 @@ class HayaiOnnxGraphs(private val modelDir: File) : HayaiGraphs {
         mask: FloatArray,
     ): HayaiStepResult {
         val environment = env ?: error("initialize() has not run")
-        val encoded = visual as Result
+        require(visual is Result || visual is HayaiFloatFeatures) {
+            "prefill takes this graph's own encoder output or HayaiFloatFeatures, not ${visual::class}"
+        }
         val total = HayaiHost.TOTAL.toLong()
         val axis = HayaiHost.D_AXIS.toLong()
-        val owned = mapOf(
+        val owned = mutableMapOf(
             "text_token_ids" to longs(environment, intArrayOf(tokenId), 1, 1),
             "cos" to floats(environment, cos, 1, total, axis),
             "sin" to floats(environment, sin, 1, total, axis),
             "mask" to floats(environment, mask, 1, 1, total, total),
         )
-        val feeds = owned + ("visual_features" to encoded.tensor("visual_features"))
+        val feeds = if (visual is Result) {
+            owned + ("visual_features" to visual.tensor("visual_features"))
+        } else {
+            owned["visual_features"] = floats(environment, (visual as HayaiFloatFeatures).values, 1, HayaiHost.MAX_PATCHES.toLong(), 768)
+            owned
+        }
         val result = try {
             run(prefillSession ?: error("initialize() has not run"), feeds)
         } finally {
             owned.values.forEach(OnnxTensor::close)
         }
-        encoded.close() // consumed; the encoder output is not needed again
+        visual.close() // consumed; the encoder output is not needed again
         val step = Result(result)
         return HayaiStepResult(logitsOf(step), step)
     }

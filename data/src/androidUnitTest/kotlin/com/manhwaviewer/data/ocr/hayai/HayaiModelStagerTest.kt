@@ -77,4 +77,15 @@ class HayaiModelStagerTest {
         assertEquals(HayaiModelStager.FILES.size, opened.size)
         assertEquals("v2", File(target, HayaiModelStager.VERSION_FILE).readText())
     }
+
+    @Test
+    fun removesFilesTheNewModelSetNoLongerHas() {
+        HayaiModelStager.stage(assets, target, version = "v1")
+        val leftover = File(target, "hayai_encoder.onnx").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+
+        HayaiModelStager.stage(assets, target, version = "v2")
+
+        assertFalse(leftover.exists(), "an 87 MB graph from the previous set would stay in the cache forever")
+        assertEquals(HayaiModelStager.FILES.toSet() + HayaiModelStager.VERSION_FILE, target.list()!!.toSet())
+    }
 }

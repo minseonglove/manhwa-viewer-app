@@ -314,4 +314,13 @@ class HayaiHostTest {
             assertClose(0f, sin[slot * d + 0], "sin[$slot][0] padding")
         }
     }
+
+    @Test
+    fun additiveMask_blocksExactlyThePaddingSlots() {
+        // 3x5 = 15 real patches; the rest are padding the encoder must not attend to.
+        val mask = HayaiHost.additiveMask(HayaiHost.attentionMask(3, 5))
+        assertEquals(HayaiHost.MAX_PATCHES, mask.size)
+        for (i in 0 until 15) assertEquals(0f, mask[i], "slot $i is a real patch")
+        for (i in 15 until HayaiHost.MAX_PATCHES) assertEquals(HayaiHost.NEG_INF, mask[i], "slot $i is padding")
+    }
 }

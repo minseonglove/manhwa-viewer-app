@@ -4,10 +4,11 @@ import java.io.File
 import java.io.InputStream
 
 /**
- * Copies the Hayai model set out of the APK into one directory ORT can open by path.
+ * Copies the ORT part of the Hayai model set out of the APK into one directory ORT can open by path.
  *
  * The decoder graphs keep their weights in `hayai_decoder_shared.data`, which ORT resolves
  * relative to the `.onnx` file, so the files cannot be loaded from asset streams one by one.
+ * The LiteRT encoder is not staged: it loads straight from the (uncompressed) asset.
  */
 object HayaiModelStager {
 
@@ -15,7 +16,6 @@ object HayaiModelStager {
     const val VERSION_FILE = ".version"
 
     val FILES: List<String> = listOf(
-        "hayai_encoder.onnx",
         "hayai_prefill.onnx",
         "hayai_decode.onnx",
         "hayai_decoder_shared.data",
@@ -26,7 +26,8 @@ object HayaiModelStager {
     /**
      * The version marker is written last, so a directory without a matching marker is either
      * another model set or a copy that never finished. Both are staged again from scratch:
-     * a file left over from an older set has the right name and the wrong weights.
+     * a file left over from an older set has the right name and the wrong weights, and a file the
+     * new set no longer has would otherwise stay in the cache for good.
      */
     fun stage(open: (String) -> InputStream, targetDir: File, version: String): File {
         val marker = File(targetDir, VERSION_FILE)
@@ -35,6 +36,7 @@ object HayaiModelStager {
 
         targetDir.mkdirs()
         marker.delete()
+        targetDir.listFiles()?.filter { it.name !in FILES }?.forEach { it.deleteRecursively() }
         for (name in FILES) {
             val tmp = File(targetDir, "$name.tmp")
             open("$ASSET_DIR/$name").use { input -> tmp.outputStream().use { output -> input.copyTo(output) } }
