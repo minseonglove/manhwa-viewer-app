@@ -51,6 +51,13 @@
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
 
+# ---- LiteRT ----
+# liblitert_jni.so 가 LiteRtException, TensorType, TensorBufferRequirements 를 이름으로 찾아 만든다.
+# 라이브러리가 싣는 규칙은 예전 org.tensorflow.lite 어노테이션만 지켜서, 없으면 R8 이 이들을 지우고
+# GPU 컴파일 실패처럼 네이티브가 예외를 던지는 순간 CPU 폴백 대신 앱이 죽는다.
+-keep class com.google.ai.edge.litert.** { *; }
+-dontwarn com.google.ai.edge.litert.**
+
 # ---- DataStore ----
 -keep class androidx.datastore.** { *; }
 -keep class com.manhwaviewer.data.preferences.** { *; }
