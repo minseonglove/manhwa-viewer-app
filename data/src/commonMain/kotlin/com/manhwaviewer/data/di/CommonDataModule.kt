@@ -4,6 +4,7 @@ import com.manhwaviewer.data.archive.ArchiveReader
 import com.manhwaviewer.data.db.AppDatabase
 import com.manhwaviewer.data.furigana.LinderaFuriganaAnalyzer
 import com.manhwaviewer.data.ocr.OcrRepositoryImpl
+import com.manhwaviewer.data.preference.AttestationStateStore
 import com.manhwaviewer.data.preference.InstallIdStore
 import com.manhwaviewer.data.preference.ViewerPreferenceDataStore
 import com.manhwaviewer.data.repository.ArchiveFileRepositoryImpl
@@ -34,6 +35,7 @@ val commonDataModule = module {
     single<VaultFileRepository> { VaultFileRepositoryImpl(get()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single { InstallIdStore(get()) }
+    single { AttestationStateStore(get()) }
     single<OcrRepository> { OcrRepositoryImpl(get()) }
     single<TranslationRepository> { TranslationRepositoryImpl(get(), get()) }
     single<PageTranslationCacheRepository> { PageTranslationCacheRepositoryImpl(get()) }

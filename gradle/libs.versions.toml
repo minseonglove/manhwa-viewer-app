@@ -21,6 +21,7 @@ ktor = "3.4.2"
 kotlinx-serialization = "1.11.0"
 haze = "1.7.2"
 aboutlibraries = "14.0.1"
+okio = "3.16.4"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -68,6 +69,8 @@ haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 # AboutLibraries
 aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
+# Okio
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 # Compose UI BackHandler
 compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose-multiplatform" }
 # Test

@@ -50,6 +50,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.okio)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
