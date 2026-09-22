@@ -2,6 +2,7 @@ package com.manhwaviewer.ios.eval
 
 import com.manhwaviewer.data.preference.AttestationStateStore
 import com.manhwaviewer.data.preference.createDataStore
+import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.attestation.AppAttestAttestor
 import com.manhwaviewer.data.translation.attestation.AttestationProof
 import com.manhwaviewer.data.translation.attestation.AttestationResult
@@ -94,6 +95,44 @@ object AttestationEvalHarness {
                 outcome["result"].toString()
             }
             "done: $resultName"
+        } catch (e: Throwable) {
+            write(outPath, buildJsonObject { put("result", JsonPrimitive("error")); put("error", JsonPrimitive(e::class.simpleName ?: "Unknown")) }.toString())
+            "failed: ${e::class.simpleName}"
+        }
+    }
+
+    /**
+     * Translates one line through [ProxyTranslationService] against a live proxy, with the attestor the
+     * app uses, so the device itself opens the session over the network. Its key state is kept apart
+     * from [run]'s so the two measurements never share a key.
+     */
+    fun runProxy(dir: String): String {
+        val outPath = "$dir/proxy-out.json"
+        NSFileManager.defaultManager.removeItemAtPath(outPath, error = null)
+        return try {
+            val input = Json.parseToJsonElement(readText("$dir/proxy-in.json")).jsonObject
+            val baseUrl = input.getValue("baseUrl").jsonPrimitive.content
+            val deviceId = input.getValue("deviceId").jsonPrimitive.content
+            val text = input.getValue("text").jsonPrimitive.content
+
+            val store = AttestationStateStore(createDataStore { "$dir/proxy-state.preferences_pb" })
+            val service = ProxyTranslationService(baseUrl = baseUrl, deviceId = { deviceId }, attestor = AppAttestAttestor(store))
+
+            runBlocking {
+                val hadCredential = store.read().credential != null
+                val mark = TimeSource.Monotonic.markNow()
+                val translation = service.translate(listOf(text), "ja", "ko").single()
+                val elapsedMs = mark.elapsedNow().inWholeMilliseconds
+                val outcome = buildJsonObject {
+                    put("result", JsonPrimitive("ok"))
+                    put("elapsedMs", JsonPrimitive(elapsedMs))
+                    put("hadCredentialBefore", JsonPrimitive(hadCredential))
+                    put("hasCredentialAfter", JsonPrimitive(store.read().credential != null))
+                    put("translation", JsonPrimitive(translation))
+                }
+                write(outPath, outcome.toString())
+            }
+            "done: ok"
         } catch (e: Throwable) {
             write(outPath, buildJsonObject { put("result", JsonPrimitive("error")); put("error", JsonPrimitive(e::class.simpleName ?: "Unknown")) }.toString())
             "failed: ${e::class.simpleName}"
