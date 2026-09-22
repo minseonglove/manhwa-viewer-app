@@ -37,6 +37,10 @@ targets:
           - "ComposeApp"
           - "-larchive"
           - "-lz"
+      configs:
+        # Info.plist carries this value in plain text, and the development secret must never ship in a Release build.
+        Release:
+          TRANSLATION_PROXY_DEV_SECRET: ""
     preBuildScripts:
       - name: "Build KMP Framework"
         script: |
