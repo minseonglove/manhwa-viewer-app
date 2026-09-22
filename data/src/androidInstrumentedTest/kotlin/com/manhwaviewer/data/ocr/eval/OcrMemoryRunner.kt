@@ -20,7 +20,6 @@ import com.manhwaviewer.data.ocr.hayai.HayaiTokenizer
 import com.manhwaviewer.data.ocr.image.cropToPlatformImage
 import com.manhwaviewer.data.ocr.image.decodeImage
 import com.manhwaviewer.data.ocr.inference.OrtMemoryOptions
-import com.manhwaviewer.data.ocr.inference.YoloRunner
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -44,7 +43,8 @@ import org.junit.Test
  * does the same for the detector; each variant runs in its own process so one arena's leftovers
  * never land in another's number. The same run also records how long the pages took, so memory is
  * never judged without its price in time. `default` here means ORT's own defaults, not the app's:
- * what the app ships is `-e variant noarena -e yolo noarena` ([OrtMemoryOptions.NO_ARENA]).
+ * the app's prefill and decode ship `-e variant noarena` ([OrtMemoryOptions.NO_ARENA]). The app's
+ * encoder and detector run on LiteRT, so the encoder and `-e yolo` numbers here are ORT's only.
  */
 class OcrMemoryRunner {
 
@@ -161,7 +161,7 @@ class OcrMemoryRunner {
         // Hayai 는 여기서 이미 그래프를 열었다. 실행 전, 가중치만 올라간 값.
         val opened = snapshot()
         val repo = TextDetectionRepositoryImpl(
-            CommonYoloTextDetector(YoloRunner(context, variant(yoloSpec))),
+            CommonYoloTextDetector(OnnxYoloRunner(OnnxYoloRunner.pushedFile(context), variant(yoloSpec))::run),
             verticalOcr = engine,
             maxConcurrentOcr = concurrency,
         )
@@ -277,8 +277,7 @@ class OcrMemoryRunner {
         mark("hayai:closed")
 
         // 3) YOLO 검출기: 로드, 실행 2회, 닫기.
-        val yolo = YoloRunner(context)
-        yolo.initialize()
+        val yolo = OnnxYoloRunner(OnnxYoloRunner.pushedFile(context))
         mark("yolo:opened")
         val blank = FloatArray(3 * MangaOcrConfig.YOLO_INPUT_SIZE * MangaOcrConfig.YOLO_INPUT_SIZE)
         yolo.run(blank)
@@ -330,10 +329,10 @@ class OcrMemoryRunner {
             ?: error("pass -e variant <tokens>; it is compared against -e base (default: ORT defaults)")
         val base = args.getString("base") ?: "default"
         val engines = linkedMapOf(base to hayai(hayaiSpec(base)), spec to hayai(hayaiSpec(spec)))
-        val yolo = YoloRunner(context, variant(args.getString("yolo") ?: "default"))
+        val yolo = OnnxYoloRunner(OnnxYoloRunner.pushedFile(context), variant(args.getString("yolo") ?: "default"))
         val repos = engines.map { (name, engine) ->
             name to TextDetectionRepositoryImpl(
-                CommonYoloTextDetector(yolo),
+                CommonYoloTextDetector(yolo::run),
                 verticalOcr = engine,
             )
         }
@@ -358,9 +357,9 @@ class OcrMemoryRunner {
             ?: error("pass -e concurrency <n>; it is compared against $DEFAULT_CONCURRENCY")
         val spec = args.getString("variant") ?: "noarena"
         val engine = hayai(hayaiSpec(spec))
-        val yolo = YoloRunner(context, variant(args.getString("yolo") ?: "noarena"))
+        val yolo = OnnxYoloRunner(OnnxYoloRunner.pushedFile(context), variant(args.getString("yolo") ?: "noarena"))
         fun repo(n: Int) = "c$n" to TextDetectionRepositoryImpl(
-            CommonYoloTextDetector(yolo),
+            CommonYoloTextDetector(yolo::run),
             verticalOcr = engine,
             maxConcurrentOcr = n,
         )

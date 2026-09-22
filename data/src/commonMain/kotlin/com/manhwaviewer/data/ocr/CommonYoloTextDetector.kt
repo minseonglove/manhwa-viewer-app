@@ -7,16 +7,27 @@ import com.manhwaviewer.data.ocr.image.getImageDimensions
 import com.manhwaviewer.data.ocr.image.resizeAndPadToFloatArray
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 
-class CommonYoloTextDetector(
-    private val yolo: YoloRunner,
-    private val confThreshold: Float = YoloPostProcessor.CONF_THRESHOLD,
+class CommonYoloTextDetector private constructor(
+    private val prepare: () -> Unit,
+    private val infer: (FloatArray) -> FloatArray,
+    private val confThreshold: Float,
 ) : TextDetector {
+
+    constructor(yolo: YoloRunner, confThreshold: Float = YoloPostProcessor.CONF_THRESHOLD) :
+        this(yolo::initialize, yolo::run, confThreshold)
+
+    /**
+     * The network behind [infer] instead of a [YoloRunner], for measurements that run it on another
+     * runtime; everything around the network call stays the app's.
+     */
+    constructor(infer: (FloatArray) -> FloatArray, confThreshold: Float = YoloPostProcessor.CONF_THRESHOLD) :
+        this({}, infer, confThreshold)
 
     private var initialized = false
 
     override suspend fun detect(imageBytes: ByteArray): List<DetectedRegion> {
         if (!initialized) {
-            yolo.initialize()
+            prepare()
             initialized = true
         }
 
@@ -32,7 +43,7 @@ class CommonYoloTextDetector(
             padColor = 0.5f,
         )
 
-        val rawOutput = yolo.run(inputData)
+        val rawOutput = infer(inputData)
 
         val rawBoxes = YoloPostProcessor.parseAndFilter(
             rawOutput = rawOutput,
