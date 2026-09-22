@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createHandler } from "../src/index";
+import { b64url } from "../src/crypto";
 import type { Env } from "../src/types";
 
 const gemmaCalls: string[] = [];
 let gemmaReply: () => unknown = () => ({ choices: [{ finish_reason: "stop", message: { content: '{"t01":"헉"}' } }] });
 const env: Env = {
   SESSION_SIGNING_KEY: "sign", DEEPINFRA_API_KEY: "di", GOOGLE_TRANSLATE_API_KEY: "g", DEV_ATTESTATION_SECRET: "dev-secret",
+  ANDROID_PACKAGE_NAME: "com.manhwaviewer.android", IOS_APP_ID: "PC497J52FF.com.manhwaviewer.app",
   AI: { run: async (model: string) => { gemmaCalls.push(model); return gemmaReply(); } },
 };
 const page = { items: [{ id: "t01", kind: "bubble", text: "はっ" }], source: "ja", target: "ko" };
@@ -109,5 +111,75 @@ describe("routing", () => {
     const handler = createHandler(upstream({}).fn);
     expect((await handler(post("/nope", {}), env)).status).toBe(404);
     expect((await handler(new Request("https://proxy.example/v1/translate"), env)).status).toBe(405);
+  });
+});
+
+describe("POST /v1/challenge", () => {
+  it("hands out a challenge that /v1/session accepts", async () => {
+    const handler = createHandler(upstream({}).fn);
+    const res = await handler(post("/v1/challenge", {}), env);
+    const body = (await res.json()) as { challenge: string; expiresIn: number };
+    expect(body.expiresIn).toBe(300);
+    expect(typeof body.challenge).toBe("string");
+  });
+});
+
+describe("session responses", () => {
+  async function androidDevRegistration() {
+    const handler = createHandler(upstream({}).fn);
+    const { challenge } = (await (await handler(post("/v1/challenge", {}), env)).json()) as { challenge: string };
+    const pair = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+    const publicKey = b64url(new Uint8Array((await crypto.subtle.exportKey("spki", pair.publicKey)) as ArrayBuffer));
+    const res = await handler(post("/v1/session", { deviceId: "d1", platform: "android", challenge, publicKey, devSecret: "dev-secret" }), env);
+    return { handler, body: (await res.json()) as Record<string, unknown> };
+  }
+  it("shortens an unattested session caused by a server-side failure", async () => {
+    // The service account key is not a real key, so signing the OAuth assertion fails: a server-side problem, not the device's.
+    const handler = createHandler(upstream({}).fn);
+    const { challenge } = (await (await handler(post("/v1/challenge", {}), env)).json()) as { challenge: string };
+    const pair = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+    const publicKey = b64url(new Uint8Array((await crypto.subtle.exportKey("spki", pair.publicKey)) as ArrayBuffer));
+    const res = await handler(post("/v1/session", { deviceId: "d1", platform: "android", challenge, publicKey, integrityToken: "t" }), { ...env, PLAY_INTEGRITY_SERVICE_ACCOUNT: '{"client_email":"a","private_key":"b"}' });
+    const body = (await res.json()) as { tier: string; expiresIn: number };
+    expect(body).toMatchObject({ tier: "unattested", expiresIn: 600 });
+  });
+  it("gives a full-length session to an unattested device when the device, not the server, was the problem", async () => {
+    const { json } = await session(createHandler(upstream({}).fn), { platform: "dev", deviceId: "d1", secret: "wrong" });
+    expect(json).toMatchObject({ tier: "unattested", expiresIn: 43_200 });
+  });
+  it("returns the credential and its recheck interval to an Android device that registers on a challenge from /v1/challenge", async () => {
+    const res = await androidDevRegistration();
+    expect(res.body).toMatchObject({ tier: "attested", expiresIn: 43_200, recheckAfter: 604_800 });
+    expect(typeof res.body.credential).toBe("string");
+    expect(res.body.credentialStatus).toBeUndefined();
+  });
+  it("tells a device that its credential is invalid, on a short session so it registers again soon", async () => {
+    const { handler, body } = await androidDevRegistration();
+    const present = async (deviceId: string, credential: string) => {
+      const { challenge } = (await (await handler(post("/v1/challenge", {}), env)).json()) as { challenge: string };
+      const res = await handler(post("/v1/session", { deviceId, platform: "android", challenge, credential, signature: "AAAA" }), env);
+      return (await res.json()) as Record<string, unknown>;
+    };
+    for (const out of [await present("d1", `${body.credential}x`), await present("another-install", String(body.credential))]) {
+      expect(out).toMatchObject({ tier: "unattested", expiresIn: 600, credentialStatus: "invalid" });
+      expect(out.credential).toBeUndefined();
+    }
+  });
+  it("gives a full-length session to a device that sends no attestation at all", async () => {
+    const { json } = await session(createHandler(upstream({}).fn), { deviceId: "d1" });
+    expect(json).toMatchObject({ tier: "unattested", expiresIn: 43_200 });
+  });
+  it("logs a fixed reason and none of the identifiers or tokens", async () => {
+    const lines: string[] = [];
+    const original = console.log;
+    console.log = (line: string) => lines.push(line);
+    try {
+      await session(createHandler(upstream({}).fn), { platform: "dev", deviceId: "device-secret-id", secret: "dev-secret" });
+    } finally {
+      console.log = original;
+    }
+    expect(JSON.parse(lines.at(-1)!)).toMatchObject({ event: "session", platform: "dev", tier: "attested", reason: "dev_ok" });
+    expect(lines.join("\n")).not.toContain("device-secret-id");
+    expect(lines.join("\n")).not.toContain("dev-secret");
   });
 });

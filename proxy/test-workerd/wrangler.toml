@@ -1,0 +1,29 @@
+name = "manhwa-viewer-translation-proxy-test"
+main = "../src/worker.ts"
+# The workerd binary bundled inside @cloudflare/vitest-pool-workers@0.22.0 only supports
+# compatibility dates up to 2026-08-22, older than the production wrangler.toml's date.
+# This file is test-only (never deployed), so it pins a date that binary accepts.
+compatibility_date = "2026-08-22"
+
+[vars]
+ANDROID_PACKAGE_NAME = "com.manhwaviewer.android"
+IOS_APP_ID = "PC497J52FF.com.manhwaviewer.app"
+
+# No [ai] binding here: it always reaches Cloudflare's remote service, even in local dev,
+# which these tests neither need nor exercise.
+
+[[durable_objects.bindings]]
+name = "APP_ATTEST_KEYS"
+class_name = "AppAttestKey"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AppAttestKey"]
+
+[[ratelimits]]
+name = "REGISTRATION_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 5
+  period = 60

@@ -1,11 +1,33 @@
 name = "manhwa-viewer-translation-proxy"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-09-01"
 
-# Secrets (set with `wrangler secret put <NAME>`; never commit values):
+# Secrets (set with `wrangler secret bulk` from stdin; never commit values):
 #   SESSION_SIGNING_KEY, DEEPINFRA_API_KEY, GOOGLE_TRANSLATE_API_KEY
+#   PLAY_INTEGRITY_SERVICE_ACCOUNT  (service account JSON key of the Cloud project linked to Play Integrity)
+#   DEV_ATTESTATION_SECRET  (development only; delete from the production Worker before release)
 # Gemma runs through the [ai] binding on this account, so it needs no credential.
-#   DEV_ATTESTATION_SECRET  (development only; leave unset in production)
+
+[vars]
+ANDROID_PACKAGE_NAME = "com.manhwaviewer.android"
+IOS_APP_ID = "PC497J52FF.com.manhwaviewer.app"
 
 [ai]
 binding = "AI"
+
+[[durable_objects.bindings]]
+name = "APP_ATTEST_KEYS"
+class_name = "AppAttestKey"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AppAttestKey"]
+
+# Guards only the path that spends Google's Play Integrity decode quota.
+[[ratelimits]]
+name = "REGISTRATION_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 5
+  period = 60
