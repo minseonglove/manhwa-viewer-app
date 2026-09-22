@@ -9,6 +9,11 @@ import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -111,6 +116,37 @@ class ProxyTranslationServiceTest {
 
         assertEquals(listOf("[あ]"), result)
         assertEquals(listOf("/v1/session", "/v1/translate", "/v1/session", "/v1/translate"), requests.map { it.path })
+    }
+
+    @Test
+    fun callsRejectedTogetherShareOneNewSession() = runTest {
+        val parallel = 3
+        val counters = Mutex()
+        var sessions = 0
+        var rejected = 0
+        val allRejected = CompletableDeferred<Unit>()
+        val service = ProxyTranslationService(
+            baseUrl = "https://proxy.test",
+            deviceId = { "device-1" },
+            devSecret = "dev-secret",
+            engine = MockEngine { request ->
+                when {
+                    request.url.encodedPath == "/v1/session" -> session("tok-${counters.withLock { ++sessions }}")
+                    request.headers[HttpHeaders.Authorization] == "Bearer tok-1" -> {
+                        // Holds every rejection until all calls have been rejected, so they all ask for a new session with the same stale token.
+                        if (counters.withLock { ++rejected } == parallel) allRejected.complete(Unit)
+                        allRejected.await()
+                        respond("""{"error":"a valid session token is required"}""", HttpStatusCode.Unauthorized, jsonHeaders)
+                    }
+                    else -> respond("""{"translations":{"t000":"번역"},"engine":"gemma"}""", HttpStatusCode.OK, jsonHeaders)
+                }
+            },
+        )
+
+        val results = List(parallel) { async { service.translate(listOf("あ"), "ja", "ko") } }.awaitAll()
+
+        assertEquals(List(parallel) { listOf("번역") }, results)
+        assertEquals(2, counters.withLock { sessions }, "one session before the rejection and one shared by every call after it")
     }
 
     @Test
