@@ -105,7 +105,7 @@ class LiteRtGpuRunner {
         else -> error("kv is copy or swap")
     }
 
-    /** The same assembly as `HayaiEngineFactory.fromDirectory`, with the graphs swappable. */
+    /** The same assembly as `HayaiEngineFactory.engine`, with the graphs swappable. */
     private fun engine(graphs: HayaiGraphs, hostDir: File): HayaiMangaOcrEngine {
         val tokenizer = HayaiTokenizer.fromTokenizerJson(File(hostDir, "tokenizer.json").readText())
         fun id(token: String) = tokenizer.tokenIdOf(token) ?: error("tokenizer.json carries no $token")

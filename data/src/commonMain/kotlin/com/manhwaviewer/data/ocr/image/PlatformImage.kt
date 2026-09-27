@@ -26,8 +26,6 @@ expect fun cropRegion(
     height: Int,
 ): ByteArray
 
-expect fun computeBorderAverageColor(image: PlatformImage): Float
-
 expect fun cropToPlatformImage(
     image: PlatformImage,
     x: Int,

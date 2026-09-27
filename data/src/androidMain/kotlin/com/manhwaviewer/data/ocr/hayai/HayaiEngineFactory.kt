@@ -28,16 +28,7 @@ object HayaiEngineFactory {
         }
     }
 
-    /** All three graphs on ORT from a directory holding the full ONNX set (evaluation runs push one). */
-    fun fromDirectory(modelDir: File): MangaOcrEngine {
-        val graphs = HayaiOnnxGraphs(modelDir)
-        return closingOnFailure(graphs::close) {
-            graphs.initialize()
-            engine(graphs, modelDir, positionBase(modelDir))
-        }
-    }
-
-    private fun engine(graphs: HayaiGraphs, dir: File, positionBase: FloatArray): MangaOcrEngine {
+    internal fun engine(graphs: HayaiGraphs, dir: File, positionBase: FloatArray): MangaOcrEngine {
         val tokenizer = HayaiTokenizer.fromTokenizerJson(File(dir, "tokenizer.json").readText())
         fun id(token: String) = tokenizer.tokenIdOf(token) ?: error("tokenizer.json carries no $token")
         return HayaiMangaOcrEngine(
@@ -50,7 +41,7 @@ object HayaiEngineFactory {
         )
     }
 
-    private fun positionBase(modelDir: File): FloatArray {
+    internal fun positionBase(modelDir: File): FloatArray {
         val bytes = File(modelDir, "position_base.f32").readBytes()
         require(bytes.size == POSITION_BASE_FLOATS * 4) { "position_base.f32 holds ${bytes.size / 4} floats" }
         val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()

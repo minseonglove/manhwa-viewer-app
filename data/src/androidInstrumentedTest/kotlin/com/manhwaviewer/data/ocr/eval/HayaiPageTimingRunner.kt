@@ -7,6 +7,8 @@ import com.manhwaviewer.data.ocr.MangaOcrEngine
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.YoloPostProcessor
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
+import com.manhwaviewer.data.ocr.hayai.HayaiOnnxGraphs
+import com.manhwaviewer.data.ocr.hayai.closingOnFailure
 import com.manhwaviewer.data.ocr.inference.YoloRunner
 import java.io.File
 import kotlinx.coroutines.runBlocking
@@ -37,6 +39,15 @@ class HayaiPageTimingRunner {
         return dir
     }
 
+    /** All three graphs on ORT from the pushed directory holding the full ONNX set. */
+    private fun ortEngine(dir: File): MangaOcrEngine {
+        val graphs = HayaiOnnxGraphs(dir)
+        return closingOnFailure(graphs::close) {
+            graphs.initialize()
+            HayaiEngineFactory.engine(graphs, dir, HayaiEngineFactory.positionBase(dir))
+        }
+    }
+
     private fun repository(yolo: YoloRunner, engine: MangaOcrEngine) =
         TextDetectionRepositoryImpl(CommonYoloTextDetector(yolo, YoloPostProcessor.CONF_THRESHOLD), verticalOcr = engine)
 
@@ -45,7 +56,7 @@ class HayaiPageTimingRunner {
         val dataset = EvalDataset.loadOrSkip(context)
         val dir = modelDir()
         val yolo = YoloRunner(context)
-        val hayai = HayaiEngineFactory.fromDirectory(dir)
+        val hayai = ortEngine(dir)
         val repos = linkedMapOf("hayai" to repository(yolo, hayai))
         val names = repos.keys.toList()
 
