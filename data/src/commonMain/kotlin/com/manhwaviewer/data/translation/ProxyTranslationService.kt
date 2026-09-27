@@ -106,8 +106,9 @@ class ProxyTranslationService(
         // The app does not classify regions, and the prompt treats an unmarked line as dialogue.
         private const val DEFAULT_KIND = "bubble"
 
-        // A session opened while attestation was briefly unavailable is replaced this soon, so the device is not left unable to translate.
-        private const val TRANSIENT_RETRY_SECONDS = 600L
+        // The proxy refuses to translate for an unattested session, whose token would otherwise last 12 hours. Replacing it this soon
+        // lets a device whose problem has cleared (a Play Store update, a network blip) attest again without restarting the app.
+        private const val UNATTESTED_RETRY_SECONDS = 600L
     }
 
     override suspend fun translate(texts: List<String>, source: String, target: String): List<String> =
@@ -166,12 +167,9 @@ class ProxyTranslationService(
     private suspend fun openSession(): String {
         val id = deviceId()
         var request = if (devSecret != null) ProxySessionRequest(id, platform = "dev", secret = devSecret) else ProxySessionRequest(id)
-        var transient = false
         if (attestor != null) {
             val challenge = fetchChallenge()
-            if (challenge == null) {
-                transient = true
-            } else {
+            if (challenge != null) {
                 when (val result = safely(AttestationResult.TransientFailure) { attestor.prove(challenge, id) }) {
                     is AttestationResult.Proof -> request = result.proof.let {
                         ProxySessionRequest(
@@ -180,8 +178,7 @@ class ProxyTranslationService(
                             attestation = it.attestation, assertion = it.assertion, credential = it.credential, signature = it.signature,
                         )
                     }
-                    AttestationResult.Unavailable -> Unit
-                    AttestationResult.TransientFailure -> transient = true
+                    AttestationResult.Unavailable, AttestationResult.TransientFailure -> Unit
                 }
             }
         }
@@ -197,11 +194,11 @@ class ProxyTranslationService(
             body.credential?.let { credential -> safely(Unit) { attestor.onCredential(credential, body.recheckAfter) } }
             if (body.credentialStatus == "invalid") safely(Unit) { attestor.onCredentialRejected() }
         }
-        renewAtEpochSeconds = if (transient && body.tier != "attested") clock() + TRANSIENT_RETRY_SECONDS else null
+        renewAtEpochSeconds = if (body.tier != "attested") clock() + UNATTESTED_RETRY_SECONDS else null
         return body.token
     }
 
-    /** A proxy that cannot hand out challenges yields an unattested session, which is treated as transient and replaced soon. */
+    /** A proxy that cannot hand out challenges yields an unattested session, which is replaced soon like any other. */
     private suspend fun fetchChallenge(): String? =
         safely(null) {
             val response = httpClient.post("$baseUrl/v1/challenge")

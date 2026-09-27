@@ -135,6 +135,41 @@ class ProxyTranslationServiceAttestationTest {
     }
 
     @Test
+    fun opensANewSessionTenMinutesAfterTheProxyRefusedTheProof() = runTest {
+        var now = 1000L
+        val attestor = FakeAttestor(AttestationResult.Proof(AttestationProof(platform = "android", publicKey = "pk", integrityToken = "it")))
+        sessionReply = """{"token":"tok","tier":"unattested","expiresIn":43200}"""
+        val proxy = service(attestor, clock = { now })
+
+        proxy.translate(listOf("は"), "ja", "ko")
+        now += 599
+        proxy.translate(listOf("は"), "ja", "ko")
+        assertEquals(1, sessions.size)
+
+        now += 1
+        proxy.translate(listOf("は"), "ja", "ko")
+        assertEquals(2, sessions.size)
+        assertEquals(2, attestor.proveCalls.size)
+    }
+
+    @Test
+    fun opensANewSessionTenMinutesAfterTheDeviceCouldNotAttest() = runTest {
+        var now = 1000L
+        val attestor = FakeAttestor(AttestationResult.Unavailable)
+        sessionReply = """{"token":"tok","tier":"unattested","expiresIn":43200}"""
+        val proxy = service(attestor, clock = { now })
+
+        proxy.translate(listOf("は"), "ja", "ko")
+        now += 599
+        proxy.translate(listOf("は"), "ja", "ko")
+        assertEquals(1, sessions.size)
+
+        now += 1
+        proxy.translate(listOf("は"), "ja", "ko")
+        assertEquals(2, sessions.size)
+    }
+
+    @Test
     fun keepsTranslatingWhenTheAttestorFailsToStoreACredential() = runTest {
         val attestor = FakeAttestor(
             AttestationResult.Proof(AttestationProof(platform = "android", credential = "c", signature = "s")),
