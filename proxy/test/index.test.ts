@@ -84,14 +84,15 @@ describe("POST /v1/translate", () => {
     expect(gemmaCalls).toHaveLength(1);
     expect(up.urls.map((u) => new URL(u).host)).toEqual(["api.deepinfra.com", "translation.googleapis.com"]);
   });
-  it("never spends a paid engine on an unattested device", async () => {
+  it("refuses an unattested device without calling any engine", async () => {
     const up = upstream({ "translation.googleapis.com": google });
     const handler = createHandler(up.fn);
     const { json } = await session(handler, { platform: "android", deviceId: "d1", token: "unverifiable" });
     const res = await handler(post("/v1/translate", page, json.token), env);
-    expect(((await res.json()) as { engine: string }).engine).toBe("google");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "attestation required" });
     expect(gemmaCalls).toEqual([]);
-    expect(up.urls.map((u) => new URL(u).host)).toEqual(["translation.googleapis.com"]);
+    expect(up.urls).toEqual([]);
   });
   it("answers 502 with the failure reasons, and none of the page text, when every engine fails", async () => {
     gemmaReply = () => { throw new Error("binding unavailable"); };

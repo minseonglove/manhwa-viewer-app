@@ -79,18 +79,18 @@ export function createHandler(fetchFn: typeof fetch, options: HandlerOptions = {
     const bearer = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
     const session = bearer ? await verifySessionToken(env.SESSION_SIGNING_KEY, bearer, nowSeconds()) : null;
     if (!session) return json(401, { error: "a valid session token is required" });
+    // Every engine costs money, so only installs that proved themselves get a translation at all.
+    if (session.tier !== "attested") {
+      console.log(JSON.stringify({ did: session.did, tier: session.tier, denied: "attestation required" }));
+      return json(403, { error: "attestation required" });
+    }
 
     const validation = validateTranslateRequest(await readJson(request));
     if (!validation.ok) return json(400, { error: validation.error });
     const { items } = validation.request;
     const glossary = filterGlossary(validation.request.glossary, items);
 
-    const google = googleEngine({ apiKey: env.GOOGLE_TRANSLATE_API_KEY }, fetchFn);
-    // Paid engines are only for installs that proved themselves; everyone else still gets a translation from the free tier.
-    const engines =
-      session.tier === "attested"
-        ? [gemmaEngine(env.AI), deepseekEngine({ apiKey: env.DEEPINFRA_API_KEY }, fetchFn), google]
-        : [google];
+    const engines = [gemmaEngine(env.AI), deepseekEngine({ apiKey: env.DEEPINFRA_API_KEY }, fetchFn), googleEngine({ apiKey: env.GOOGLE_TRANSLATE_API_KEY }, fetchFn)];
 
     const meter = { did: session.did, tier: session.tier, items: items.length, chars: items.reduce((n, it) => n + [...it.text].length, 0), glossary: glossary.length };
     try {
