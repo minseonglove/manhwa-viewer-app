@@ -159,6 +159,7 @@ class ViewerViewModel(
                     isSelectedTranslationSheetVisible = false,
                     selectedBlockTranslations = emptyList(),
                     selectedBlockFurigana = emptyMap(),
+                    isSelectedTranslationFailed = false,
                 )
             }
             is ViewerIntent.SetImageScaleMode -> {
@@ -237,6 +238,7 @@ class ViewerViewModel(
                 copy(
                     selectedBlockTranslations = cachedPairs,
                     isSelectedTranslating = false,
+                    isSelectedTranslationFailed = false,
                     isSelectedTranslationSheetVisible = true,
                 )
             }
@@ -251,7 +253,7 @@ class ViewerViewModel(
         // OCR 블록이 있으면 API 호출 (+ 캐시 결과 합산)
         selectedTranslateJob?.cancel()
         selectedTranslateJob = viewModelScope.launch {
-            updateState { copy(isSelectedTranslating = true, isSelectedTranslationSheetVisible = true) }
+            updateState { copy(isSelectedTranslating = true, isSelectedTranslationFailed = false, isSelectedTranslationSheetVisible = true) }
             try {
                 val results = translateTextUseCase(ocrTexts)
                 val ocrPairs = ocrTexts.zip(results.map { it.translatedText })
@@ -268,12 +270,7 @@ class ViewerViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                updateState {
-                    copy(
-                        isSelectedTranslating = false,
-                        isSelectedTranslationSheetVisible = false,
-                    )
-                }
+                updateState { copy(isSelectedTranslating = false, isSelectedTranslationFailed = true) }
             }
         }
     }
@@ -932,6 +929,7 @@ class ViewerViewModel(
         selectedBlockTranslations = emptyList(),
         selectedBlockFurigana = emptyMap(),
         isSelectedTranslating = false,
+        isSelectedTranslationFailed = false,
     )
 
     private fun clearCachedBlocks() {
@@ -968,6 +966,7 @@ class ViewerViewModel(
         selectedBlockTranslations = emptyList(),
         selectedBlockFurigana = emptyMap(),
         isSelectedTranslating = false,
+        isSelectedTranslationFailed = false,
     )
 
     // ── 300ms 디바운스 ──────────────────────────────────────────────

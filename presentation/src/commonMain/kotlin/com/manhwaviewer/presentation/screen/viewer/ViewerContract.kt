@@ -64,6 +64,7 @@ data class ViewerState(
     val selectedBlockFurigana: Map<Int, List<FuriganaToken>> = emptyMap(),
     val isSelectedTranslationSheetVisible: Boolean = false,
     val isSelectedTranslating: Boolean = false,
+    val isSelectedTranslationFailed: Boolean = false,
     val selectedBottomTab: BottomPanelTab = BottomPanelTab.VIEW,
     // 이전 권 / 다음 권
     val previousVolume: PreviousVolumeInfo? = null,

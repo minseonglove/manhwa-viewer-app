@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.BottomSheetScaffold
@@ -98,6 +99,8 @@ import kotlinx.coroutines.launch
 import manhwa_viewer.presentation.generated.resources.Res
 import manhwa_viewer.presentation.generated.resources.loading_next_volume
 import manhwa_viewer.presentation.generated.resources.page_content_description
+import manhwa_viewer.presentation.generated.resources.retry
+import manhwa_viewer.presentation.generated.resources.status_translate_failed
 import manhwa_viewer.presentation.generated.resources.viewer_image_not_found
 import manhwa_viewer.presentation.generated.resources.viewer_translation_result_title
 import me.saket.telephoto.zoomable.EnabledZoomGestures
@@ -264,6 +267,8 @@ fun ViewerScreen(
                 translations = state.selectedBlockTranslations,
                 furiganaMap = state.selectedBlockFurigana,
                 isTranslating = state.isSelectedTranslating,
+                isFailed = state.isSelectedTranslationFailed,
+                onRetry = { viewModel.onIntent(ViewerIntent.TranslateSelectedBlocks) },
                 hazeState = hazeState,
             )
         },
@@ -1168,6 +1173,8 @@ private fun SelectedTranslationSheetContent(
     translations: List<Pair<String, String>>,
     furiganaMap: Map<Int, List<FuriganaToken>>,
     isTranslating: Boolean,
+    isFailed: Boolean,
+    onRetry: () -> Unit,
     hazeState: HazeState,
 ) {
     Column(
@@ -1190,6 +1197,25 @@ private fun SelectedTranslationSheetContent(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            }
+        } else if (isFailed) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.status_translate_failed),
+                    color = MangaLensColors.red,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(Res.string.retry),
+                    color = MangaLensColors.blueHi,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.clickable(onClick = onRetry),
+                )
             }
         } else {
             Column(

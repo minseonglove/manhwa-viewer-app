@@ -3,6 +3,7 @@ package com.manhwaviewer.data.translation
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class TranslationRepositoryImplTest {
 
@@ -26,10 +27,11 @@ class TranslationRepositoryImplTest {
     }
 
     @Test
-    fun translateReturnsOriginalTextOnServiceFailure() = runTest {
+    fun translateFailsWhenTheServiceFails() = runTest {
         val repo = TranslationRepositoryImpl(FakeTranslationService(shouldFail = true), FakeTranslationCacheDao())
 
-        assertEquals("テスト", repo.translate("テスト"))
+        assertFailsWith<RuntimeException> { repo.translate("テスト") }
+        assertFailsWith<RuntimeException> { repo.translateBatch(listOf("テスト", "テスト2"), "ja", "ko") }
     }
 
     @Test
@@ -37,7 +39,7 @@ class TranslationRepositoryImplTest {
         val cacheDao = FakeTranslationCacheDao()
         val repo = TranslationRepositoryImpl(FakeTranslationService(shouldFail = true), cacheDao)
 
-        repo.translate("テスト")
+        assertFailsWith<RuntimeException> { repo.translate("テスト") }
 
         assertEquals(0, cacheDao.getCacheCount())
     }
