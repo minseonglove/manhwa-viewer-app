@@ -1,7 +1,11 @@
 package com.manhwaviewer.presentation.screen.filebrowser
 
 import com.manhwaviewer.domain.entity.ArchiveType
+import com.manhwaviewer.domain.usecase.CreateFolderUseCase
+import com.manhwaviewer.domain.usecase.DeleteFileUseCase
 import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
+import com.manhwaviewer.domain.usecase.MoveToVaultUseCase
+import com.manhwaviewer.domain.usecase.RenameFileUseCase
 import com.manhwaviewer.domain.usecase.ScanArchiveEntriesUseCase
 import com.manhwaviewer.domain.usecase.ScanLocalFilesUseCase
 import com.manhwaviewer.domain.usecase.UpsertArchiveUseCase
@@ -9,6 +13,7 @@ import com.manhwaviewer.presentation.fake.FakeArchiveFileRepository
 import com.manhwaviewer.presentation.fake.makeArchive
 import com.manhwaviewer.presentation.screen.common.ListViewMode
 import com.manhwaviewer.presentation.screen.common.SortField
+import com.manhwaviewer.presentation.screen.filemoveselect.MoveRequestHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -44,11 +49,16 @@ class FileBrowserViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun buildViewModel(): FileBrowserViewModel = FileBrowserViewModel(
-        scanLocalFilesUseCase = ScanLocalFilesUseCase(fakeRepo),
-        upsertArchiveUseCase = UpsertArchiveUseCase(fakeRepo),
-        scanArchiveEntriesUseCase = ScanArchiveEntriesUseCase(fakeRepo),
-        getImageEntriesUseCase = GetImageEntriesUseCase(fakeRepo),
+    private fun buildViewModel(repo: FakeArchiveFileRepository = fakeRepo): FileBrowserViewModel = FileBrowserViewModel(
+        scanLocalFilesUseCase = ScanLocalFilesUseCase(repo),
+        upsertArchiveUseCase = UpsertArchiveUseCase(repo),
+        scanArchiveEntriesUseCase = ScanArchiveEntriesUseCase(repo),
+        getImageEntriesUseCase = GetImageEntriesUseCase(repo),
+        renameFileUseCase = RenameFileUseCase(repo),
+        deleteFileUseCase = DeleteFileUseCase(repo),
+        createFolderUseCase = CreateFolderUseCase(repo),
+        moveToVaultUseCase = MoveToVaultUseCase(repo),
+        moveRequestHolder = MoveRequestHolder(),
         defaultScanPath = defaultPath,
         ioDispatcher = testDispatcher,
     )
@@ -218,14 +228,7 @@ class FileBrowserViewModelTest {
                 throw RuntimeException("Permission denied")
             }
         }
-        viewModel = FileBrowserViewModel(
-            scanLocalFilesUseCase = ScanLocalFilesUseCase(errorRepo),
-            upsertArchiveUseCase = UpsertArchiveUseCase(errorRepo),
-            scanArchiveEntriesUseCase = ScanArchiveEntriesUseCase(errorRepo),
-            getImageEntriesUseCase = GetImageEntriesUseCase(errorRepo),
-            defaultScanPath = defaultPath,
-            ioDispatcher = testDispatcher,
-        )
+        viewModel = buildViewModel(errorRepo)
         advanceUntilIdle()
 
         assertEquals(emptyList(), viewModel.state.value.files)

@@ -1,5 +1,8 @@
 package com.manhwaviewer.presentation.screen.recent
 
+import com.manhwaviewer.domain.usecase.ClearAllRecentHistoryUseCase
+import com.manhwaviewer.domain.usecase.ClearRecentHistoryUseCase
+import com.manhwaviewer.domain.usecase.GetImageEntriesUseCase
 import com.manhwaviewer.domain.usecase.GetRecentArchivesUseCase
 import com.manhwaviewer.presentation.fake.FakeArchiveFileRepository
 import com.manhwaviewer.presentation.fake.makeArchive
@@ -31,13 +34,20 @@ class RecentViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeRepo = FakeArchiveFileRepository()
-        viewModel = RecentViewModel(GetRecentArchivesUseCase(fakeRepo))
+        viewModel = buildViewModel(fakeRepo)
     }
 
     @AfterTest
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    private fun buildViewModel(repo: FakeArchiveFileRepository): RecentViewModel = RecentViewModel(
+        GetRecentArchivesUseCase(repo),
+        GetImageEntriesUseCase(repo),
+        ClearRecentHistoryUseCase(repo),
+        ClearAllRecentHistoryUseCase(repo),
+    )
 
     @Test
     fun `archives are loaded from use case when repository emits`() = runTest {
@@ -54,7 +64,7 @@ class RecentViewModelTest {
     @Test
     fun `initial state has isLoading true and empty archives`() {
         // Fresh ViewModel before any emission
-        val vm = RecentViewModel(GetRecentArchivesUseCase(FakeArchiveFileRepository()))
+        val vm = buildViewModel(FakeArchiveFileRepository())
         val state = vm.state.value
         assertEquals(true, state.isLoading)
         assertEquals(emptyList(), state.archives)
