@@ -11,19 +11,19 @@ import android.graphics.Typeface
 import android.os.Environment
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.db.TranslationCacheDao
 import com.manhwaviewer.data.db.TranslationCacheEntity
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.TextDetectionRepositoryImpl
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.inference.YoloRunner
-import com.manhwaviewer.data.translation.GoogleTranslationService
+import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationRepositoryImpl
 import com.manhwaviewer.domain.entity.TextBlock
 import com.manhwaviewer.domain.entity.TranslationResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.io.FileOutputStream
@@ -36,8 +36,18 @@ class TranslationOverlayRenderTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
+    /** `-e proxyUrl <url> [-e proxySecret <dev secret>]` 로 번역 프록시를 지정한다. 없으면 테스트를 건너뛴다. */
+    private fun proxyTranslationService(): ProxyTranslationService {
+        val args = InstrumentationRegistry.getArguments()
+        val proxyUrl = args.getString("proxyUrl")
+        assumeTrue("proxyUrl 인자가 없어 건너뜀", proxyUrl != null)
+        return ProxyTranslationService(proxyUrl!!, deviceId = { "overlay-render-test" }, devSecret = args.getString("proxySecret"))
+    }
+
     @Test
     fun renderTranslationOverlayAndSaveToFile() = runTest {
+        val translationService = proxyTranslationService()
+
         // 1. 테스트 이미지 로드
         val imageBytes = InstrumentationRegistry.getInstrumentation()
             .context.assets.open("test/06.png").readBytes()
@@ -59,9 +69,9 @@ class TranslationOverlayRenderTest {
         }
         assertTrue("OCR should detect at least one text block", textBlocks.isNotEmpty())
 
-        // 3. 번역 실행 (실제 번역 API)
+        // 3. 번역 실행 (번역 프록시)
         val translationRepo = TranslationRepositoryImpl(
-            translationService = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY),
+            translationService = translationService,
             cacheDao = InMemoryCacheDao(),
         )
 
@@ -116,6 +126,7 @@ class TranslationOverlayRenderTest {
 
     @Test
     fun renderOverlayForMultipleImages() = runTest {
+        val translationService = proxyTranslationService()
         val testImages = listOf("test/05.png", "test/06.png", "test/07.png")
 
         val ocrRepo = TextDetectionRepositoryImpl(
@@ -123,7 +134,7 @@ class TranslationOverlayRenderTest {
             verticalOcr = HayaiEngineFactory.fromAssets(context),
         )
         val translationRepo = TranslationRepositoryImpl(
-            translationService = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY),
+            translationService = translationService,
             cacheDao = InMemoryCacheDao(),
         )
 

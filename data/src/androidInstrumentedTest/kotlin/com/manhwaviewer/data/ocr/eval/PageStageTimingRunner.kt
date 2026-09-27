@@ -2,7 +2,6 @@ package com.manhwaviewer.data.ocr.eval
 
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
-import com.manhwaviewer.data.BuildConfig
 import com.manhwaviewer.data.ocr.CommonYoloTextDetector
 import com.manhwaviewer.data.ocr.DetectedRegion
 import com.manhwaviewer.data.ocr.MangaOcrEngine
@@ -11,7 +10,6 @@ import com.manhwaviewer.data.ocr.TextDetector
 import com.manhwaviewer.data.ocr.hayai.HayaiEngineFactory
 import com.manhwaviewer.data.ocr.image.PlatformImage
 import com.manhwaviewer.data.ocr.inference.YoloRunner
-import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
 import java.util.Collections
@@ -76,11 +74,10 @@ class PageStageTimingRunner {
             )
         }
         val names = repos.keys.toList()
-        // `-e proxyUrl <url> [-e proxySecret <dev secret>]` times the translation proxy instead of Google directly.
+        // `-e proxyUrl <url> [-e proxySecret <dev secret>]` also times translation through the proxy; without it only OCR is timed.
         val args = InstrumentationRegistry.getArguments()
         val translator: TranslationService? = args.getString("proxyUrl")
             ?.let { ProxyTranslationService(it, deviceId = { "page-stage-timing-runner" }, devSecret = args.getString("proxySecret")) }
-            ?: BuildConfig.GOOGLE_TRANSLATE_API_KEY.takeIf { it.isNotBlank() }?.let { GoogleTranslationService(it) }
 
         // 첫 페이지는 모델 로딩과 TLS 연결 수립이 섞이므로 계측에서 제외한다.
         val warmUp = dataset.pages.first().imageFile.readBytes()
