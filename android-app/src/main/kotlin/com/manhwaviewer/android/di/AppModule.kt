@@ -15,8 +15,6 @@ import com.manhwaviewer.data.preference.InstallIdStore
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.data.translation.FallbackTranslationService
-import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
 import com.manhwaviewer.data.translation.attestation.DeviceAttestor
@@ -60,17 +58,11 @@ private val androidPlatformModule = module {
         )
     }
     single<TranslationService> {
-        val google = GoogleTranslationService(BuildConfig.GOOGLE_TRANSLATE_API_KEY)
-        val proxyUrl = BuildConfig.TRANSLATION_PROXY_URL
-        if (proxyUrl.isBlank()) google
-        else FallbackTranslationService(
-            primary = ProxyTranslationService(
-                baseUrl = proxyUrl,
-                deviceId = { get<InstallIdStore>().get() },
-                devSecret = BuildConfig.TRANSLATION_PROXY_DEV_SECRET.ifBlank { null },
-                attestor = get(),
-            ),
-            fallback = google,
+        ProxyTranslationService(
+            baseUrl = BuildConfig.TRANSLATION_PROXY_URL,
+            deviceId = { get<InstallIdStore>().get() },
+            devSecret = BuildConfig.TRANSLATION_PROXY_DEV_SECRET.ifBlank { null },
+            attestor = get(),
         )
     }
 }

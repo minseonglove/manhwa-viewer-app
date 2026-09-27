@@ -17,11 +17,6 @@ android {
         versionName = "1.0"
 
         val localFile = rootProject.file("local.properties")
-        val googleTranslateApiKey = if (localFile.exists()) {
-            localFile.readLines().find { it.startsWith("google.translate.api.key=") }?.substringAfter("=") ?: ""
-        } else ""
-        buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"$googleTranslateApiKey\"")
-
         fun localProperty(name: String): String =
             if (localFile.exists()) localFile.readLines().find { it.startsWith("$name=") }?.substringAfter("=")?.trim() ?: "" else ""
         buildConfigField("String", "TRANSLATION_PROXY_URL", "\"${localProperty("translation.proxy.url")}\"")

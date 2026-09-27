@@ -186,6 +186,17 @@ class ProxyTranslationServiceTest {
     }
 
     @Test
+    fun failsWhenTheProxyRefusesAnUnattestedSession() = runTest {
+        val service = service {
+            if (it.path == "/v1/session") respond("""{"token":"t","tier":"unattested","expiresIn":43200}""", HttpStatusCode.OK, jsonHeaders)
+            else respond("""{"error":"attestation required"}""", HttpStatusCode.Forbidden, jsonHeaders)
+        }
+
+        assertFailsWith<RuntimeException> { service.translate(listOf("あ"), "ja", "ko") }
+        assertEquals(listOf("/v1/session", "/v1/translate"), requests.map { it.path })
+    }
+
+    @Test
     fun failsWhenAnAnswerIsMissing() = runTest {
         val service = service {
             if (it.path == "/v1/session") session("t")

@@ -82,17 +82,22 @@ android {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val localFile = rootProject.file("local.properties")
-        val googleTranslateApiKey = if (localFile.exists()) {
-            localFile.readLines().find { it.startsWith("google.translate.api.key=") }?.substringAfter("=") ?: ""
-        } else ""
-        buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"$googleTranslateApiKey\"")
-
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
 
         consumerProguardFiles("consumer-rules.pro")
+    }
+
+    buildTypes {
+        // 계측 테스트가 Google 번역을 직접 부를 때만 쓴다. 앱은 프록시로만 번역하므로 릴리스에는 키를 싣지 않는다.
+        getByName("debug") {
+            val localFile = rootProject.file("local.properties")
+            val googleTranslateApiKey = if (localFile.exists()) {
+                localFile.readLines().find { it.startsWith("google.translate.api.key=") }?.substringAfter("=") ?: ""
+            } else ""
+            buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"$googleTranslateApiKey\"")
+        }
     }
 
     compileOptions {

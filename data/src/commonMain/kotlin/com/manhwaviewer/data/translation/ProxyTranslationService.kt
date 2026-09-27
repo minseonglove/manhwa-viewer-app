@@ -70,8 +70,8 @@ private data class ProxyTranslateResponse(val translations: Map<String, String>)
 /**
  * Translation through the app's own proxy, which holds the provider keys and picks the engine.
  *
- * [attestor] proves the install is genuine so the proxy grants its paid engines. [devSecret] is the development stand-in
- * for devices that cannot attest and must stay out of release builds. Without either, the proxy still answers from its unattested tier.
+ * [attestor] proves the install is genuine; the proxy translates only for attested sessions. [devSecret] is the development
+ * stand-in for devices that cannot attest and must stay out of release builds. Without either, every translation is refused (403).
  */
 class ProxyTranslationService(
     private val baseUrl: String,
@@ -106,7 +106,7 @@ class ProxyTranslationService(
         // The app does not classify regions, and the prompt treats an unmarked line as dialogue.
         private const val DEFAULT_KIND = "bubble"
 
-        // A session opened while attestation was briefly unavailable is replaced this soon, so the device is not stuck on the free tier.
+        // A session opened while attestation was briefly unavailable is replaced this soon, so the device is not left unable to translate.
         private const val TRANSIENT_RETRY_SECONDS = 600L
     }
 
@@ -201,14 +201,14 @@ class ProxyTranslationService(
         return body.token
     }
 
-    /** A proxy that cannot hand out challenges must not stop translation; the session just goes unattested. */
+    /** A proxy that cannot hand out challenges yields an unattested session, which is treated as transient and replaced soon. */
     private suspend fun fetchChallenge(): String? =
         safely(null) {
             val response = httpClient.post("$baseUrl/v1/challenge")
             if (response.status.value in 200..299) response.body<ProxyChallengeResponse>().challenge else null
         }
 
-    /** A failing proof, or an attestor whose storage calls throw, must not stop translation. */
+    /** A failing proof, or an attestor whose storage calls throw, counts as no proof instead of failing the session request. */
     private suspend fun <T> safely(fallback: T, block: suspend () -> T): T =
         try {
             block()

@@ -17,8 +17,6 @@ import com.manhwaviewer.data.preference.InstallIdStore
 import com.manhwaviewer.data.preference.createPlatformDataStore
 import com.manhwaviewer.data.repository.ImageFileRepositoryImpl
 import com.manhwaviewer.data.scanner.MediaScanner
-import com.manhwaviewer.data.translation.FallbackTranslationService
-import com.manhwaviewer.data.translation.GoogleTranslationService
 import com.manhwaviewer.data.translation.ProxyTranslationService
 import com.manhwaviewer.data.translation.TranslationService
 import com.manhwaviewer.data.translation.attestation.AppAttestAttestor
@@ -56,19 +54,13 @@ val iosPlatformModule = module {
     single<DeviceAttestor> { AppAttestAttestor(get()) }
     single<TranslationService> {
         fun info(key: String) = (NSBundle.mainBundle.objectForInfoDictionaryKey(key) as? String).orEmpty()
-        val google = GoogleTranslationService(info("GoogleTranslateApiKey"))
-        // xcconfig 는 "//" 뒤를 주석으로 잘라 버려서 URL 대신 호스트만 둔다.
-        val proxyHost = info("TranslationProxyHost")
-        if (proxyHost.isBlank()) google
-        else FallbackTranslationService(
-            primary = ProxyTranslationService(
-                baseUrl = "https://$proxyHost",
-                deviceId = { get<InstallIdStore>().get() },
-                // 플랫폼 증명이 붙기 전까지 쓰는 개발용 증명. 릴리스 바이너리에서는 보내지 않는다.
-                devSecret = info("TranslationProxyDevSecret").takeIf { it.isNotBlank() && Platform.isDebugBinary },
-                attestor = get(),
-            ),
-            fallback = google,
+        ProxyTranslationService(
+            // xcconfig 는 "//" 뒤를 주석으로 잘라 버려서 URL 대신 호스트만 둔다.
+            baseUrl = "https://${info("TranslationProxyHost")}",
+            deviceId = { get<InstallIdStore>().get() },
+            // 플랫폼 증명이 붙기 전까지 쓰는 개발용 증명. 릴리스 바이너리에서는 보내지 않는다.
+            devSecret = info("TranslationProxyDevSecret").takeIf { it.isNotBlank() && Platform.isDebugBinary },
+            attestor = get(),
         )
     }
 }
