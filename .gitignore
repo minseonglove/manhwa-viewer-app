@@ -89,3 +89,7 @@ proxy/node_modules/
 proxy/.wrangler/
 proxy/.dev.vars
 proxy/dist/
+
+# Release signing (upload key)
+keystore.properties
+*.jks
