@@ -80,9 +80,6 @@ object MangaLensColors {
     /** rgba(235,235,245,0.30) — Tertiary text (tertiaryLabel). */
     val textTertiary = Color(0x4DEBEBF5)
 
-    /** rgba(235,235,245,0.18) — Quaternary/placeholder text. */
-    val textQuaternary = Color(0x2EEBEBF5)
-
     // ── Separators & Borders ──
     /** rgba(255,255,255,0.13) — Standard separator/border on dark surfaces. */
     val separator = Color(0x21FFFFFF)
@@ -147,7 +144,6 @@ object MangaLensColors {
 
     // ── Tile icon colors (Home screen) ──
     val tileBlue = Color(0xFF3B82F6)
-    val tileAmber = Color(0xFFF59E0B)
     val tileGreen = Color(0xFF10B981)
     val tilePurple = Color(0xFF8B5CF6)
 

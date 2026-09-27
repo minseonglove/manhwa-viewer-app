@@ -10,7 +10,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
@@ -66,7 +65,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -1037,62 +1035,6 @@ private fun ZoomableImage(
 }
 
 // ── Bounding Box 오버레이 ─────────────────────────────────────
-
-@Composable
-private fun BoundingBoxOverlay(
-    textBlocks: List<TextBlock>,
-    imageWidth: Int,
-    imageHeight: Int,
-    imageScaleMode: ImageScaleMode,
-    onBlockTap: (TextBlock) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f), 0f)
-
-    Canvas(
-        modifier = modifier
-            .pointerInput(textBlocks, imageWidth, imageHeight, imageScaleMode) {
-                detectTapGestures { offset ->
-                    val (scale, transformOffset) = calculateImageTransform(
-                        imageScaleMode, size.width.toFloat(), size.height.toFloat(),
-                        imageWidth.toFloat(), imageHeight.toFloat(),
-                    )
-
-                    textBlocks.firstOrNull { block ->
-                        val lx = block.x * scale + transformOffset.x
-                        val ly = block.y * scale + transformOffset.y
-                        val lw = block.width * scale
-                        val lh = block.height * scale
-                        offset.x in lx..(lx + lw) && offset.y in ly..(ly + lh)
-                    }?.let { onBlockTap(it) }
-                }
-            },
-    ) {
-        if (imageWidth <= 0 || imageHeight <= 0) return@Canvas
-        val (scale, transformOffset) = calculateImageTransform(
-            imageScaleMode, size.width, size.height,
-            imageWidth.toFloat(), imageHeight.toFloat(),
-        )
-
-        textBlocks.forEach { block ->
-            drawRect(
-                color = BoundingBoxColor,
-                topLeft = Offset(
-                    x = block.x * scale + transformOffset.x,
-                    y = block.y * scale + transformOffset.y,
-                ),
-                size = Size(
-                    width = block.width * scale,
-                    height = block.height * scale,
-                ),
-                style = Stroke(
-                    width = 2f,
-                    pathEffect = dashEffect,
-                ),
-            )
-        }
-    }
-}
 
 /** 바운딩 박스를 그리기만 하고 터치를 소비하지 않는 오버레이. */
 @Composable
