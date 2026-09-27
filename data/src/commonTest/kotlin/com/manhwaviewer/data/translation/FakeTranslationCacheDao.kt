@@ -6,17 +6,7 @@ import com.manhwaviewer.data.db.TranslationCacheEntity
 class FakeTranslationCacheDao : TranslationCacheDao {
     private val cache = mutableListOf<TranslationCacheEntity>()
 
-    override suspend fun findCache(
-        sourceText: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-    ): TranslationCacheEntity? {
-        return cache.find {
-            it.sourceText == sourceText &&
-                it.sourceLanguage == sourceLanguage &&
-                it.targetLanguage == targetLanguage
-        }
-    }
+    val entries: List<TranslationCacheEntity> get() = cache.toList()
 
     override suspend fun insertCache(entity: TranslationCacheEntity) {
         cache.removeAll {
@@ -42,8 +32,6 @@ class FakeTranslationCacheDao : TranslationCacheDao {
                 it.targetLanguage == targetLanguage
         }
     }
-
-    override suspend fun getCacheCount(): Int = cache.size
 
     // Room 쿼리와 같은 컬럼 집합을 센다 -- 둘이 어긋나면 fake 가 실제 크기를 가린다.
     override suspend fun getTotalDataSize(): Long = cache.sumOf {

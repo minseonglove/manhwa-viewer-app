@@ -2,7 +2,6 @@ package com.manhwaviewer.data.repository
 
 import com.manhwaviewer.data.archive.ArchiveReader
 import com.manhwaviewer.data.db.ArchiveFileDao
-import com.manhwaviewer.data.db.PageOcrCacheDao
 import com.manhwaviewer.data.db.toDomain
 import com.manhwaviewer.data.db.toEntity
 import com.manhwaviewer.data.scanner.MediaScanner
@@ -20,7 +19,6 @@ class ArchiveFileRepositoryImpl(
     private val dao: ArchiveFileDao,
     private val mediaScanner: MediaScanner,
     private val archiveReader: ArchiveReader,
-    private val pageOcrCacheDao: PageOcrCacheDao,
 ) : ArchiveFileRepository {
 
     override fun getRecentArchives(): Flow<List<ArchiveFile>> =

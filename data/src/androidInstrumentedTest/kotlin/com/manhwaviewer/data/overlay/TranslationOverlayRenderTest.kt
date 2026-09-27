@@ -393,18 +393,6 @@ class TranslationOverlayRenderTest {
 private class InMemoryCacheDao : TranslationCacheDao {
     private val cache = mutableListOf<TranslationCacheEntity>()
 
-    override suspend fun findCache(
-        sourceText: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-    ): TranslationCacheEntity? {
-        return cache.find {
-            it.sourceText == sourceText &&
-                it.sourceLanguage == sourceLanguage &&
-                it.targetLanguage == targetLanguage
-        }
-    }
-
     override suspend fun insertCache(entity: TranslationCacheEntity) {
         cache.removeAll {
             it.sourceText == entity.sourceText &&
@@ -427,6 +415,5 @@ private class InMemoryCacheDao : TranslationCacheDao {
     }
 
     override suspend fun clearAll() = cache.clear()
-    override suspend fun getCacheCount(): Int = cache.size
     override suspend fun getTotalDataSize(): Long = cache.sumOf { it.sourceText.length.toLong() + it.translatedText.length.toLong() }
 }

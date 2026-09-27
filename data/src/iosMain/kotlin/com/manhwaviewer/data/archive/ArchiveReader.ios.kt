@@ -105,8 +105,6 @@ actual class ArchiveReader actual constructor() {
         return result
     }
 
-    actual fun getPageCount(archivePath: String): Int = getImageEntries(archivePath).size
-
     actual fun close() {}
 
     actual fun getImageEntriesSorted(archivePath: String, sortByDate: Boolean, ascending: Boolean): List<String> {

@@ -41,7 +41,7 @@ class TranslationRepositoryImplTest {
 
         assertFailsWith<RuntimeException> { repo.translate("テスト") }
 
-        assertEquals(0, cacheDao.getCacheCount())
+        assertEquals(0, cacheDao.entries.size)
     }
 
     @Test
@@ -117,8 +117,7 @@ class TranslationRepositoryImplTest {
 
         repo.translate("テスト")
 
-        assertEquals(1, cacheDao.getCacheCount())
-        assertEquals("FAKE", cacheDao.findCache("テスト", "ja", "ko")?.engine)
+        assertEquals("FAKE", cacheDao.entries.single().engine)
     }
 }
 

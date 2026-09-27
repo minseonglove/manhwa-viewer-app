@@ -35,9 +35,6 @@ abstract class ArchiveFileDao {
     @Query("UPDATE archive_files SET lastReadAt = NULL, lastReadIndex = 0 WHERE lastReadAt IS NOT NULL")
     abstract suspend fun clearAllRecentHistory()
 
-    @Query("SELECT * FROM archive_files WHERE filePath LIKE :directoryPath || '/%'")
-    abstract suspend fun getByDirectory(directoryPath: String): List<ArchiveFileEntity>
-
     @Query("DELETE FROM archive_files WHERE filePath = :filePath")
     abstract suspend fun deleteByFilePath(filePath: String)
 

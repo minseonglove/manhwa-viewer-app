@@ -7,11 +7,6 @@ import androidx.room.Query
 
 @Dao
 interface TranslationCacheDao {
-    @Query(
-        "SELECT * FROM translation_cache WHERE sourceText = :sourceText AND sourceLanguage = :sourceLanguage AND targetLanguage = :targetLanguage LIMIT 1"
-    )
-    suspend fun findCache(sourceText: String, sourceLanguage: String, targetLanguage: String): TranslationCacheEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCache(entity: TranslationCacheEntity)
 
@@ -26,9 +21,6 @@ interface TranslationCacheDao {
         sourceLanguage: String,
         targetLanguage: String,
     ): List<TranslationCacheEntity>
-
-    @Query("SELECT COUNT(*) FROM translation_cache")
-    suspend fun getCacheCount(): Int
 
     @Query("SELECT COALESCE(SUM(LENGTH(sourceText) + LENGTH(translatedText) + LENGTH(sourceLanguage) + LENGTH(targetLanguage) + LENGTH(engine)), 0) FROM translation_cache")
     suspend fun getTotalDataSize(): Long

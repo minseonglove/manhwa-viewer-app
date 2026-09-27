@@ -31,7 +31,7 @@ val commonDataModule = module {
     single { ArchiveReader() }
 
     // Repositories (플랫폼 무관)
-    single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get(), get()) }
+    single<ArchiveFileRepository> { ArchiveFileRepositoryImpl(get(), get(), get()) }
     single<VaultFileRepository> { VaultFileRepositoryImpl(get()) }
     single<ViewerPreferenceRepository> { ViewerPreferenceDataStore(get()) }
     single { InstallIdStore(get()) }

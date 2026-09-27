@@ -31,8 +31,6 @@ actual class ArchiveReader actual constructor() {
         }
     }
 
-    actual fun getPageCount(archivePath: String): Int = getImageEntries(archivePath).size
-
     actual fun close() {
         // No persistent native resources to clean up
     }

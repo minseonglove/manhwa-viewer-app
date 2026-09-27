@@ -16,7 +16,6 @@ import platform.Foundation.timeIntervalSince1970
 
 actual class MediaScanner {
 
-    private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
     private val archiveExtensions = setOf("zip", "cbz", "cbr")
 
     actual fun scanDirectory(directoryPath: String): List<ArchiveFile> {

@@ -54,14 +54,10 @@ private data class ProxyChallengeResponse(val challenge: String)
 private data class ProxyItem(val id: String, val kind: String, val text: String)
 
 @Serializable
-private data class ProxyGlossaryEntry(val src: String, val ko: String)
-
-@Serializable
 private data class ProxyTranslateRequest(
     val items: List<ProxyItem>,
     val source: String,
     val target: String,
-    val glossary: List<ProxyGlossaryEntry> = emptyList(),
 )
 
 @Serializable

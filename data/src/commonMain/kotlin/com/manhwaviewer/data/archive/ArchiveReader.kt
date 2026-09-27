@@ -19,11 +19,6 @@ expect class ArchiveReader() {
     fun getImageBytes(archivePath: String, entryName: String): ByteArray?
 
     /**
-     * 아카이브 내 총 이미지 페이지 수
-     */
-    fun getPageCount(archivePath: String): Int
-
-    /**
      * 리소스 해제
      */
     fun close()
