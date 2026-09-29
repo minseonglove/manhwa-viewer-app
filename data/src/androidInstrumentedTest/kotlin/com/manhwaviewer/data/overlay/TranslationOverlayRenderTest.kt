@@ -44,13 +44,20 @@ class TranslationOverlayRenderTest {
         return ProxyTranslationService(proxyUrl!!, deviceId = { "overlay-render-test" }, devSecret = args.getString("proxySecret"))
     }
 
+    /** 저작권 때문에 테스트 페이지는 저장소에 넣지 않는다. 직접 `assets/test/` 에 넣었을 때만 실행한다. */
+    private fun testPage(path: String): ByteArray {
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        val present = assets.list(path.substringBeforeLast('/'))?.contains(path.substringAfterLast('/')) == true
+        assumeTrue("$path 가 없어 건너뜀", present)
+        return assets.open(path).use { it.readBytes() }
+    }
+
     @Test
     fun renderTranslationOverlayAndSaveToFile() = runTest {
         val translationService = proxyTranslationService()
 
         // 1. 테스트 이미지 로드
-        val imageBytes = InstrumentationRegistry.getInstrumentation()
-            .context.assets.open("test/06.png").readBytes()
+        val imageBytes = testPage("test/06.png")
         Log.d(TAG, "Image loaded: ${imageBytes.size} bytes")
 
         // 2. OCR 실행 (실제 엔진)
@@ -148,8 +155,7 @@ class TranslationOverlayRenderTest {
             val fileName = assetPath.substringAfterLast("/").substringBeforeLast(".")
             Log.d(TAG, "--- Processing $assetPath ---")
 
-            val imageBytes = InstrumentationRegistry.getInstrumentation()
-                .context.assets.open(assetPath).readBytes()
+            val imageBytes = testPage(assetPath)
 
             val textBlocks = ocrRepo.detectAndRecognize(imageBytes)
             Log.d(TAG, "  OCR: ${textBlocks.size} blocks")
