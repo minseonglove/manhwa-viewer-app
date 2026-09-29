@@ -83,7 +83,7 @@ HAYAI_COREML_DIR=<models-...-merged> HAYAI_COREML_MODE=merged \
 
 ### Android 실행 대상
 
-- 대상은 `ANDROID_SERIAL`로 고른다: `ANDROID_SERIAL=<serial> ./run_device.sh`. 기기가 여러 대 연결돼 있으면 필수다.
+- 대상은 `ANDROID_SERIAL`로 고른다: `ANDROID_SERIAL=YOUR_SERIAL ./run_device.sh`. 기기가 여러 대 연결돼 있으면 필수다.
 - 실기기가 없으면 arm64 에뮬레이터로 돌릴 수 있다 (예: `emulator -avd Pixel_9a -no-window`). 결과 `meta.json`의 `device`/`avd`로 실기기 결과와 구분되며, 수치를 실기기 결과와 같다고 보지 않는다.
 - 테스트 APK가 모델을 포함해 약 220MB라 에뮬레이터 데이터 파티션에 여유 공간이 필요하다.
 - 데이터는 `run-as com.manhwaviewer.data.test`로 테스트 앱 내부 저장소(`files/ocr-eval`)에 넣고 꺼낸다. 공유 저장소에 `adb push`한 파일은 SELinux 라벨 때문에 테스트 앱이 읽지 못한다.
