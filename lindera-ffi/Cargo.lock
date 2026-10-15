@@ -810,7 +810,6 @@ dependencies = [
  "daachorse",
  "kanaria",
  "lindera-dictionary",
- "lindera-ipadic",
  "log",
  "once_cell",
  "percent-encoding",
@@ -868,21 +867,8 @@ dependencies = [
  "lindera-dictionary",
  "serde",
  "serde_json",
- "zstd",
-]
-
-[[package]]
-name = "lindera-ipadic"
-version = "3.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fde38985d0334343a24549aac12ea1e34ade45196beef212e9972dd414406fd"
-dependencies = [
- "anyhow",
- "byteorder",
- "csv",
- "lindera-dictionary",
- "serde_json",
  "tokio",
+ "zstd",
 ]
 
 [[package]]

@@ -1,8 +1,13 @@
+use std::env;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-/// Dictionary files that lindera-ipadic produces during its build.
+use lindera_dictionary::assets::{fetch, FetchParams};
+use lindera_dictionary::builder::DictionaryBuilder;
+use lindera_dictionary::dictionary::metadata::Metadata;
+
+/// Dictionary files that the IPADIC build produces.
 const DICT_FILES: &[&str] = &[
     "char_def.bin",
     "matrix.mtx",
@@ -14,54 +19,53 @@ const DICT_FILES: &[&str] = &[
     "metadata.json",
 ];
 
-/// Find the lindera-ipadic dictionary directory by scanning the target build tree.
+/// The dictionary is built here rather than read from lindera-ipadic's build output:
+/// Cargo does not run a dependency's build script before ours unless it declares `links`,
+/// so on a clean target lindera-ipadic's output may not exist yet when this script runs.
 ///
-/// When lindera-ipadic (with embed-ipadic) is built as a dependency, its build.rs
-/// downloads and compiles the IPADIC dictionary into:
-///   target/<profile>/build/lindera-ipadic-<hash>/out/lindera-ipadic/
-///
-/// Our build.rs runs AFTER lindera-ipadic's build.rs, so those files already exist.
-fn find_ipadic_dir() -> PathBuf {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let out_path = Path::new(&out_dir);
-
-    // OUT_DIR is like: target/<profile>/build/lindera-ffi-<hash>/out
-    // We need:         target/<profile>/build/lindera-ipadic-<hash>/out/lindera-ipadic
-    let build_dir = out_path
-        .parent() // lindera-ffi-<hash>
-        .and_then(|p| p.parent()) // build/
-        .expect("Cannot find build directory from OUT_DIR");
-
-    // Scan for lindera-ipadic output directories
-    let entries = fs::read_dir(build_dir).expect("Cannot read build directory");
-
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if name_str.starts_with("lindera-ipadic-") {
-            let dict_path = entry.path().join("out").join("lindera-ipadic");
-            if dict_path.join("dict.da").exists() {
-                return dict_path;
-            }
-        }
+/// Source, checksum and `ipadic-metadata.json` are lindera-ipadic 3.0.5's; update them together
+/// when upgrading lindera, since the runtime loader in `lindera-dictionary` must match the format.
+fn ipadic_params() -> FetchParams {
+    FetchParams {
+        file_name: "mecab-ipadic-2.7.0-20250920.tar.gz",
+        input_dir: "mecab-ipadic-2.7.0-20250920",
+        src_subdir: None,
+        output_dir: "lindera-ipadic",
+        dummy_input: "テスト,1288,1288,-1000,名詞,固有名詞,一般,*,*,*,*,*,*\n",
+        download_urls: &["https://Lindera.dev/mecab-ipadic-2.7.0-20250920.tar.gz"],
+        md5_hash: "a95c409f12f1023fce8ef91f991ef042",
     }
+}
 
-    panic!(
-        "Could not find lindera-ipadic dictionary in build directory: {}. \
-         Make sure lindera is compiled with the embed-ipadic feature.",
-        build_dir.display()
-    );
+fn build_ipadic(out_dir: &Path) -> PathBuf {
+    // With either variable set, `fetch` builds into that cache instead of OUT_DIR,
+    // and the compression step below reads OUT_DIR.
+    env::remove_var("LINDERA_DICTIONARIES_PATH");
+    env::remove_var("LINDERA_CACHE");
+
+    let metadata: Metadata = serde_json::from_str(include_str!("ipadic-metadata.json"))
+        .expect("Failed to parse ipadic-metadata.json");
+
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to start tokio runtime")
+        .block_on(fetch(ipadic_params(), DictionaryBuilder::new(metadata)))
+        .expect("Failed to download and build the IPADIC dictionary");
+
+    out_dir.join(ipadic_params().output_dir)
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=ipadic-metadata.json");
 
-    let ipadic_dir = find_ipadic_dir();
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let ipadic_dir = build_ipadic(&out_dir);
     let compressed_dir = out_dir.join("ipadic-zstd");
     fs::create_dir_all(&compressed_dir).expect("Failed to create compressed dir");
 
-    eprintln!("lindera-ffi build.rs: Found IPADIC at {}", ipadic_dir.display());
+    eprintln!("lindera-ffi build.rs: Built IPADIC at {}", ipadic_dir.display());
 
     // Compress each dictionary file with zstd level 19
     for &filename in DICT_FILES {
